@@ -19,17 +19,17 @@ const MyProfile = () => {
       if (directMatch && directMatch[1]) {
         return `https://drive.google.com/thumbnail?id=${directMatch[1]}&sz=w400`;
       }
-      
+
       const ucMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
       if (ucMatch && ucMatch[1]) {
         return `https://drive.google.com/thumbnail?id=${ucMatch[1]}&sz=w400`;
       }
-      
+
       const openMatch = url.match(/open\?id=([a-zA-Z0-9_-]+)/);
       if (openMatch && openMatch[1]) {
         return `https://drive.google.com/thumbnail?id=${openMatch[1]}&sz=w400`;
       }
-      
+
       if (url.includes("thumbnail?id=")) {
         return url;
       }
@@ -38,7 +38,7 @@ const MyProfile = () => {
       if (anyIdMatch && anyIdMatch[1]) {
         return `https://drive.google.com/thumbnail?id=${anyIdMatch[1]}&sz=w400`;
       }
-      
+
       const cacheBuster = Date.now();
       return url.includes("?") ? `${url}&cb=${cacheBuster}` : `${url}?cb=${cacheBuster}`;
     } catch (e) {
@@ -47,147 +47,147 @@ const MyProfile = () => {
     }
   };
 
-const fetchLeaveData = async () => {
-  try {
-    // Get employee ID from localStorage
-    const employeeId = localStorage.getItem("employeeId");
-    if (!employeeId) {
-      console.log("No employee ID found for fetching leave data");
-      return;
-    }
-
-    // Fetch data from the Leave Management sheet
-    const response = await fetch(
-      'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Leave Management&action=fetch'
-    );
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to fetch data from Leave Management sheet');
-    }
-    
-    const rawData = result.data || result;
-    
-    if (!Array.isArray(rawData)) {
-      throw new Error('Expected array data not received');
-    }
-
-    // Use row 1 as headers (index 0 in the array)
-    if (rawData.length < 1) {
-      console.error('No data found in Leave Management sheet');
-      return;
-    }
-
-    const headers = rawData[0].map(h => h?.toString().trim());
-    const dataRows = rawData.length > 1 ? rawData.slice(1) : [];
-    
-    // Get column indices - using more flexible matching
-    const getIndex = (possibleNames) => {
-      for (const name of possibleNames) {
-        const index = headers.findIndex(h => 
-          h && h.toString().trim().toLowerCase().includes(name.toLowerCase())
-        );
-        if (index !== -1) return index;
+  const fetchLeaveData = async () => {
+    try {
+      // Get employee ID from localStorage
+      const employeeId = localStorage.getItem("employeeId");
+      if (!employeeId) {
+        console.log("No employee ID found for fetching leave data");
+        return;
       }
-      return -1;
-    };
 
-    const employeeNameIndex = getIndex(['employee name', 'name', 'employee']);
-    const fromDateIndex = getIndex(['Leave Date Start', 'from', 'start date']);
-    const toDateIndex = getIndex(['Leaave Date End', 'to', 'end date']);
-    const remarksIndex = getIndex(['remarks', 'comment', 'reason']);
-    const statusIndex = getIndex(['status', 'approval status']);
-    const leaveTypeIndex = getIndex(['leave type', 'type', 'leave']);
+      // Fetch data from the Leave Management sheet
+      const response = await fetch(
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Leave Management&action=fetch`
+      );
 
-    // Log for debugging
-    console.log('Leave sheet headers:', headers);
-    console.log('Column indices:', {
-      employeeNameIndex,
-      fromDateIndex,
-      toDateIndex,
-      remarksIndex,
-      statusIndex,
-      leaveTypeIndex
-    });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-    // Process data and filter for current employee
-    const processedData = dataRows
-      .filter(row => {
-        if (employeeNameIndex === -1) return false;
-        
-        const rowEmployeeName = row[employeeNameIndex]?.toString().trim();
-        return rowEmployeeName && 
-               rowEmployeeName.toLowerCase() === profileData.candidateName?.toLowerCase();
-      })
-      .map(row => ({
-        employeeName: employeeNameIndex !== -1 ? row[employeeNameIndex] || '' : 'N/A',
-        fromDate: fromDateIndex !== -1 ? row[fromDateIndex] || '' : 'N/A',
-        toDate: toDateIndex !== -1 ? row[toDateIndex] || '' : 'N/A',
-        remarks: remarksIndex !== -1 ? row[remarksIndex] || '' : 'N/A',
-        status: statusIndex !== -1 ? row[statusIndex] || '' : 'Pending',
-        leaveType: leaveTypeIndex !== -1 ? row[leaveTypeIndex] || '' : 'N/A'
-      }));
+      const result = await response.json();
 
-    console.log('Processed leave data:', processedData);
-    setLeaveData(processedData);
-  } catch (error) {
-    console.error('Error fetching leave data:', error);
-  }
-};
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch data from Leave Management sheet');
+      }
+
+      const rawData = result.data || result;
+
+      if (!Array.isArray(rawData)) {
+        throw new Error('Expected array data not received');
+      }
+
+      // Use row 1 as headers (index 0 in the array)
+      if (rawData.length < 1) {
+        console.error('No data found in Leave Management sheet');
+        return;
+      }
+
+      const headers = rawData[0].map(h => h?.toString().trim());
+      const dataRows = rawData.length > 1 ? rawData.slice(1) : [];
+
+      // Get column indices - using more flexible matching
+      const getIndex = (possibleNames) => {
+        for (const name of possibleNames) {
+          const index = headers.findIndex(h =>
+            h && h.toString().trim().toLowerCase().includes(name.toLowerCase())
+          );
+          if (index !== -1) return index;
+        }
+        return -1;
+      };
+
+      const employeeNameIndex = getIndex(['employee name', 'name', 'employee']);
+      const fromDateIndex = getIndex(['Leave Date Start', 'from', 'start date']);
+      const toDateIndex = getIndex(['Leaave Date End', 'to', 'end date']);
+      const remarksIndex = getIndex(['remarks', 'comment', 'reason']);
+      const statusIndex = getIndex(['status', 'approval status']);
+      const leaveTypeIndex = getIndex(['leave type', 'type', 'leave']);
+
+      // Log for debugging
+      console.log('Leave sheet headers:', headers);
+      console.log('Column indices:', {
+        employeeNameIndex,
+        fromDateIndex,
+        toDateIndex,
+        remarksIndex,
+        statusIndex,
+        leaveTypeIndex
+      });
+
+      // Process data and filter for current employee
+      const processedData = dataRows
+        .filter(row => {
+          if (employeeNameIndex === -1) return false;
+
+          const rowEmployeeName = row[employeeNameIndex]?.toString().trim();
+          return rowEmployeeName &&
+            rowEmployeeName.toLowerCase() === profileData.candidateName?.toLowerCase();
+        })
+        .map(row => ({
+          employeeName: employeeNameIndex !== -1 ? row[employeeNameIndex] || '' : 'N/A',
+          fromDate: fromDateIndex !== -1 ? row[fromDateIndex] || '' : 'N/A',
+          toDate: toDateIndex !== -1 ? row[toDateIndex] || '' : 'N/A',
+          remarks: remarksIndex !== -1 ? row[remarksIndex] || '' : 'N/A',
+          status: statusIndex !== -1 ? row[statusIndex] || '' : 'Pending',
+          leaveType: leaveTypeIndex !== -1 ? row[leaveTypeIndex] || '' : 'N/A'
+        }));
+
+      console.log('Processed leave data:', processedData);
+      setLeaveData(processedData);
+    } catch (error) {
+      console.error('Error fetching leave data:', error);
+    }
+  };
 
 
-const fetchGatePassData = async () => {
-  try {
-    const response = await fetch(
-      'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Gate Pass&action=fetch'
-    );
+  const fetchGatePassData = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Gate Pass&action=fetch`
+      );
 
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-    const result = await response.json();
-    if (!result.success) throw new Error(result.error || 'Failed to fetch Gate Pass sheet');
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error || 'Failed to fetch Gate Pass sheet');
 
-    const rawData = result.data || result;
-    if (!Array.isArray(rawData)) throw new Error('Expected array data not received');
+      const rawData = result.data || result;
+      if (!Array.isArray(rawData)) throw new Error('Expected array data not received');
 
-    const headers = rawData[0].map(h => h?.toString().trim());
-    const dataRows = rawData.slice(1);
-    
-    const getIndex = (col) => headers.findIndex(h => h && h.toLowerCase().includes(col.toLowerCase()));
-    
-    const empIndex = getIndex('Employee Name');
-    const placeIndex = getIndex('Place and reason to visit');
-    const departureIndex = getIndex('Departure From Plant');
-    const arrivalIndex = getIndex('Arrival at Plant');
-    const statusIndex = getIndex('Status');
+      const headers = rawData[0].map(h => h?.toString().trim());
+      const dataRows = rawData.slice(1);
 
-    const processedData = dataRows
-    .filter(row => row[empIndex]?.toString().trim().toLowerCase() === profileData.candidateName?.toLowerCase())
-      .map(row => ({
-        employeeName: row[empIndex] || '',
-        place: row[placeIndex] || '',
-        departure: row[departureIndex] || '',
-        arrival: row[arrivalIndex] || '',
-        status: row[statusIndex] || ''
-      }));
-      
+      const getIndex = (col) => headers.findIndex(h => h && h.toLowerCase().includes(col.toLowerCase()));
+
+      const empIndex = getIndex('Employee Name');
+      const placeIndex = getIndex('Place and reason to visit');
+      const departureIndex = getIndex('Departure From Plant');
+      const arrivalIndex = getIndex('Arrival at Plant');
+      const statusIndex = getIndex('Status');
+
+      const processedData = dataRows
+        .filter(row => row[empIndex]?.toString().trim().toLowerCase() === profileData.candidateName?.toLowerCase())
+        .map(row => ({
+          employeeName: row[empIndex] || '',
+          place: row[placeIndex] || '',
+          departure: row[departureIndex] || '',
+          arrival: row[arrivalIndex] || '',
+          status: row[statusIndex] || ''
+        }));
+
       setGatePassData(processedData);
     } catch (error) {
       console.error('Error fetching gate pass data:', error);
-  }
-};
+    }
+  };
 
-useEffect(() => {
-  if (profileData && profileData.candidateName) {
-    fetchLeaveData();
-    fetchGatePassData(); 
-  }
-}, [profileData]);
+  useEffect(() => {
+    if (profileData && profileData.candidateName) {
+      fetchLeaveData();
+      fetchGatePassData();
+    }
+  }, [profileData]);
 
 
   const fetchJoiningData = async () => {
@@ -201,21 +201,21 @@ useEffect(() => {
       const userName = currentUser.Name;
 
       const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=JOINING&action=fetch'
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING&action=fetch`
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch data from JOINING sheet');
       }
-      
+
       const rawData = result.data || result;
-      
+
       if (!Array.isArray(rawData)) {
         throw new Error('Expected array data not received');
       }
@@ -223,14 +223,14 @@ useEffect(() => {
       // Find the header row by looking for the 'Joining ID' column
       let headerRowIndex = -1;
       let headers = [];
-      
+
       for (let i = 0; i < rawData.length; i++) {
         const row = rawData[i];
         if (row && Array.isArray(row)) {
-          const joiningIdIndex = row.findIndex(cell => 
+          const joiningIdIndex = row.findIndex(cell =>
             cell && cell.toString().trim().toLowerCase().includes('joining id')
           );
-          
+
           if (joiningIdIndex !== -1) {
             headerRowIndex = i;
             headers = row.map(h => h?.toString().trim());
@@ -238,15 +238,15 @@ useEffect(() => {
           }
         }
       }
-      
+
       if (headerRowIndex === -1) {
         throw new Error('Could not find header row with Joining ID column');
       }
 
       const dataRows = rawData.length > headerRowIndex + 1 ? rawData.slice(headerRowIndex + 1) : [];
-      
+
       const getIndex = (headerName) => {
-        const index = headers.findIndex(h => 
+        const index = headers.findIndex(h =>
           h && h.toString().trim().toLowerCase() === headerName.toLowerCase()
         );
         if (index === -1) {
@@ -272,44 +272,44 @@ useEffect(() => {
         mobileNo: row[getIndex('Mobile No.')] || '',
         familyMobileNo: row[getIndex('Family Mobile No')] || '',
         relationWithFamily: row[getIndex('Relationship With Family Person')] || '',
-        email: row[getIndex('Personal Email-Id')] || '', 
+        email: row[getIndex('Personal Email-Id')] || '',
         companyName: row[getIndex('Department')] || '',
         aadharNo: row[getIndex('Aadhar Card No')] || '',
       }));
 
       console.log(processedData);
-      
+
 
       // Filter data for the current user
-      const filteredData = processedData.filter(task => 
+      const filteredData = processedData.filter(task =>
         task.candidateName?.trim().toLowerCase() === userName.trim().toLowerCase()
       );
 
       if (filteredData.length > 0) {
         const profile = filteredData[0];
-        
+
         // Fetch profile image from ENQUIRY sheet
         try {
           const enquiryResponse = await fetch(
-            'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=ENQUIRY&action=fetch'
+            `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=ENQUIRY&action=fetch`
           );
-          
+
           if (enquiryResponse.ok) {
             const enquiryResult = await enquiryResponse.json();
             if (enquiryResult.success) {
               const enquiryData = enquiryResult.data || enquiryResult;
-              
+
               // Find the header row in ENQUIRY sheet
               let enquiryHeaderRowIndex = -1;
               let enquiryHeaders = [];
-              
+
               for (let i = 0; i < enquiryData.length; i++) {
                 const row = enquiryData[i];
                 if (row && Array.isArray(row)) {
-                  const candidatePhotoIndex = row.findIndex(cell => 
+                  const candidatePhotoIndex = row.findIndex(cell =>
                     cell && cell.toString().trim().toLowerCase().includes("candidate's photo")
                   );
-                  
+
                   if (candidatePhotoIndex !== -1) {
                     enquiryHeaderRowIndex = i;
                     enquiryHeaders = row.map(h => h?.toString().trim());
@@ -317,17 +317,17 @@ useEffect(() => {
                   }
                 }
               }
-              
+
               if (enquiryHeaderRowIndex !== -1) {
-                const photoIndex = enquiryHeaders.findIndex(h => 
+                const photoIndex = enquiryHeaders.findIndex(h =>
                   h && h.toLowerCase().includes("candidate's photo")
                 );
-                
+
                 // Find the row with matching employee ID
-                const employeeIdIndex = enquiryHeaders.findIndex(h => 
+                const employeeIdIndex = enquiryHeaders.findIndex(h =>
                   h && h.toLowerCase().includes('joining id')
                 );
-                
+
                 if (employeeIdIndex !== -1 && photoIndex !== -1) {
                   for (let i = enquiryHeaderRowIndex + 1; i < enquiryData.length; i++) {
                     const row = enquiryData[i];
@@ -344,14 +344,14 @@ useEffect(() => {
           console.error('Error fetching profile image from ENQUIRY sheet:', error);
           // Continue without the profile image if there's an error
         }
-        
+
         setProfileData(profile);
         setFormData(profile);
         localStorage.setItem("employeeId", profile.joiningNo);
       } else {
         toast.error('No profile data found for current user');
       }
-      
+
     } catch (error) {
       console.error('Error fetching joining data:', error);
       toast.error(`Failed to load profile data: ${error.message}`);
@@ -375,12 +375,12 @@ useEffect(() => {
   const handleSave = async () => {
     try {
       setLoading(true);
-      
+
       // 1. Fetch current data from JOINING sheet
       const fullDataResponse = await fetch(
-        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=JOINING&action=fetch'
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING&action=fetch`
       );
-      
+
       if (!fullDataResponse.ok) {
         throw new Error(`HTTP error! status: ${fullDataResponse.status}`);
       }
@@ -391,14 +391,14 @@ useEffect(() => {
       // 2. Find header row by looking for the 'Joining ID' column
       let headerRowIndex = -1;
       let headers = [];
-      
+
       for (let i = 0; i < allData.length; i++) {
         const row = allData[i];
         if (row && Array.isArray(row)) {
-          const joiningIdIndex = row.findIndex(cell => 
+          const joiningIdIndex = row.findIndex(cell =>
             cell && cell.toString().trim().toLowerCase().includes('joining id')
           );
-          
+
           if (joiningIdIndex !== -1) {
             headerRowIndex = i;
             headers = row.map(h => h?.toString().trim());
@@ -406,16 +406,16 @@ useEffect(() => {
           }
         }
       }
-      
+
       if (headerRowIndex === -1) {
         throw new Error("Could not find header row with 'Joining ID' column");
       }
 
       // 3. Find Employee ID column index
-      const employeeIdIndex = headers.findIndex(h => 
+      const employeeIdIndex = headers.findIndex(h =>
         h && h.toLowerCase().includes('joining id')
       );
-      
+
       if (employeeIdIndex === -1) {
         throw new Error("Could not find 'Joining ID' column");
       }
@@ -425,7 +425,7 @@ useEffect(() => {
         idx > headerRowIndex &&
         row[employeeIdIndex]?.toString().trim() === profileData.joiningNo?.toString().trim()
       );
-      
+
       if (rowIndex === -1) throw new Error(`Employee ${profileData.joiningNo} not found`);
 
       // 5. Get a copy of the existing row
@@ -466,7 +466,7 @@ useEffect(() => {
 
       // 8. Send update request
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+        import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
           method: "POST",
           headers: {
@@ -503,9 +503,9 @@ useEffect(() => {
 
   if (loading) {
     return <div className="page-content p-6"><div className="flex justify-center flex-col items-center">
-                        <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
-                        <span className="text-gray-600 text-sm">Loading profile data...</span>
-                      </div></div>;
+      <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
+      <span className="text-gray-600 text-sm">Loading profile data...</span>
+    </div></div>;
   }
 
   if (!profileData) {
@@ -578,9 +578,8 @@ useEffect(() => {
                 />
               ) : null}
               <div
-                className={`w-full h-full flex items-center justify-center ${
-                  profileData.candidatePhoto ? "hidden" : "flex"
-                }`}
+                className={`w-full h-full flex items-center justify-center ${profileData.candidatePhoto ? "hidden" : "flex"
+                  }`}
               >
                 <User size={48} className="text-indigo-400" />
               </div>
@@ -779,13 +778,12 @@ useEffect(() => {
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            leave.status.toLowerCase() === "approved"
+                          className={`px-2 py-1 text-xs rounded-full ${leave.status.toLowerCase() === "approved"
                               ? "bg-green-100 text-green-800"
                               : leave.status.toLowerCase() === "rejected"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
                         >
                           {leave.status}
                         </span>
@@ -843,13 +841,12 @@ useEffect(() => {
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`px-2 py-1 text-xs rounded-full ${
-                            gp.status.toLowerCase() === "approved"
+                          className={`px-2 py-1 text-xs rounded-full ${gp.status.toLowerCase() === "approved"
                               ? "bg-green-100 text-green-800"
                               : gp.status.toLowerCase() === "rejected"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
                         >
                           {gp.status}
                         </span>

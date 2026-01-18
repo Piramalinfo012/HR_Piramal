@@ -82,17 +82,26 @@ const CallingForJobAgencies = () => {
   const fetchIndentDataFromRow7 = async () => {
     try {
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=INDENT&action=fetch"
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
       );
 
       const result = await response.json();
 
       if (result.success && result.data && result.data.length >= 7) {
-        // Get data starting from row 7 (array index 6) to end
-        const dataFromRow7 = result.data.slice(6);
+        // Find headers dynamically
+        let headerRowIndex = 5; // Default fallback
+        for (let i = 0; i < Math.min(result.data.length, 20); i++) {
+          const row = result.data[i];
+          if (row.includes("Indent Number") || row.includes("Post")) {
+            headerRowIndex = i;
+            break;
+          }
+        }
 
-        // Find headers (assuming they're in row 6 - array index 5)
-        const headers = result.data[5].map((h) => h.trim());
+        const headers = result.data[headerRowIndex].map((h) => h?.toString().trim());
+
+        // Get data starting from row after headers
+        const dataFromRow7 = result.data.slice(headerRowIndex + 1);
 
         // Find column indices for important fields
         const timestampIndex = headers.indexOf("Timestamp");
@@ -109,6 +118,7 @@ const CallingForJobAgencies = () => {
         const salaryIndex = headers.indexOf("Salary");
         const officeTimingIndex = headers.indexOf("Office Timing");
         const typeOfWeekIndex = headers.indexOf("Type Of Week");
+        const requiredQualificationsIndex = headers.indexOf("Required Qualifications");
         const residenceIndex = headers.indexOf("Residence");
         const closeByIndex = headers.indexOf("Close By");
         const indenterNameIndex = headers.indexOf("Indenter Name");
@@ -126,13 +136,11 @@ const CallingForJobAgencies = () => {
         const CunsultancyScreensortImage = headers.indexOf("Cunsultancy Screensort Image");
         const CunsultancyNumber = headers.indexOf("Cunsultancy Number");
         const JobCunsultancyName = headers.indexOf("Job Cunsultancy Name");
-
-        // Add other column indices as needed
-
         // Process the data
         const processedData = dataFromRow7.map((row) => ({
           timestamp: row[timestampIndex],
-          indentNumber: row[indentNumberIndex],
+          indentNumber: row[4], // Column E
+          indenterName: row[5], // Column F (Person Name)
           post: row[postIndex],
           gender: row[genderIndex],
           department: row[departmentIndex],
@@ -145,9 +153,9 @@ const CallingForJobAgencies = () => {
           salary: row[salaryIndex],
           officeTiming: row[officeTimingIndex],
           typeOfWeek: row[typeOfWeekIndex],
+          requiredQualifications: row[requiredQualificationsIndex],
           residence: row[residenceIndex],
           closeBy: row[closeByIndex],
-          indenterName: row[indenterNameIndex],
           cunsultancyNumber: row[cunsultancyNumberIndex],
           cunsultancyScreensortImage: row[cunsultancyScreensortImageIndex],
           planned4: row[plaaned4Index],
@@ -157,6 +165,8 @@ const CallingForJobAgencies = () => {
           socialSiteTypes: row[socialSiteTypesIndex],
 
 
+          columnX: row[23],
+          columnY: row[24],
           CunsultancyScreensortImage: row[CunsultancyScreensortImage],
           CunsultancyNumber: row[CunsultancyNumber],
           JobCunsultancyName: row[JobCunsultancyName],
@@ -165,13 +175,11 @@ const CallingForJobAgencies = () => {
         // console.log("processedData",processedData);
 
         const pendingTasks = processedData.filter((item) => {
-          // console.log("Itme", item.actual1, item.plaaned1);
-          return !item.actual4 && item.planned4;
+          return item.columnX && !item.columnY;
         });
 
         const historyTasks = processedData.filter((item) => {
-          // console.log("Itme", item.actual1, item.plaaned1);
-          return item.actual4 && item.planned4;
+          return item.columnX && item.columnY;
         });
 
         setHistoryIndentData(historyTasks);
@@ -217,7 +225,7 @@ const CallingForJobAgencies = () => {
         const base64Data = reader.result;
 
         const response = await fetch(
-          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+          import.meta.env.VITE_GOOGLE_SHEET_URL,
           {
             method: "POST",
             body: new URLSearchParams({
@@ -274,20 +282,29 @@ const CallingForJobAgencies = () => {
 
     try {
       setSubmitting(true);
-      const timestamp = getCurrentTimestamp();
+      const timestamp = new Date().toLocaleString(); // Use local string format as per other components
+
+      const PO_NUMBER = "PO-2";
+
+      // Row Data: [Indent Number, Step Code ("PO-2"), Timestamp, Status, "", "", Job Consultancy Name]
+      const dataResponseRow = [
+        formData.indentNumber,
+        PO_NUMBER,
+        timestamp,
+        formData.status,
+        "", // Col E empty
+        "", // Col F empty
+        formData.jobConsultancyName
+      ];
 
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+        import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
           method: "POST",
           body: new URLSearchParams({
-            sheetName: "INDENT",
-            action: "updateIndentPost", // NEW ACTION
-            indentNumber: formData.indentNumber,
-            actualDate: timestamp,
-            jobConsultancyName: formData.jobConsultancyName,
-            consultancyWhatsapp: formData.consultancyWhatsapp,
-            uploadedFileUrl: formData.uploadedFileUrl,
+            sheetName: "Data Resposnse",
+            action: "bulkInsert",
+            rowsData: JSON.stringify([dataResponseRow]),
           }),
         }
       );
@@ -295,13 +312,19 @@ const CallingForJobAgencies = () => {
       const result = await response.json();
       if (result.success) {
         toast.success("Posted successfully!");
-        setFormData({
-          /* reset */
-        });
+        setFormData((prev) => ({
+          ...prev,
+          jobConsultancyName: "",
+          consultancyWhatsapp: "",
+          uploadedFileUrl: "",
+        }));
         setShowModal(false);
         await fetchIndentDataFromRow7();
+      } else {
+        toast.error("Failed to submit: " + (result.error || "Unknown error"));
       }
     } catch (error) {
+      console.error("Submit error:", error);
       toast.error("Something went wrong!");
     } finally {
       setSubmitting(false);
@@ -342,7 +365,12 @@ const CallingForJobAgencies = () => {
       socialSite: "",
       jobConsultancyName: "",
       consultancyWhatsapp: "",
+      socialSiteTypes: [],
+      socialSite: "",
+      jobConsultancyName: "",
+      consultancyWhatsapp: "",
       uploadedFileUrl: "",
+      status: "Done",
     });
     setShowModal(false);
   };
@@ -355,22 +383,25 @@ const CallingForJobAgencies = () => {
       jobConsultancyName: "",
       consultancyWhatsapp: "",
       uploadedFileUrl: "",
+      status: "Done",
     });
     setShowModal(true);
   };
 
   const filteredPendingData = indentData.filter((item) => {
+    const term = searchTerm.toLowerCase();
     const matchesSearch =
-      item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
+      (item.post || "").toLowerCase().includes(term) ||
+      (item.indentNumber || "").toLowerCase().includes(term);
     return matchesSearch;
   });
 
   const filteredHistoryData = historyIndentData.filter((item) => {
+    const term = searchTerm.toLowerCase();
     const matchesSearch =
-      item.siteStatus?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.socialSiteTypes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
+      (item.siteStatus || "").toLowerCase().includes(term) ||
+      (item.socialSiteTypes || "").toLowerCase().includes(term) ||
+      (item.indentNumber || "").toLowerCase().includes(term);
     return matchesSearch;
   });
 
@@ -686,7 +717,25 @@ const CallingForJobAgencies = () => {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Enter indenter name"
                 />
-              </div> */}
+              </div>
+
+              </div> */
+              }
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="Done">Done</option>
+                  <option value="Not Done">Not Done</option>
+                </select>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -905,22 +954,20 @@ const CallingForJobAgencies = () => {
         <div className="border-b border-gray-300 border-opacity-20">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "pending"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
               onClick={() => setActiveTab("pending")}
             >
               <Clock size={16} className="inline mr-2" />
               Pending ({filteredPendingData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "history"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
               onClick={() => setActiveTab("history")}
             >
               <CheckCircle size={16} className="inline mr-2" />
@@ -980,9 +1027,7 @@ const CallingForJobAgencies = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Office Timing
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type Of Week
-                      </th>
+
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Residence
                       </th>
@@ -1051,44 +1096,45 @@ const CallingForJobAgencies = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.noOfPost}
                           </td>
+
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <div className="text-sm text-gray-900 break-words">
                               {item.completionDate
                                 ? (() => {
-                                    const date = new Date(item.completionDate);
-                                    if (!date || isNaN(date.getTime()))
-                                      return "Invalid date";
-                                    const day = date
-                                      .getDate()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const month = (date.getMonth() + 1)
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const year = date.getFullYear();
-                                    const hours = date
-                                      .getHours()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const minutes = date
-                                      .getMinutes()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const seconds = date
-                                      .getSeconds()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    return (
-                                      <div>
-                                        <div className="font-medium break-words">
-                                          {`${day}/${month}/${year}`}
-                                        </div>
-                                        <div className="text-xs text-gray-500 break-words">
-                                          {`${hours}:${minutes}:${seconds}`}
-                                        </div>
+                                  const date = new Date(item.completionDate);
+                                  if (!date || isNaN(date.getTime()))
+                                    return "Invalid date";
+                                  const day = date
+                                    .getDate()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const month = (date.getMonth() + 1)
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const year = date.getFullYear();
+                                  const hours = date
+                                    .getHours()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const minutes = date
+                                    .getMinutes()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const seconds = date
+                                    .getSeconds()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  return (
+                                    <div>
+                                      <div className="font-medium break-words">
+                                        {`${day}/${month}/${year}`}
                                       </div>
-                                    );
-                                  })()
+                                      <div className="text-xs text-gray-500 break-words">
+                                        {`${hours}:${minutes}:${seconds}`}
+                                      </div>
+                                    </div>
+                                  );
+                                })()
                                 : "—"}
                             </div>
                           </td>
@@ -1098,7 +1144,6 @@ const CallingForJobAgencies = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.socialSiteTypes}
                           </td>
-
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.jobConsultancyName}
                           </td>
@@ -1109,34 +1154,11 @@ const CallingForJobAgencies = () => {
                             {item.officeTiming}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.typeOfWeek}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.residence}
                           </td>
-                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.closeBy}
-                          </td> */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.indenterName}
                           </td>
-                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.cunsultancyNumber}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.cunsultancyScreensortImage ? (
-                              <a
-                                href={item.cunsultancyScreensortImage}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline"
-                              >
-                                View
-                              </a>
-                            ) : (
-                              "—"
-                            )}
-                          </td> */}
                         </tr>
                       ))
                     )}
@@ -1154,13 +1176,25 @@ const CallingForJobAgencies = () => {
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Action
+                        Indent No
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Indent Number
+                        Person Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Post
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Salary
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Office Timing
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Types of Weekly Off
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Residence
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Gender
@@ -1172,47 +1206,16 @@ const CallingForJobAgencies = () => {
                         Prefer
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Experience
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        No. of Post
+                        Number Of Post
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Completion Date
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Social Site
+                        Required Qualifications
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Social Site Types
-                      </th>
-
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Job Consultancy
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Salary
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Office Timing
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type Of Week
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Residence
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Indenter Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Job Cunsultancy Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Cunsultancy Number
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Cunsultancy Screensort Image
+                        Action
                       </th>
                     </tr>
                   </thead>
@@ -1271,40 +1274,40 @@ const CallingForJobAgencies = () => {
                             <div className="text-sm text-gray-900 break-words">
                               {item.completionDate
                                 ? (() => {
-                                    const date = new Date(item.completionDate);
-                                    if (!date || isNaN(date.getTime()))
-                                      return "Invalid date";
-                                    const day = date
-                                      .getDate()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const month = (date.getMonth() + 1)
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const year = date.getFullYear();
-                                    const hours = date
-                                      .getHours()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const minutes = date
-                                      .getMinutes()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const seconds = date
-                                      .getSeconds()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    return (
-                                      <div>
-                                        <div className="font-medium break-words">
-                                          {`${day}/${month}/${year}`}
-                                        </div>
-                                        <div className="text-xs text-gray-500 break-words">
-                                          {`${hours}:${minutes}:${seconds}`}
-                                        </div>
+                                  const date = new Date(item.completionDate);
+                                  if (!date || isNaN(date.getTime()))
+                                    return "Invalid date";
+                                  const day = date
+                                    .getDate()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const month = (date.getMonth() + 1)
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const year = date.getFullYear();
+                                  const hours = date
+                                    .getHours()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const minutes = date
+                                    .getMinutes()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const seconds = date
+                                    .getSeconds()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  return (
+                                    <div>
+                                      <div className="font-medium break-words">
+                                        {`${day}/${month}/${year}`}
                                       </div>
-                                    );
-                                  })()
+                                      <div className="text-xs text-gray-500 break-words">
+                                        {`${hours}:${minutes}:${seconds}`}
+                                      </div>
+                                    </div>
+                                  );
+                                })()
                                 : "—"}
                             </div>
                           </td>

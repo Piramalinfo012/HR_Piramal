@@ -12,14 +12,14 @@ const MisReport = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=MIS&action=fetch');
-      
+      const response = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=MIS&action=fetch`);
+
       if (!response.ok) {
         throw new Error('Failed to fetch data');
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         // Process the data from the sheet
         const processedData = processSheetData(data.data);
@@ -37,16 +37,16 @@ const MisReport = () => {
 
   const processSheetData = (sheetData) => {
     if (!sheetData || sheetData.length < 2) return [];
-    
+
     const headers = sheetData[0];
     const rows = sheetData.slice(1);
-    
+
     // Map column letters to indices
     const columnMap = {};
     headers.forEach((header, index) => {
       columnMap[header.trim()] = index;
     });
-    
+
     return rows.map((row, index) => {
       // Get values from each column
       const dateStart = row[columnMap['Date Start']] || '';
@@ -59,16 +59,16 @@ const MisReport = () => {
       const totalWorkDone = parseInt(row[columnMap['Total Work Done']]) || 0;
       const weekPending = row[columnMap['Week Pending']] || '';
       const allPendingTillDate = row[columnMap['All Pending Till Date']] || '';
-      
+
       // Generate avatar based on name
-      const avatar = name && name.trim() !== '' ? 
-        (name.split(' ').length > 1 ? 
-          `${name.split(' ')[0][0]}${name.split(' ')[1][0]}`.toUpperCase() : 
-          name[0].toUpperCase()) : 
+      const avatar = name && name.trim() !== '' ?
+        (name.split(' ').length > 1 ?
+          `${name.split(' ')[0][0]}${name.split(' ')[1][0]}`.toUpperCase() :
+          name[0].toUpperCase()) :
         '👤';
 
-        
-      
+
+
       return {
         id: index + 1,
         name,
@@ -118,7 +118,7 @@ const MisReport = () => {
         <div className="text-center">
           <div className="text-red-500 text-xl mb-4">Error</div>
           <p className="text-gray-600">{error}</p>
-          <button 
+          <button
             onClick={fetchData}
             className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
@@ -134,7 +134,7 @@ const MisReport = () => {
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6 sticky top-0 bg-gray-50 z-10 py-2">
           <h1 className="text-2xl font-bold text-gray-900">MIS Report</h1>
-          <button 
+          <button
             onClick={fetchData}
             className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
           >
@@ -144,7 +144,7 @@ const MisReport = () => {
             Refresh
           </button>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
             <table className="min-w-full">

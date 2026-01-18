@@ -84,7 +84,7 @@ const Indent = () => {
   const fetchIndentDataFromRow7 = async () => {
     try {
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=FMS&action=fetch"
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
       );
 
       const result = await response.json();
@@ -140,7 +140,7 @@ const Indent = () => {
   const fetchLastIndentNumber = async () => {
     try {
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=FMS&action=fetch"
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
       );
 
       const result = await response.json();
@@ -308,7 +308,7 @@ const Indent = () => {
         const base64Data = reader.result;
 
         const response = await fetch(
-          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+          import.meta.env.VITE_GOOGLE_SHEET_URL,
           {
             method: "POST",
             body: new URLSearchParams({
@@ -398,7 +398,7 @@ const Indent = () => {
       console.table(rowsData);
 
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+        import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
           method: "POST",
           body: new URLSearchParams({

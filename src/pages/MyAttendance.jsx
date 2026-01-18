@@ -27,16 +27,16 @@ const MyAttendance = () => {
 
   const formatDOB = (dateString) => {
     if (!dateString) return '';
-    
+
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
       return dateString; // Return as-is if not a valid date
     }
-    
+
     const day = date.getDate();
     const month = date.getMonth();
     const year = date.getFullYear();
-    
+
     return `${day}/${month}/${year}`;
   };
 
@@ -47,7 +47,7 @@ const MyAttendance = () => {
 
     try {
       const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Report Daily&action=fetch'
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Report Daily&action=fetch`
       );
 
       if (!response.ok) {
@@ -116,14 +116,14 @@ const MyAttendance = () => {
     const username = getUsername();
     if (username && attendanceData.length > 0) {
       console.log('Filtering for username:', username);
-      
+
       // Filter data to only show records where the name in Column G matches the username
       const filteredData = attendanceData.filter(record => {
         // Check if the name in Column G matches the username
         const nameInColumnG = record['Name'] || record['name'] || record['G'] || '';
         return nameInColumnG.toLowerCase().includes(username.toLowerCase());
       });
-      
+
       setUserAttendanceData(filteredData);
       console.log('Filtered attendance data:', filteredData);
     }
@@ -137,7 +137,7 @@ const MyAttendance = () => {
   const filteredAttendance = userAttendanceData.filter(record => {
     const dateValue = record.Date || record.date || record['C'] || '';
     if (!dateValue) return false;
-    
+
     try {
       // Try to parse various date formats
       let recordDate;
@@ -152,7 +152,7 @@ const MyAttendance = () => {
       } else {
         return true; // Show records with unknown date formats
       }
-      
+
       return recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear;
     } catch (error) {
       console.error('Error parsing date:', dateValue, error);
@@ -161,10 +161,10 @@ const MyAttendance = () => {
   });
 
   // Calculate statistics
- const totalDays = userAttendanceData.filter(record => {
+  const totalDays = userAttendanceData.filter(record => {
     const dateValue = record.Date || record.date || record['C'] || '';
     if (!dateValue) return false;
-    
+
     try {
       // Try to parse various date formats
       let recordDate;
@@ -179,7 +179,7 @@ const MyAttendance = () => {
       } else {
         return false; // Skip records with unknown date formats
       }
-      
+
       return recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear;
     } catch (error) {
       console.error('Error parsing date:', dateValue, error);
@@ -187,10 +187,10 @@ const MyAttendance = () => {
     }
   }).length;
 
-    const presentDays = userAttendanceData.filter(record => {
+  const presentDays = userAttendanceData.filter(record => {
     const dateValue = record.Date || record.date || record['C'] || '';
     if (!dateValue) return false;
-    
+
     try {
       // Try to parse various date formats
       let recordDate;
@@ -203,7 +203,7 @@ const MyAttendance = () => {
       } else {
         return false;
       }
-      
+
       // Check if record is in selected month/year
       if (recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear) {
         // Get status from Column L (index 11)
@@ -216,11 +216,11 @@ const MyAttendance = () => {
       return false;
     }
   }).length;
-  
-    const absentDays = userAttendanceData.filter(record => {
+
+  const absentDays = userAttendanceData.filter(record => {
     const dateValue = record.Date || record.date || record['C'] || '';
     if (!dateValue) return false;
-    
+
     try {
       // Try to parse various date formats
       let recordDate;
@@ -233,7 +233,7 @@ const MyAttendance = () => {
       } else {
         return false;
       }
-      
+
       // Check if record is in selected month/year
       if (recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear) {
         // Get status from Column L (index 11)
@@ -246,17 +246,17 @@ const MyAttendance = () => {
       return false;
     }
   }).length;
-  
+
   // Calculate working hours based on time strings
   const totalWorkingHours = filteredAttendance.reduce((sum, record) => {
     const checkIn = record['Check In'] || record['check in'] || record['M'] || '';
     const checkOut = record['Check Out'] || record['check out'] || record['N'] || '';
-    
+
     if (checkIn && checkOut) {
       try {
         const inTime = parseTimeString(checkIn);
         const outTime = parseTimeString(checkOut);
-        
+
         if (inTime && outTime) {
           let hours = (outTime - inTime) / (1000 * 60 * 60);
           // Handle cases where out time might be next day (e.g., working past midnight)
@@ -269,17 +269,17 @@ const MyAttendance = () => {
     }
     return sum;
   }, 0);
-  
+
   // Calculate overtime (assuming working hours > 8 is overtime)
   const totalOvertime = filteredAttendance.reduce((sum, record) => {
     const checkIn = record['Check In'] || record['check in'] || record['M'] || '';
     const checkOut = record['Check Out'] || record['check out'] || record['N'] || '';
-    
+
     if (checkIn && checkOut) {
       try {
         const inTime = parseTimeString(checkIn);
         const outTime = parseTimeString(checkOut);
-        
+
         if (inTime && outTime) {
           let hours = (outTime - inTime) / (1000 * 60 * 60);
           if (hours < 0) hours += 24;
@@ -295,9 +295,9 @@ const MyAttendance = () => {
   // Helper function to parse time strings like "10:00:00 AM"
   const parseTimeString = (timeStr) => {
     if (!timeStr) return null;
-    
+
     let cleanTime = timeStr.toString().trim();
-    
+
     // Handle AM/PM format
     let isPM = false;
     if (cleanTime.toLowerCase().includes('pm')) {
@@ -306,19 +306,19 @@ const MyAttendance = () => {
     } else if (cleanTime.toLowerCase().includes('am')) {
       cleanTime = cleanTime.toLowerCase().replace('am', '').trim();
     }
-    
+
     // Split by colon
     const parts = cleanTime.split(':');
     if (parts.length < 2) return null;
-    
+
     let hours = parseInt(parts[0], 10);
     const minutes = parseInt(parts[1], 10);
     const seconds = parts.length > 2 ? parseInt(parts[2], 10) : 0;
-    
+
     // Adjust for PM
     if (isPM && hours < 12) hours += 12;
     if (!isPM && hours === 12) hours = 0; // 12 AM = 0 hours
-    
+
     // Create a date object with fixed date and the parsed time
     return new Date(2000, 0, 1, hours, minutes, seconds);
   };
@@ -334,11 +334,11 @@ const MyAttendance = () => {
   const getStatus = (record) => {
     const checkIn = record['Check In'] || record['check in'] || record['M'] || '';
     const status = record['Status'] || record['status'] || record['L'] || '';
-    
+
     if (status && status !== '' && status !== '-') {
       return status;
     }
-    
+
     if (checkIn && checkIn !== '' && checkIn !== '-') {
       return 'Present';
     }
@@ -468,56 +468,55 @@ const MyAttendance = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-  {filteredAttendance.map((record, index) => {
-    const dateValue = record['Date'] || '';
-    const checkIn = record['In Time'] || '';
-    const checkOut = record['Out Time'] || '';
-    const status = record['Status'] || (checkIn ? 'Present' : 'Absent');
-    const workingHoursValue = record['Working Hours'] || '';
-    const overtimeValue = record['Overtime Hours'] || '';
-    
-    let workingHours = 0;
-    let overtime = 0;
+                  {filteredAttendance.map((record, index) => {
+                    const dateValue = record['Date'] || '';
+                    const checkIn = record['In Time'] || '';
+                    const checkOut = record['Out Time'] || '';
+                    const status = record['Status'] || (checkIn ? 'Present' : 'Absent');
+                    const workingHoursValue = record['Working Hours'] || '';
+                    const overtimeValue = record['Overtime Hours'] || '';
 
-    if (workingHoursValue && !isNaN(parseFloat(workingHoursValue))) {
-      workingHours = parseFloat(workingHoursValue);
-    }
-    if (overtimeValue && !isNaN(parseFloat(overtimeValue))) {
-      overtime = parseFloat(overtimeValue);
-    } else {
-      overtime = Math.max(0, workingHours - 8);
-    }
+                    let workingHours = 0;
+                    let overtime = 0;
 
-    return (
-      <tr key={index} className="hover:bg-gray-50">
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {dateValue || '-'}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {checkIn || '-'}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {checkOut || '-'}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <span className={`px-2 py-1 text-xs rounded-full ${
-            status.toLowerCase() === 'present'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-red-100 text-red-800'
-          }`}>
-            {status}
-          </span>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {workingHours || 0} hrs
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {overtime || 0} hrs
-        </td>
-      </tr>
-    );
-  })}
-</tbody>
+                    if (workingHoursValue && !isNaN(parseFloat(workingHoursValue))) {
+                      workingHours = parseFloat(workingHoursValue);
+                    }
+                    if (overtimeValue && !isNaN(parseFloat(overtimeValue))) {
+                      overtime = parseFloat(overtimeValue);
+                    } else {
+                      overtime = Math.max(0, workingHours - 8);
+                    }
+
+                    return (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {dateValue || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {checkIn || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {checkOut || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs rounded-full ${status.toLowerCase() === 'present'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                            }`}>
+                            {status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {workingHours || 0} hrs
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {overtime || 0} hrs
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
 
               </table>
               {filteredAttendance.length === 0 && !loading && (

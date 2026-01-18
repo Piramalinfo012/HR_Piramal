@@ -410,11 +410,11 @@ const Sidebar = ({ onClose }) => {
       icon: Search,
       label: "Calling For Job Agencies",
     },
-    {
-      path: "/full_fill_position",
-      icon: Search,
-      label: "Full Fill Position",
-    },
+    // {
+    //   path: "/full_fill_position",
+    //   icon: Search,
+    //   label: "Full Fill Position",
+    // },
     // { path: "/call-tracker", icon: Phone, label: "Call Tracker" },
     { path: "/joining", icon: NotebookPen, label: "Joining" },
     {

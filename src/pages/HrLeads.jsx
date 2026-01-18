@@ -12,7 +12,7 @@ const HrLeads = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=HR Leads&action=fetch'
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=HR Leads&action=fetch`
       );
 
       if (!response.ok) {
@@ -196,15 +196,14 @@ const HrLeads = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            item.status === 'Connected'
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${item.status === 'Connected'
                               ? 'bg-green-100 text-green-800'
                               : item.status === 'Not Connected'
-                              ? 'bg-red-100 text-red-800'
-                              : item.status === 'Shortlisted'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
+                                ? 'bg-red-100 text-red-800'
+                                : item.status === 'Shortlisted'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-gray-100 text-gray-800'
+                            }`}
                         >
                           {item.status || 'N/A'}
                         </span>

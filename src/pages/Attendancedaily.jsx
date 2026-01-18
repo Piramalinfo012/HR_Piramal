@@ -17,7 +17,7 @@ const Attendancedaily = () => {
 
     try {
       const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Report Daily&action=fetch'
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Report Daily&action=fetch`
       );
 
       if (!response.ok) {
@@ -83,47 +83,47 @@ const Attendancedaily = () => {
   // Filter data based on search term and date range
   const filteredData = attendanceData.filter(item => {
     // Text search filter - now includes additional columns
-    const matchesSearch = 
+    const matchesSearch =
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.empIdCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.year.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.monthName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.day.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.companyName.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     // Date range filter
     let matchesDateRange = true;
     if (startDate || endDate) {
       const itemDate = new Date(item.date);
-      
+
       if (startDate) {
         const start = new Date(startDate);
         if (itemDate < start) matchesDateRange = false;
       }
-      
+
       if (endDate && matchesDateRange) {
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999); // Include the entire end date
         if (itemDate > end) matchesDateRange = false;
       }
     }
-    
+
     return matchesSearch && matchesDateRange;
   });
 
   // Download CSV function
   const downloadCSV = () => {
     if (filteredData.length === 0) return;
-    
+
     // Define CSV headers
     const headers = [
-      'Year', 'Month Name', 'Date', 'Day', 'Company Name', 'Emp ID Code', 
-      'Name', 'Designation', 'Holiday (Yes/No)', 'Working Day (Yes/No)', 
-      'N-Holiday (Holiday Name)', 'Status', 'In Time', 'Out Time', 
-      'Working Hours', 'Late Minutes', 'Early Out', 'Overtime Hours', 
+      'Year', 'Month Name', 'Date', 'Day', 'Company Name', 'Emp ID Code',
+      'Name', 'Designation', 'Holiday (Yes/No)', 'Working Day (Yes/No)',
+      'N-Holiday (Holiday Name)', 'Status', 'In Time', 'Out Time',
+      'Working Hours', 'Late Minutes', 'Early Out', 'Overtime Hours',
       'Punch Miss', 'Remarks'
     ];
-    
+
     // Convert data to CSV format
     const csvData = filteredData.map(item => [
       item.year, item.monthName, item.date, item.day, item.companyName,
@@ -131,13 +131,13 @@ const Attendancedaily = () => {
       item.nHoliday, item.status, item.inTime, item.outTime, item.workingHours,
       item.lateMinutes, item.earlyOut, item.overtimeHours, item.punchMiss, item.remarks
     ]);
-    
+
     // Create CSV content
     const csvContent = [
       headers.join(','),
       ...csvData.map(row => row.map(field => `"${field}"`).join(','))
     ].join('\n');
-    
+
     // Create download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -172,7 +172,7 @@ const Attendancedaily = () => {
               <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
             </div>
           </div>
-          
+
           {/* Date Range Filters */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -194,14 +194,14 @@ const Attendancedaily = () => {
               />
             </div>
           </div>
-          
+
           {/* Download Button */}
           <div className="flex items-end">
             <button
               onClick={downloadCSV}
               disabled={filteredData.length === 0}
-              className={`flex items-center px-4 py-2 rounded-lg ${filteredData.length === 0 
-                ? 'bg-gray-300 cursor-not-allowed' 
+              className={`flex items-center px-4 py-2 rounded-lg ${filteredData.length === 0
+                ? 'bg-gray-300 cursor-not-allowed'
                 : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
             >
               <Download size={18} className="mr-2" />

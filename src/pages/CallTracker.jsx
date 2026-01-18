@@ -29,10 +29,10 @@ const CallTracker = () => {
     try {
       const [enquiryResponse, followUpResponse] = await Promise.all([
         fetch(
-          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=ENQUIRY&action=fetch"
+          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=ENQUIRY&action=fetch`
         ),
         fetch(
-          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Follow - Up&action=fetch"
+          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Follow - Up&action=fetch`
         ),
       ]);
 
@@ -136,7 +136,7 @@ const CallTracker = () => {
 
     try {
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Follow - Up&action=fetch"
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Follow - Up&action=fetch`
       );
 
       if (!response.ok) {
@@ -220,8 +220,7 @@ const CallTracker = () => {
   };
 
   const postToSheet = async (rowData) => {
-    const URL =
-      "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec";
+    const URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 
     try {
 
@@ -263,8 +262,7 @@ const CallTracker = () => {
   };
 
   const updateEnquirySheet = async (enquiryNo) => {
-    const URL =
-      "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec";
+    const URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 
     try {
 
@@ -503,22 +501,20 @@ const CallTracker = () => {
         <div className="border-b border-gray-300 border-opacity-20">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "pending"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("pending")}
             >
               <Clock size={16} className="inline mr-2" />
               Pending ({filteredPendingData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "history"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("history")}
             >
               <CheckCircle size={16} className="inline mr-2" />
@@ -718,13 +714,12 @@ const CallTracker = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <span
-                            className={`px-2 py-1 text-xs rounded-full ${
-                              item.status === "Joining"
+                            className={`px-2 py-1 text-xs rounded-full ${item.status === "Joining"
                                 ? "bg-green-100 text-green-800"
                                 : item.status === "Reject"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-blue-100 text-blue-800"
-                            }`}
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-blue-100 text-blue-800"
+                              }`}
                           >
                             {item.status}
                           </span>
@@ -810,12 +805,12 @@ const CallTracker = () => {
                   {formData.status === "Negotiation"
                     ? "What's Customer Requirement * ()"
                     : formData.status === "On Hold"
-                    ? "Reason For Holding the Candidate *"
-                    : formData.status === "Joining"
-                    ? "When the candidate will join the company *"
-                    : formData.status === "Reject"
-                    ? "Reason for Rejecting the Candidate *"
-                    : "What Did The Candidate Says *"}
+                      ? "Reason For Holding the Candidate *"
+                      : formData.status === "Joining"
+                        ? "When the candidate will join the company *"
+                        : formData.status === "Reject"
+                          ? "Reason for Rejecting the Candidate *"
+                          : "What Did The Candidate Says *"}
                 </label>
                 <textarea
                   name="candidateSays"
@@ -835,8 +830,8 @@ const CallTracker = () => {
                       {formData.status === "Interview"
                         ? "Schedule Date (निर्धारित तिथि) *"
                         : formData.status === "On Hold"
-                        ? "ReCalling Date (वापसी की तिथि) *"
-                        : "Next Date (अगली तारीख) *"}
+                          ? "ReCalling Date (वापसी की तिथि) *"
+                          : "Next Date (अगली तारीख) *"}
                     </label>
                     <input
                       type="date"
@@ -859,9 +854,8 @@ const CallTracker = () => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 min-h-[42px] flex items-center justify-center ${
-                    submitting ? "opacity-90 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 min-h-[42px] flex items-center justify-center ${submitting ? "opacity-90 cursor-not-allowed" : ""
+                    }`}
                   disabled={submitting}
                 >
                   {submitting ? (

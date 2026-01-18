@@ -67,7 +67,7 @@ const FindEnquiry = () => {
     try {
       // Fetch INDENT data
       const indentResponse = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=INDENT&action=fetch"
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=INDENT&action=fetch`
       );
 
       if (!indentResponse.ok) {
@@ -115,7 +115,7 @@ const FindEnquiry = () => {
 
         // Fetch ENQUIRY data to check for completed recruitments
         const enquiryResponse = await fetch(
-          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=ENQUIRY&action=fetch"
+          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=ENQUIRY&action=fetch`
         );
 
         if (!enquiryResponse.ok) {
@@ -300,7 +300,7 @@ const FindEnquiry = () => {
       const base64Data = await fileToBase64(file);
 
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+        import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
           method: "POST",
           headers: {
@@ -493,7 +493,7 @@ const FindEnquiry = () => {
 
   //       // Fetch INDENT data
   //       const indentFetchResponse = await fetch(
-  //         "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=INDENT&action=fetch"
+  //          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=INDENT&action=fetch`
   //       );
 
   //       const indentData = await indentFetchResponse.json();
@@ -615,213 +615,213 @@ const FindEnquiry = () => {
 
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setSubmitting(true);
+    e.preventDefault();
+    setSubmitting(true);
 
-  try {
-    // Prepare all candidate data with file uploads
-    const candidatesData = [];
-    
-    for (let i = 0; i < candidates.length; i++) {
-      const candidate = candidates[i];
-      const candidateNo = `ENQ-${String(enquiryData.length + i + 1).padStart(2, '0')}`;
-      
-      let photoUrl = '';
-      let resumeUrl = '';
+    try {
+      // Prepare all candidate data with file uploads
+      const candidatesData = [];
 
-      // Upload photo if exists
-      if (candidate.candidatePhoto) {
-        setUploadingPhoto(true);
-        photoUrl = await uploadFileToGoogleDrive(candidate.candidatePhoto, 'photo');
-        setUploadingPhoto(false);
-        toast.success(`Photo uploaded for candidate ${i + 1}`);
+      for (let i = 0; i < candidates.length; i++) {
+        const candidate = candidates[i];
+        const candidateNo = `ENQ-${String(enquiryData.length + i + 1).padStart(2, '0')}`;
+
+        let photoUrl = '';
+        let resumeUrl = '';
+
+        // Upload photo if exists
+        if (candidate.candidatePhoto) {
+          setUploadingPhoto(true);
+          photoUrl = await uploadFileToGoogleDrive(candidate.candidatePhoto, 'photo');
+          setUploadingPhoto(false);
+          toast.success(`Photo uploaded for candidate ${i + 1}`);
+        }
+
+        // Upload resume if exists
+        if (candidate.candidateResume) {
+          setUploadingResume(true);
+          resumeUrl = await uploadFileToGoogleDrive(candidate.candidateResume, 'resume');
+          setUploadingResume(false);
+          toast.success(`Resume uploaded for candidate ${i + 1}`);
+        }
+
+        // Create timestamp in dd/mm/yyyy hh:mm:ss format
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+
+        const formattedTimestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+
+        const rowData = [
+          formattedTimestamp,                           // Column A: Timestamp
+          selectedItem.indentNo,                        // Column B: Indent Number
+          candidateNo,                                  // Column C: Candidate Enquiry Number
+          selectedItem.post,                            // Column D: Applying For the Post
+          candidate.candidateName,                      // Column E: Candidate Name
+          formatDOB(candidate.candidateDOB),           // Column F: DCB (DOB)
+          candidate.candidatePhone,                     // Column G: Candidate Phone Number
+          candidate.candidateEmail,                     // Column H: Candidate Email
+          candidate.previousCompany || '',              // Column I: Previous Company Name
+          candidate.jobExperience || '',                // Column J: Job Experience
+          candidate.department || '',                   // Column K: Department
+          candidate.previousPosition || '',             // Column L: Previous Position
+          '',                                           // Column M: Reason For Leaving
+          candidate.maritalStatus || '',                // Column N: Marital Status
+          '',                                           // Column O: Last Employer Mobile
+          photoUrl,                                     // Column P: Candidate Photo (URL)
+          '',                                           // Column Q: Reference By
+          candidate.presentAddress || '',               // Column R: Present Address
+          candidate.aadharNo || '',                     // Column S: Aadhar No
+          resumeUrl,                                    // Column T: Candidate Resume (URL)
+        ];
+
+        candidatesData.push(rowData);
       }
 
-      // Upload resume if exists
-      if (candidate.candidateResume) {
-        setUploadingResume(true);
-        resumeUrl = await uploadFileToGoogleDrive(candidate.candidateResume, 'resume');
-        setUploadingResume(false);
-        toast.success(`Resume uploaded for candidate ${i + 1}`);
-      }
-
-      // Create timestamp in dd/mm/yyyy hh:mm:ss format
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, '0');
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const year = now.getFullYear();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-
-      const formattedTimestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-
-      const rowData = [
-        formattedTimestamp,                           // Column A: Timestamp
-        selectedItem.indentNo,                        // Column B: Indent Number
-        candidateNo,                                  // Column C: Candidate Enquiry Number
-        selectedItem.post,                            // Column D: Applying For the Post
-        candidate.candidateName,                      // Column E: Candidate Name
-        formatDOB(candidate.candidateDOB),           // Column F: DCB (DOB)
-        candidate.candidatePhone,                     // Column G: Candidate Phone Number
-        candidate.candidateEmail,                     // Column H: Candidate Email
-        candidate.previousCompany || '',              // Column I: Previous Company Name
-        candidate.jobExperience || '',                // Column J: Job Experience
-        candidate.department || '',                   // Column K: Department
-        candidate.previousPosition || '',             // Column L: Previous Position
-        '',                                           // Column M: Reason For Leaving
-        candidate.maritalStatus || '',                // Column N: Marital Status
-        '',                                           // Column O: Last Employer Mobile
-        photoUrl,                                     // Column P: Candidate Photo (URL)
-        '',                                           // Column Q: Reference By
-        candidate.presentAddress || '',               // Column R: Present Address
-        candidate.aadharNo || '',                     // Column S: Aadhar No
-        resumeUrl,                                    // Column T: Candidate Resume (URL)
-      ];
-
-      candidatesData.push(rowData);
-    }
-
-    // Bulk submit all candidates
-    const enquiryResponse = await fetch(
-      'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          sheetName: 'ENQUIRY',
-          action: 'bulkInsert',
-          rowsData: JSON.stringify(candidatesData)
-        }),
-      }
-    );
-
-    const enquiryResult = await enquiryResponse.json();
-    if (!enquiryResult.success) {
-      throw new Error(enquiryResult.error || 'ENQUIRY bulk submission failed');
-    }
-
-    toast.success(`${candidates.length} candidate(s) submitted successfully!`);
-
-    // Only update INDENT sheet if status is Complete
-    if (commonStatus === 'Complete') {
-      
-      // Fetch INDENT data
-      const indentFetchResponse = await fetch(
-        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=INDENT&action=fetch'
+      // Bulk submit all candidates
+      const enquiryResponse = await fetch(
+        import.meta.env.VITE_GOOGLE_SHEET_URL,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            sheetName: 'ENQUIRY',
+            action: 'bulkInsert',
+            rowsData: JSON.stringify(candidatesData)
+          }),
+        }
       );
-      
-      const indentData = await indentFetchResponse.json();
 
-      if (!indentData.success) {
-        throw new Error('Failed to fetch INDENT data: ' + (indentData.error || 'Unknown error'));
+      const enquiryResult = await enquiryResponse.json();
+      if (!enquiryResult.success) {
+        throw new Error(enquiryResult.error || 'ENQUIRY bulk submission failed');
       }
 
-      // Find the row index
-      let rowIndex = -1;
-      for (let i = 1; i < indentData.data.length; i++) {
-        if (indentData.data[i][1] === selectedItem.indentNo) {
-          rowIndex = i + 1; // Spreadsheet rows start at 1
-          break;
-        }
-      }
+      toast.success(`${candidates.length} candidate(s) submitted successfully!`);
 
-      if (rowIndex === -1) {
-        throw new Error(`Could not find indentNo: ${selectedItem.indentNo} in INDENT sheet`);
-      }
+      // Only update INDENT sheet if status is Complete
+      if (commonStatus === 'Complete') {
 
-      // Get headers
-      const headers = indentData.data[5];
-
-      // Find column indices
-      const getColumnIndex = (columnName) => {
-        return headers.findIndex(h => h && h.toString().trim() === columnName);
-      };
-
-      const statusIndex = getColumnIndex('Status');
-      const actual2Index = getColumnIndex('Actual 2');
-
-      // Update Status column
-      if (statusIndex !== -1) {
-        const statusResponse = await fetch(
-          'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              sheetName: 'INDENT',
-              action: 'updateCell',
-              rowIndex: rowIndex.toString(),
-              columnIndex: (statusIndex + 1).toString(),
-              value: 'Complete'
-            }),
-          }
+        // Fetch INDENT data
+        const indentFetchResponse = await fetch(
+          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=INDENT&action=fetch`
         );
 
-        const statusResult = await statusResponse.json();
+        const indentData = await indentFetchResponse.json();
 
-        if (!statusResult.success) {
-          console.error('Status update failed:', statusResult.error);
+        if (!indentData.success) {
+          throw new Error('Failed to fetch INDENT data: ' + (indentData.error || 'Unknown error'));
         }
-      }
 
-      // Update Actual 2 column
-      if (actual2Index !== -1) {
-        const actual2Response = await fetch(
-          'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              sheetName: 'INDENT',
-              action: 'updateCell',
-              rowIndex: rowIndex.toString(),
-              columnIndex: (actual2Index + 1).toString(),
-              value: new Date().toISOString()
-            }),
+        // Find the row index
+        let rowIndex = -1;
+        for (let i = 1; i < indentData.data.length; i++) {
+          if (indentData.data[i][1] === selectedItem.indentNo) {
+            rowIndex = i + 1; // Spreadsheet rows start at 1
+            break;
           }
-        );
-
-        const actual2Result = await actual2Response.json();
-
-        if (!actual2Result.success) {
-          console.error('Actual 2 update failed:', actual2Result.error);
         }
+
+        if (rowIndex === -1) {
+          throw new Error(`Could not find indentNo: ${selectedItem.indentNo} in INDENT sheet`);
+        }
+
+        // Get headers
+        const headers = indentData.data[5];
+
+        // Find column indices
+        const getColumnIndex = (columnName) => {
+          return headers.findIndex(h => h && h.toString().trim() === columnName);
+        };
+
+        const statusIndex = getColumnIndex('Status');
+        const actual2Index = getColumnIndex('Actual 2');
+
+        // Update Status column
+        if (statusIndex !== -1) {
+          const statusResponse = await fetch(
+            import.meta.env.VITE_GOOGLE_SHEET_URL,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                sheetName: 'INDENT',
+                action: 'updateCell',
+                rowIndex: rowIndex.toString(),
+                columnIndex: (statusIndex + 1).toString(),
+                value: 'Complete'
+              }),
+            }
+          );
+
+          const statusResult = await statusResponse.json();
+
+          if (!statusResult.success) {
+            console.error('Status update failed:', statusResult.error);
+          }
+        }
+
+        // Update Actual 2 column
+        if (actual2Index !== -1) {
+          const actual2Response = await fetch(
+            import.meta.env.VITE_GOOGLE_SHEET_URL,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                sheetName: 'INDENT',
+                action: 'updateCell',
+                rowIndex: rowIndex.toString(),
+                columnIndex: (actual2Index + 1).toString(),
+                value: new Date().toISOString()
+              }),
+            }
+          );
+
+          const actual2Result = await actual2Response.json();
+
+          if (!actual2Result.success) {
+            console.error('Actual 2 update failed:', actual2Result.error);
+          }
+        }
+
+        toast.success('INDENT marked as Complete!');
       }
-      
-      toast.success('INDENT marked as Complete!');
+
+      setShowModal(false);
+      fetchAllData();
+
+    } catch (error) {
+      console.error('Submission error:', error);
+      toast.error(`Error: ${error.message}`);
+    } finally {
+      setSubmitting(false);
+      setUploadingPhoto(false);
+      setUploadingResume(false);
     }
-
-    setShowModal(false);
-    fetchAllData();
-
-  } catch (error) {
-    console.error('Submission error:', error);
-    toast.error(`Error: ${error.message}`);
-  } finally {
-    setSubmitting(false);
-    setUploadingPhoto(false);
-    setUploadingResume(false);
-  }
-};
+  };
 
 
 
   const handleInputChange = (index, e) => {
-  const { name, value } = e.target;
-  const updatedCandidates = [...candidates];
-  updatedCandidates[index] = {
-    ...updatedCandidates[index],
-    [name]: value
+    const { name, value } = e.target;
+    const updatedCandidates = [...candidates];
+    updatedCandidates[index] = {
+      ...updatedCandidates[index],
+      [name]: value
+    };
+    setCandidates(updatedCandidates);
   };
-  setCandidates(updatedCandidates);
-};
 
 
   // const handleFileChange = (e, field) => {
@@ -841,46 +841,46 @@ const FindEnquiry = () => {
   // };
 
   const handleFileChange = (index, e, field) => {
-  const file = e.target.files[0];
-  if (file) {
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File size must be less than 10MB');
-      return;
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB');
+        return;
+      }
+      const updatedCandidates = [...candidates];
+      updatedCandidates[index] = {
+        ...updatedCandidates[index],
+        [field]: file
+      };
+      setCandidates(updatedCandidates);
     }
-    const updatedCandidates = [...candidates];
-    updatedCandidates[index] = {
-      ...updatedCandidates[index],
-      [field]: file
-    };
-    setCandidates(updatedCandidates);
-  }
-};
+  };
 
 
-const handleAddCandidate = () => {
-  setCandidates([...candidates, {
-    candidateName: '',
-    candidateDOB: '',
-    candidatePhone: '',
-    candidateEmail: '',
-    previousCompany: '',
-    jobExperience: '',
-    department: selectedItem ? selectedItem.department : '',
-    previousPosition: '',
-    maritalStatus: '',
-    candidatePhoto: null,
-    candidateResume: null,
-    presentAddress: '',
-    aadharNo: ''
-  }]);
-};
+  const handleAddCandidate = () => {
+    setCandidates([...candidates, {
+      candidateName: '',
+      candidateDOB: '',
+      candidatePhone: '',
+      candidateEmail: '',
+      previousCompany: '',
+      jobExperience: '',
+      department: selectedItem ? selectedItem.department : '',
+      previousPosition: '',
+      maritalStatus: '',
+      candidatePhoto: null,
+      candidateResume: null,
+      presentAddress: '',
+      aadharNo: ''
+    }]);
+  };
 
-const handleRemoveCandidate = (index) => {
-  if (candidates.length > 1) {
-    const updatedCandidates = candidates.filter((_, i) => i !== index);
-    setCandidates(updatedCandidates);
-  }
-};
+  const handleRemoveCandidate = (index) => {
+    if (candidates.length > 1) {
+      const updatedCandidates = candidates.filter((_, i) => i !== index);
+      setCandidates(updatedCandidates);
+    }
+  };
 
 
   const filteredPendingData = indentData.filter((item) => {
@@ -936,22 +936,20 @@ const handleRemoveCandidate = (index) => {
         <div className="border-b border-gray-300 border-opacity-20">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "pending"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("pending")}
             >
               <Clock size={16} className="inline mr-2" />
               Pending ({filteredPendingData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "history"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("history")}
             >
               <CheckCircle size={16} className="inline mr-2" />
@@ -1045,8 +1043,8 @@ const handleRemoveCandidate = (index) => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {item.competitionDate
                             ? new Date(
-                                item.competitionDate
-                              ).toLocaleDateString()
+                              item.competitionDate
+                            ).toLocaleDateString()
                             : "-"}
                         </td>
                       </tr>
@@ -1515,355 +1513,355 @@ const handleRemoveCandidate = (index) => {
 
 
       {showModal && selectedItem && (
-  <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-      <form onSubmit={handleSubmit} className="p-6 space-y-4">
-        <button
-          type="button"
-          onClick={() => setShowModal(false)}
-          className="text-gray-500 hover:text-gray-700 flex right-4"
-        >
-          <X size={20} />
-        </button>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">
-              Indent No. (इंडेंट नंबर)
-            </label>
-            <input
-              type="text"
-              value={selectedItem.indentNo}
-              disabled
-              className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-white bg-opacity-5 text-gray-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">
-              Applying For Post (पद के लिए आवेदन)
-            </label>
-            <input
-              type="text"
-              value={selectedItem.post}
-              onChange={(e) => {
-                setSelectedItem((prev) => ({
-                  ...prev,
-                  post: e.target.value,
-                }));
-              }}
-              className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
-            />
-          </div>
-        </div>
+        <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="text-gray-500 hover:text-gray-700 flex right-4"
+              >
+                <X size={20} />
+              </button>
 
-        {/* Multiple Candidates Section */}
-        {candidates.map((candidate, index) => (
-          <div key={index} className="border border-gray-300 rounded-lg p-4 mb-4 relative">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-lg font-medium text-gray-700">Candidate {index + 1}</h3>
-              {candidates.length > 1 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Indent No. (इंडेंट नंबर)
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedItem.indentNo}
+                    disabled
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-white bg-opacity-5 text-gray-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Applying For Post (पद के लिए आवेदन)
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedItem.post}
+                    onChange={(e) => {
+                      setSelectedItem((prev) => ({
+                        ...prev,
+                        post: e.target.value,
+                      }));
+                    }}
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
+                  />
+                </div>
+              </div>
+
+              {/* Multiple Candidates Section */}
+              {candidates.map((candidate, index) => (
+                <div key={index} className="border border-gray-300 rounded-lg p-4 mb-4 relative">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-lg font-medium text-gray-700">Candidate {index + 1}</h3>
+                    {candidates.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCandidate(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X size={20} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate Enquiry No. (उम्मीदवार इन्क्वायरी संख्या)
+                      </label>
+                      <input
+                        type="text"
+                        value={`ENQ-${String(enquiryData.length + index + 1).padStart(2, '0')}`}
+                        disabled
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-white bg-opacity-5 text-gray-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Department (विभाग)
+                      </label>
+                      <input
+                        type="text"
+                        name="department"
+                        value={candidate.department}
+                        onChange={(e) => handleInputChange(index, e)}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate Name (उम्मीदवार का नाम) *
+                      </label>
+                      <input
+                        type="text"
+                        name="candidateName"
+                        value={candidate.candidateName}
+                        onChange={(e) => handleInputChange(index, e)}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate DOB (उम्मीदवार की जन्मतिथि)
+                      </label>
+                      <input
+                        type="date"
+                        name="candidateDOB"
+                        value={candidate.candidateDOB}
+                        onChange={(e) => handleInputChange(index, e)}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate Phone (उम्मीदवार का फ़ोन) *
+                      </label>
+                      <input
+                        type="tel"
+                        name="candidatePhone"
+                        value={candidate.candidatePhone}
+                        onChange={(e) => handleInputChange(index, e)}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate Email (उम्मीदवार ईमेल)
+                      </label>
+                      <input
+                        type="email"
+                        name="candidateEmail"
+                        value={candidate.candidateEmail}
+                        onChange={(e) => handleInputChange(index, e)}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Previous Company (पिछली कंपनी)
+                      </label>
+                      <input
+                        type="text"
+                        name="previousCompany"
+                        value={candidate.previousCompany}
+                        onChange={(e) => handleInputChange(index, e)}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Job Experience (काम का अनुभव)
+                      </label>
+                      <input
+                        type="text"
+                        name="jobExperience"
+                        value={candidate.jobExperience}
+                        onChange={(e) => handleInputChange(index, e)}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Previous Position (पिछला पद)
+                      </label>
+                      <input
+                        type="text"
+                        name="previousPosition"
+                        value={candidate.previousPosition}
+                        onChange={(e) => handleInputChange(index, e)}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Marital Status (वैवाहिक स्थिति)
+                      </label>
+                      <select
+                        name="maritalStatus"
+                        value={candidate.maritalStatus}
+                        onChange={(e) => handleInputChange(index, e)}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
+                      >
+                        <option value="">Select Status</option>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Divorced">Divorced</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Aadhar No. (आधार नं)
+                      </label>
+                      <input
+                        type="text"
+                        name="aadharNo"
+                        value={candidate.aadharNo}
+                        onChange={(e) => handleInputChange(index, e)}
+                        className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                      Current Address (वर्त्तमान पता)
+                    </label>
+                    <textarea
+                      name="presentAddress"
+                      value={candidate.presentAddress}
+                      onChange={(e) => handleInputChange(index, e)}
+                      rows={3}
+                      className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate Photo (उम्मीदवार फोटो)
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="file"
+                          accept="image/*,.pdf,.doc,.docx"
+                          onChange={(e) => handleFileChange(index, e, "candidatePhoto")}
+                          className="hidden"
+                          id={`photo-upload-${index}`}
+                        />
+                        <label
+                          htmlFor={`photo-upload-${index}`}
+                          className="flex items-center px-4 py-2 border border-gray-300 border-opacity-30 rounded-md cursor-pointer hover:bg-white hover:bg-opacity-10 text-gray-500"
+                        >
+                          <Upload size={16} className="mr-2" />
+                          Upload File
+                        </label>
+                        {candidate.candidatePhoto && (
+                          <span className="text-sm text-gray-500 opacity-80">
+                            {candidate.candidatePhoto.name}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Max 10MB. Supports: JPG, JPEG, PNG, PDF, DOC, DOCX
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Candidate Resume (उम्मीदवार का बायोडाटा)
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          onChange={(e) => handleFileChange(index, e, "candidateResume")}
+                          className="hidden"
+                          id={`resume-upload-${index}`}
+                        />
+                        <label
+                          htmlFor={`resume-upload-${index}`}
+                          className="flex items-center px-4 py-2 border border-gray-300 border-opacity-30 rounded-md cursor-pointer hover:bg-white hover:bg-opacity-10 text-gray-500"
+                        >
+                          <Upload size={16} className="mr-2" />
+                          Upload File
+                        </label>
+                        {candidate.candidateResume && (
+                          <span className="text-sm text-gray-500 opacity-80">
+                            {candidate.candidateResume.name}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Max 10MB. Supports: PDF, DOC, DOCX, JPG, JPEG, PNG
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add Button */}
+              <button
+                type="button"
+                onClick={handleAddCandidate}
+                className="w-full py-3 border-2 border-dashed border-indigo-400 rounded-md text-indigo-600 hover:bg-indigo-50 font-medium"
+              >
+                + Add Another Candidate
+              </button>
+
+              {/* Common Status Field */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">
+                    Status (स्थिति) * <span className="text-xs">(Common for all candidates)</span>
+                  </label>
+                  <select
+                    name="status"
+                    value={commonStatus}
+                    onChange={(e) => setCommonStatus(e.target.value)}
+                    className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
+                    required
+                  >
+                    <option value="NeedMore">Need More</option>
+                    <option value="Complete">Complete</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex justify-end space-x-2 pt-4">
                 <button
                   type="button"
-                  onClick={() => handleRemoveCandidate(index)}
-                  className="text-red-500 hover:text-red-700"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 border border-gray-300 border-opacity-30 rounded-md text-gray-500 hover:bg-white hover:bg-opacity-10"
+                  disabled={submitting || uploadingPhoto || uploadingResume}
                 >
-                  <X size={20} />
+                  Cancel
                 </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Candidate Enquiry No. (उम्मीदवार इन्क्वायरी संख्या)
-                </label>
-                <input
-                  type="text"
-                  value={`ENQ-${String(enquiryData.length + index + 1).padStart(2, '0')}`}
-                  disabled
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 bg-white bg-opacity-5 text-gray-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Department (विभाग)
-                </label>
-                <input
-                  type="text"
-                  name="department"
-                  value={candidate.department}
-                  onChange={(e) => handleInputChange(index, e)}
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Candidate Name (उम्मीदवार का नाम) *
-                </label>
-                <input
-                  type="text"
-                  name="candidateName"
-                  value={candidate.candidateName}
-                  onChange={(e) => handleInputChange(index, e)}
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Candidate DOB (उम्मीदवार की जन्मतिथि)
-                </label>
-                <input
-                  type="date"
-                  name="candidateDOB"
-                  value={candidate.candidateDOB}
-                  onChange={(e) => handleInputChange(index, e)}
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Candidate Phone (उम्मीदवार का फ़ोन) *
-                </label>
-                <input
-                  type="tel"
-                  name="candidatePhone"
-                  value={candidate.candidatePhone}
-                  onChange={(e) => handleInputChange(index, e)}
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Candidate Email (उम्मीदवार ईमेल)
-                </label>
-                <input
-                  type="email"
-                  name="candidateEmail"
-                  value={candidate.candidateEmail}
-                  onChange={(e) => handleInputChange(index, e)}
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Previous Company (पिछली कंपनी)
-                </label>
-                <input
-                  type="text"
-                  name="previousCompany"
-                  value={candidate.previousCompany}
-                  onChange={(e) => handleInputChange(index, e)}
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Job Experience (काम का अनुभव)
-                </label>
-                <input
-                  type="text"
-                  name="jobExperience"
-                  value={candidate.jobExperience}
-                  onChange={(e) => handleInputChange(index, e)}
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Previous Position (पिछला पद)
-                </label>
-                <input
-                  type="text"
-                  name="previousPosition"
-                  value={candidate.previousPosition}
-                  onChange={(e) => handleInputChange(index, e)}
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Marital Status (वैवाहिक स्थिति)
-                </label>
-                <select
-                  name="maritalStatus"
-                  value={candidate.maritalStatus}
-                  onChange={(e) => handleInputChange(index, e)}
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-opacity-90 flex items-center justify-center"
+                  disabled={submitting || uploadingPhoto || uploadingResume}
                 >
-                  <option value="">Select Status</option>
-                  <option value="Single">Single</option>
-                  <option value="Married">Married</option>
-                  <option value="Divorced">Divorced</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Aadhar No. (आधार नं)
-                </label>
-                <input
-                  type="text"
-                  name="aadharNo"
-                  value={candidate.aadharNo}
-                  onChange={(e) => handleInputChange(index, e)}
-                  className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-                />
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-500 mb-1">
-                Current Address (वर्त्तमान पता)
-              </label>
-              <textarea
-                name="presentAddress"
-                value={candidate.presentAddress}
-                onChange={(e) => handleInputChange(index, e)}
-                rows={3}
-                className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500 placeholder-white placeholder-opacity-60"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Candidate Photo (उम्मीदवार फोटो)
-                </label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="file"
-                    accept="image/*,.pdf,.doc,.docx"
-                    onChange={(e) => handleFileChange(index, e, "candidatePhoto")}
-                    className="hidden"
-                    id={`photo-upload-${index}`}
-                  />
-                  <label
-                    htmlFor={`photo-upload-${index}`}
-                    className="flex items-center px-4 py-2 border border-gray-300 border-opacity-30 rounded-md cursor-pointer hover:bg-white hover:bg-opacity-10 text-gray-500"
-                  >
-                    <Upload size={16} className="mr-2" />
-                    Upload File
-                  </label>
-                  {candidate.candidatePhoto && (
-                    <span className="text-sm text-gray-500 opacity-80">
-                      {candidate.candidatePhoto.name}
-                    </span>
+                  {submitting ? (
+                    <>
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit All Candidates"
                   )}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Max 10MB. Supports: JPG, JPEG, PNG, PDF, DOC, DOCX
-                </p>
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">
-                  Candidate Resume (उम्मीदवार का बायोडाटा)
-                </label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(e) => handleFileChange(index, e, "candidateResume")}
-                    className="hidden"
-                    id={`resume-upload-${index}`}
-                  />
-                  <label
-                    htmlFor={`resume-upload-${index}`}
-                    className="flex items-center px-4 py-2 border border-gray-300 border-opacity-30 rounded-md cursor-pointer hover:bg-white hover:bg-opacity-10 text-gray-500"
-                  >
-                    <Upload size={16} className="mr-2" />
-                    Upload File
-                  </label>
-                  {candidate.candidateResume && (
-                    <span className="text-sm text-gray-500 opacity-80">
-                      {candidate.candidateResume.name}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Max 10MB. Supports: PDF, DOC, DOCX, JPG, JPEG, PNG
-                </p>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {/* Add Button */}
-        <button
-          type="button"
-          onClick={handleAddCandidate}
-          className="w-full py-3 border-2 border-dashed border-indigo-400 rounded-md text-indigo-600 hover:bg-indigo-50 font-medium"
-        >
-          + Add Another Candidate
-        </button>
-
-        {/* Common Status Field */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1">
-              Status (स्थिति) * <span className="text-xs">(Common for all candidates)</span>
-            </label>
-            <select
-              name="status"
-              value={commonStatus}
-              onChange={(e) => setCommonStatus(e.target.value)}
-              className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
-              required
-            >
-              <option value="NeedMore">Need More</option>
-              <option value="Complete">Complete</option>
-            </select>
+            </form>
           </div>
         </div>
-
-        {/* Submit Buttons */}
-        <div className="flex justify-end space-x-2 pt-4">
-          <button
-            type="button"
-            onClick={() => setShowModal(false)}
-            className="px-4 py-2 border border-gray-300 border-opacity-30 rounded-md text-gray-500 hover:bg-white hover:bg-opacity-10"
-            disabled={submitting || uploadingPhoto || uploadingResume}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-opacity-90 flex items-center justify-center"
-            disabled={submitting || uploadingPhoto || uploadingResume}
-          >
-            {submitting ? (
-              <>
-                <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Submitting...
-              </>
-            ) : (
-              "Submit All Candidates"
-            )}
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 };

@@ -6,13 +6,13 @@ const Inventory = () => {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  
+
   // Dropdown options from Master sheet
   const [inventoryCategories, setInventoryCategories] = useState([]);
   const [units, setUnits] = useState([]);
   const [conditions, setConditions] = useState([]);
   const [statuses, setStatuses] = useState([]);
-  
+
   const [formData, setFormData] = useState({
     itemName: '',
     inventoryCategory: '',
@@ -24,7 +24,7 @@ const Inventory = () => {
     remarks: ''
   });
 
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec';
+  const SCRIPT_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 
   useEffect(() => {
     fetchMasterData();
@@ -35,25 +35,25 @@ const Inventory = () => {
     try {
       const response = await fetch(`${SCRIPT_URL}?sheet=Master&action=fetch`);
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         const data = result.data;
         const headers = data[0];
-        
+
         // Find column indices
-        const inventoryCategoryIndex = headers.findIndex(h => 
+        const inventoryCategoryIndex = headers.findIndex(h =>
           h.toLowerCase().includes('inventory category')
         );
-        const unitIndex = headers.findIndex(h => 
+        const unitIndex = headers.findIndex(h =>
           h.toLowerCase() === 'unit'
         );
-        const conditionIndex = headers.findIndex(h => 
+        const conditionIndex = headers.findIndex(h =>
           h.toLowerCase() === 'condition'
         );
-        const statusIndex = headers.findIndex(h => 
+        const statusIndex = headers.findIndex(h =>
           h.toLowerCase() === 'status'
         );
-        
+
         // Extract unique values (skip header row and filter empty values)
         if (inventoryCategoryIndex !== -1) {
           const categories = [...new Set(
@@ -61,21 +61,21 @@ const Inventory = () => {
           )];
           setInventoryCategories(categories);
         }
-        
+
         if (unitIndex !== -1) {
           const unitsList = [...new Set(
             data.slice(1).map(row => row[unitIndex]).filter(val => val && val.trim())
           )];
           setUnits(unitsList);
         }
-        
+
         if (conditionIndex !== -1) {
           const conditionsList = [...new Set(
             data.slice(1).map(row => row[conditionIndex]).filter(val => val && val.trim())
           )];
           setConditions(conditionsList);
         }
-        
+
         if (statusIndex !== -1) {
           const statusesList = [...new Set(
             data.slice(1).map(row => row[statusIndex]).filter(val => val && val.trim())
@@ -94,7 +94,7 @@ const Inventory = () => {
     try {
       const response = await fetch(`${SCRIPT_URL}?sheet=Inventory&action=fetch`);
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         // Skip header row and format data
         const formattedItems = result.data.slice(1).map((row, index) => ({
@@ -110,7 +110,7 @@ const Inventory = () => {
           status: row[8] || '',
           remarks: row[9] || ''
         }));
-        
+
         setInventoryItems(formattedItems);
       }
     } catch (error) {
@@ -130,7 +130,7 @@ const Inventory = () => {
       }
       return max;
     }, 0);
-    
+
     return `INI-${String(maxId + 1).padStart(3, '0')}`;
   };
 
@@ -144,8 +144,8 @@ const Inventory = () => {
 
   const handleSubmit = async () => {
     // Validation
-    if (!formData.itemName || !formData.inventoryCategory || !formData.brand || 
-        !formData.availableQty || !formData.unit || !formData.condition || !formData.status) {
+    if (!formData.itemName || !formData.inventoryCategory || !formData.brand ||
+      !formData.availableQty || !formData.unit || !formData.condition || !formData.status) {
       alert('Please fill all required fields');
       return;
     }
@@ -156,14 +156,14 @@ const Inventory = () => {
     }
 
     setSubmitting(true);
-    
+
     try {
       // Generate timestamp in MM/DD/YYYY HH:MM:SS format
       const now = new Date();
       const timestamp = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-      
+
       const inventoryId = generateInventoryId();
-      
+
       // Prepare row data
       const rowData = [
         timestamp,
@@ -190,7 +190,7 @@ const Inventory = () => {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         alert('Inventory item added successfully!');
         setShowModal(false);
@@ -233,7 +233,7 @@ const Inventory = () => {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         alert('Inventory item deleted successfully!');
         fetchInventory();

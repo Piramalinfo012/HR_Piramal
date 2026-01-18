@@ -56,7 +56,7 @@ const AfterJoiningWork = () => {
 
     try {
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=JOINING&action=fetch"
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING&action=fetch`
       );
 
       if (!response.ok) {
@@ -159,7 +159,7 @@ const AfterJoiningWork = () => {
   const fetchAssetsData = async (employeeId) => {
     try {
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Assets&action=fetch"
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Assets&action=fetch`
       );
 
       if (!response.ok) {
@@ -214,7 +214,7 @@ const AfterJoiningWork = () => {
           try {
             const base64Data = reader.result;
             const response = await fetch(
-              "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+              import.meta.env.VITE_GOOGLE_SHEET_URL,
               {
                 method: "POST",
                 headers: {
@@ -284,7 +284,7 @@ const AfterJoiningWork = () => {
       const assetsData = await fetchAssetsData(item.joiningNo);
 
       const fullDataResponse = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=JOINING&action=fetch"
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING&action=fetch`
       );
 
       if (!fullDataResponse.ok) {
@@ -316,7 +316,7 @@ const AfterJoiningWork = () => {
         (row, idx) =>
           idx > headerRowIndex &&
           row[employeeIdIndex]?.toString().trim() ===
-            item.joiningNo?.toString().trim()
+          item.joiningNo?.toString().trim()
       );
 
       if (rowIndex === -1)
@@ -439,12 +439,12 @@ const AfterJoiningWork = () => {
       )
         .toString()
         .padStart(2, "0")}/${now.getFullYear()} ${now
-        .getHours()
-        .toString()
-        .padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now
-        .getSeconds()
-        .toString()
-        .padStart(2, "0")}`;
+          .getHours()
+          .toString()
+          .padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now
+            .getSeconds()
+            .toString()
+            .padStart(2, "0")}`;
 
       const phoneNumbers = [
         assetsData.phone1,
@@ -478,7 +478,7 @@ const AfterJoiningWork = () => {
       if (existingData) {
         // Update existing record - find the row and update it
         const fetchResponse = await fetch(
-          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Assets&action=fetch"
+          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Assets&action=fetch`
         );
         const result = await fetchResponse.json();
         const data = result.data || result;
@@ -491,7 +491,7 @@ const AfterJoiningWork = () => {
         if (rowIndex !== -1) {
           // Update existing row
           const response = await fetch(
-            "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+            import.meta.env.VITE_GOOGLE_SHEET_URL,
             {
               method: "POST",
               headers: {
@@ -511,7 +511,7 @@ const AfterJoiningWork = () => {
 
       // Insert new record
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+        import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
           method: "POST",
           headers: {
@@ -549,8 +549,7 @@ const AfterJoiningWork = () => {
         try {
           manualImageUrl = await uploadImageToDrive(
             formData.manualImage,
-            `${
-              selectedItem.joiningNo
+            `${selectedItem.joiningNo
             }_manual_${Date.now()}.${formData.manualImage.name
               .split(".")
               .pop()}`
@@ -580,7 +579,7 @@ const AfterJoiningWork = () => {
 
       // Continue with existing logic for updating JOINING sheet
       const fullDataResponse = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=JOINING&action=fetch"
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING&action=fetch`
       );
       if (!fullDataResponse.ok) {
         throw new Error(`HTTP error! status: ${fullDataResponse.status}`);
@@ -607,16 +606,15 @@ const AfterJoiningWork = () => {
         (row, idx) =>
           idx > headerRowIndex &&
           row[employeeIdIndex]?.toString().trim() ===
-            selectedItem.joiningNo?.toString().trim()
+          selectedItem.joiningNo?.toString().trim()
       );
       if (rowIndex === -1)
         throw new Error(`Employee ${selectedItem.joiningNo} not found`);
 
       const now = new Date();
       // Format for display: DD/MM/YYYY
-      const formattedTimestamp = `${now.getDate()}/${
-        now.getMonth() + 1
-      }/${now.getFullYear()}`;
+      const formattedTimestamp = `${now.getDate()}/${now.getMonth() + 1
+        }/${now.getFullYear()}`;
 
       // Format for Google Sheets as a proper date object (YYYY-MM-DD format)
       const formattedDateForSheets = `${now.getFullYear()}-${(
@@ -644,7 +642,7 @@ const AfterJoiningWork = () => {
       if (allFieldsYes) {
         updatePromises.push(
           fetch(
-            "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+            import.meta.env.VITE_GOOGLE_SHEET_URL,
             {
               method: "POST",
               headers: {
@@ -676,7 +674,7 @@ const AfterJoiningWork = () => {
       fields.forEach((field) => {
         updatePromises.push(
           fetch(
-            "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+            import.meta.env.VITE_GOOGLE_SHEET_URL,
             {
               method: "POST",
               headers: {
@@ -793,22 +791,20 @@ const AfterJoiningWork = () => {
         <div className="border-b border-gray-300  ">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "pending"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("pending")}
             >
               <Clock size={16} className="inline mr-2" />
               Pending ({filteredPendingData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "history"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("history")}
             >
               <CheckCircle size={16} className="inline mr-2" />
@@ -1199,54 +1195,54 @@ const AfterJoiningWork = () => {
                 </div>
 
                 {/* 5 Reference Numbers Section */}
-<div className="space-y-3">
-  <div className="flex items-center">
-    <input
-      type="checkbox"
-      id="referenceNumbers"
-      checked={formData.referenceNumbers}
-      onChange={() => handleCheckboxChange("referenceNumbers")}
-      className="h-4 w-4 text-gray-500 focus:ring-blue-500 border-gray-300 rounded bg-white"
-    />
-    <label htmlFor="referenceNumbers" className="ml-2 text-sm text-gray-500">
-      5 Reference Numbers (5 संदर्भ नंबर)
-    </label>
-  </div>
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="referenceNumbers"
+                      checked={formData.referenceNumbers}
+                      onChange={() => handleCheckboxChange("referenceNumbers")}
+                      className="h-4 w-4 text-gray-500 focus:ring-blue-500 border-gray-300 rounded bg-white"
+                    />
+                    <label htmlFor="referenceNumbers" className="ml-2 text-sm text-gray-500">
+                      5 Reference Numbers (5 संदर्भ नंबर)
+                    </label>
+                  </div>
 
-  {formData.referenceNumbers && (
-    <div className="mt-2 ml-6 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-md">
-      {[1, 2, 3, 4, 5].map((num) => (
-        <div key={`phone${num}`}>
-          <label className="block text-sm font-medium text-gray-500 mb-1">
-            Phone {num}
-          </label>
-          <input
-            type="text"
-            name={`phone${num}`}
-            value={formData[`phone${num}`]}
-            onChange={handleInputChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            placeholder={`Enter phone ${num}`}
-          />
-        </div>
-      ))}
-    </div>
-  )}
-</div>
+                  {formData.referenceNumbers && (
+                    <div className="mt-2 ml-6 grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-md">
+                      {[1, 2, 3, 4, 5].map((num) => (
+                        <div key={`phone${num}`}>
+                          <label className="block text-sm font-medium text-gray-500 mb-1">
+                            Phone {num}
+                          </label>
+                          <input
+                            type="text"
+                            name={`phone${num}`}
+                            value={formData[`phone${num}`]}
+                            onChange={handleInputChange}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                            placeholder={`Enter phone ${num}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-{/* WhatsApp Name Save Section */}
-<div className="flex items-center">
-  <input
-    type="checkbox"
-    id="whatsappNameSave"
-    checked={formData.whatsappNameSave}
-    onChange={() => handleCheckboxChange("whatsappNameSave")}
-    className="h-4 w-4 text-gray-500 focus:ring-blue-500 border-gray-300 rounded bg-white"
-  />
-  <label htmlFor="whatsappNameSave" className="ml-2 text-sm text-gray-500">
-    How to save WhatsApp name at the time of login (व्हाट्सएप नाम कैसे सेव करें)
-  </label>
-</div>
+                {/* WhatsApp Name Save Section */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="whatsappNameSave"
+                    checked={formData.whatsappNameSave}
+                    onChange={() => handleCheckboxChange("whatsappNameSave")}
+                    className="h-4 w-4 text-gray-500 focus:ring-blue-500 border-gray-300 rounded bg-white"
+                  />
+                  <label htmlFor="whatsappNameSave" className="ml-2 text-sm text-gray-500">
+                    How to save WhatsApp name at the time of login (व्हाट्सएप नाम कैसे सेव करें)
+                  </label>
+                </div>
                 {/* Company Directory Section */}
                 <div className="space-y-3">
                   <div className="flex items-center">
@@ -1303,8 +1299,8 @@ const AfterJoiningWork = () => {
                               {formData.manualImage
                                 ? "Change Manual"
                                 : formData.manualImageUrl
-                                ? "Replace Manual"
-                                : "Upload Manual"}
+                                  ? "Replace Manual"
+                                  : "Upload Manual"}
                             </label>
                           </div>
                           {/* Show existing manual image if available */}
@@ -1353,9 +1349,8 @@ const AfterJoiningWork = () => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 min-h-[42px] flex items-center justify-center ${
-                    submitting ? "opacity-90 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 min-h-[42px] flex items-center justify-center ${submitting ? "opacity-90 cursor-not-allowed" : ""
+                    }`}
                   disabled={submitting}
                 >
                   {submitting ? (

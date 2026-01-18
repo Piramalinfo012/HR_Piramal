@@ -58,7 +58,7 @@ const FullFillPostion = () => {
   const fetchIndentDataFromRow7 = async () => {
     try {
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=INDENT&action=fetch"
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=INDENT&action=fetch`
       );
 
       const result = await response.json();
@@ -190,7 +190,7 @@ const FullFillPostion = () => {
         const base64Data = reader.result;
 
         const response = await fetch(
-          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+          import.meta.env.VITE_GOOGLE_SHEET_URL,
           {
             method: "POST",
             body: new URLSearchParams({
@@ -251,7 +251,7 @@ const FullFillPostion = () => {
       const timestamp = getCurrentTimestamp();
 
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+        import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
           method: "POST",
           body: new URLSearchParams({
@@ -526,22 +526,20 @@ const FullFillPostion = () => {
         <div className="border-b border-gray-300 border-opacity-20">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "pending"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("pending")}
             >
               <Clock size={16} className="inline mr-2" />
               Pending ({filteredPendingData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "history"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("history")}
             >
               <CheckCircle size={16} className="inline mr-2" />
@@ -676,40 +674,40 @@ const FullFillPostion = () => {
                             <div className="text-sm text-gray-900 break-words">
                               {item.completionDate
                                 ? (() => {
-                                    const date = new Date(item.completionDate);
-                                    if (!date || isNaN(date.getTime()))
-                                      return "Invalid date";
-                                    const day = date
-                                      .getDate()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const month = (date.getMonth() + 1)
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const year = date.getFullYear();
-                                    const hours = date
-                                      .getHours()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const minutes = date
-                                      .getMinutes()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const seconds = date
-                                      .getSeconds()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    return (
-                                      <div>
-                                        <div className="font-medium break-words">
-                                          {`${day}/${month}/${year}`}
-                                        </div>
-                                        <div className="text-xs text-gray-500 break-words">
-                                          {`${hours}:${minutes}:${seconds}`}
-                                        </div>
+                                  const date = new Date(item.completionDate);
+                                  if (!date || isNaN(date.getTime()))
+                                    return "Invalid date";
+                                  const day = date
+                                    .getDate()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const month = (date.getMonth() + 1)
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const year = date.getFullYear();
+                                  const hours = date
+                                    .getHours()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const minutes = date
+                                    .getMinutes()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const seconds = date
+                                    .getSeconds()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  return (
+                                    <div>
+                                      <div className="font-medium break-words">
+                                        {`${day}/${month}/${year}`}
                                       </div>
-                                    );
-                                  })()
+                                      <div className="text-xs text-gray-500 break-words">
+                                        {`${hours}:${minutes}:${seconds}`}
+                                      </div>
+                                    </div>
+                                  );
+                                })()
                                 : "—"}
                             </div>
                           </td>
@@ -889,40 +887,40 @@ const FullFillPostion = () => {
                             <div className="text-sm text-gray-900 break-words">
                               {item.completionDate
                                 ? (() => {
-                                    const date = new Date(item.completionDate);
-                                    if (!date || isNaN(date.getTime()))
-                                      return "Invalid date";
-                                    const day = date
-                                      .getDate()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const month = (date.getMonth() + 1)
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const year = date.getFullYear();
-                                    const hours = date
-                                      .getHours()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const minutes = date
-                                      .getMinutes()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const seconds = date
-                                      .getSeconds()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    return (
-                                      <div>
-                                        <div className="font-medium break-words">
-                                          {`${day}/${month}/${year}`}
-                                        </div>
-                                        <div className="text-xs text-gray-500 break-words">
-                                          {`${hours}:${minutes}:${seconds}`}
-                                        </div>
+                                  const date = new Date(item.completionDate);
+                                  if (!date || isNaN(date.getTime()))
+                                    return "Invalid date";
+                                  const day = date
+                                    .getDate()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const month = (date.getMonth() + 1)
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const year = date.getFullYear();
+                                  const hours = date
+                                    .getHours()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const minutes = date
+                                    .getMinutes()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const seconds = date
+                                    .getSeconds()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  return (
+                                    <div>
+                                      <div className="font-medium break-words">
+                                        {`${day}/${month}/${year}`}
                                       </div>
-                                    );
-                                  })()
+                                      <div className="text-xs text-gray-500 break-words">
+                                        {`${hours}:${minutes}:${seconds}`}
+                                      </div>
+                                    </div>
+                                  );
+                                })()
                                 : "—"}
                             </div>
                           </td>

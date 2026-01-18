@@ -7,14 +7,14 @@ const Vendors = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [vendorTypes, setVendorTypes] = useState([]);
-  
+
   const [formData, setFormData] = useState({
     vendorName: '',
     contactNo: '',
     vendorType: ''
   });
 
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec';
+  const SCRIPT_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 
   useEffect(() => {
     fetchMasterData();
@@ -25,16 +25,16 @@ const Vendors = () => {
     try {
       const response = await fetch(`${SCRIPT_URL}?sheet=Master&action=fetch`);
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         const data = result.data;
         const headers = data[0];
-        
+
         // Find Vendor Type column index
-        const vendorTypeIndex = headers.findIndex(h => 
+        const vendorTypeIndex = headers.findIndex(h =>
           h.toLowerCase().includes('vendor type') || h.toLowerCase() === 'vendor_type'
         );
-        
+
         if (vendorTypeIndex !== -1) {
           // Extract unique vendor types (skip header row and filter empty values)
           const types = [...new Set(
@@ -56,7 +56,7 @@ const Vendors = () => {
     try {
       const response = await fetch(`${SCRIPT_URL}?sheet=Vendor&action=fetch`);
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         // Skip header row and format data
         const formattedVendors = result.data.slice(1).map((row, index) => ({
@@ -67,7 +67,7 @@ const Vendors = () => {
           contactNo: row[3] || '',
           vendorType: row[4] || ''
         }));
-        
+
         setVendors(formattedVendors);
       }
     } catch (error) {
@@ -87,7 +87,7 @@ const Vendors = () => {
       }
       return max;
     }, 0);
-    
+
     return `VI-${String(maxId + 1).padStart(3, '0')}`;
   };
 
@@ -127,14 +127,14 @@ const Vendors = () => {
     }
 
     setSubmitting(true);
-    
+
     try {
       // Generate timestamp in MM/DD/YYYY HH:MM:SS format
       const now = new Date();
       const timestamp = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-      
+
       const vendorId = generateVendorId();
-      
+
       // Prepare row data - [Timestamp, Vendor ID, Vendor Name, Contact No, Vendor Type]
       const rowData = [
         timestamp,
@@ -156,7 +156,7 @@ const Vendors = () => {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         alert('Vendor added successfully!');
         setShowModal(false);
@@ -195,7 +195,7 @@ const Vendors = () => {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         alert('Vendor deleted successfully!');
         fetchVendors();

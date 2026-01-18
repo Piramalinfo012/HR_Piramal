@@ -6,10 +6,8 @@ import useAuthStore from "../store/authStore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUsers } from "@fortawesome/free-solid-svg-icons";
 
-const SHEET_API_URL =
-  "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=USER&action=fetch";
-const LEAVING_API_URL =
-  "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=LEAVING&action=fetch";
+const SHEET_API_URL = `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`;
+const LEAVING_API_URL = "https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=LEAVING&action=fetch";
 
 localStorage.removeItem("hasSeenLanguageHint");
 
@@ -33,7 +31,9 @@ const Login = () => {
       const userJson = await userRes.json();
       const leavingJson = await leavingRes.json();
 
-      if (!userJson.success || !leavingJson.success) {
+      // Final Check
+      if (!userJson?.success || !leavingJson?.success) {
+        console.error("Fetch Error Details:", { userJson, leavingJson });
         toast.error("Error fetching data");
         setSubmitting(false);
         return;
@@ -73,7 +73,7 @@ const Login = () => {
           leavingName &&
           userName &&
           leavingName.toString().toLowerCase() ===
-            userName.toString().toLowerCase() &&
+          userName.toString().toLowerCase() &&
           leavingStatus !== null &&
           leavingStatus !== undefined &&
           leavingStatus !== ""
@@ -90,63 +90,53 @@ const Login = () => {
       localStorage.setItem("user", JSON.stringify(matchedUser));
       login(matchedUser);
 
-      // const adminStatus = matchedUser.Admin
-      //   ? matchedUser.Admin.trim().toLowerCase()
-      //   : "no";
-      // if (adminStatus === "yes") {
-      //   navigate("/", { replace: true });
-      // } else {
-      //   navigate("/my-profile", { replace: true });
-      // }
-
-
       const adminStatus = matchedUser.Admin
-  ? matchedUser.Admin.trim().toLowerCase()
-  : "no";
+        ? matchedUser.Admin.trim().toLowerCase()
+        : "no";
 
-if (adminStatus === "yes") {
-  navigate("/", { replace: true });
-} else {
-  // For non-admin users, redirect to first accessible page
-  const pageAccess = matchedUser["Pages Access"];
-  
-  if (pageAccess) {
-    const accessList = pageAccess.split(",").map(page => page.trim().toLowerCase());
-    
-    // Map of page names to routes
-    const pageRoutes = {
-      "my profile": "/my-profile",
-      "my attendance": "/my-attendance",
-      "leave request": "/leave-request",
-      "gate pass request": "/gate-pass-request",
-      "my salary": "/my-salary",
-      "company calendar": "/company-calendar",
-      "dashboard": "/",
-      "indent": "/indent",
-      "find enquiry": "/find-enquiry",
-      "call tracker": "/call-tracker",
-      "joining": "/joining",
-      "after joining work": "/after-joining-work",
-      "leaving": "/leaving",
-      "after leaving work": "/after-leaving-work",
-      "employee": "/employee",
-      "leave management": "/leave-management",
-      "gate pass": "/gate-pass",
-      "attendance": "/attendance",
-      "payroll": "/payroll",
-      "mis report": "/misreport"
-    };
-    
-    // Find first accessible route
-    const firstAccessibleRoute = accessList.find(page => pageRoutes[page]);
-    const targetRoute = firstAccessibleRoute ? pageRoutes[firstAccessibleRoute] : "/my-profile";
-    
-    navigate(targetRoute, { replace: true });
-  } else {
-    // Fallback if no Pages Access defined
-    navigate("/my-profile", { replace: true });
-  }
-}
+      if (adminStatus === "yes") {
+        navigate("/", { replace: true });
+      } else {
+        // For non-admin users, redirect to first accessible page
+        const pageAccess = matchedUser["Pages Access"];
+
+        if (pageAccess) {
+          const accessList = pageAccess.split(",").map(page => page.trim().toLowerCase());
+
+          // Map of page names to routes
+          const pageRoutes = {
+            "my profile": "/my-profile",
+            "my attendance": "/my-attendance",
+            "leave request": "/leave-request",
+            "gate pass request": "/gate-pass-request",
+            "my salary": "/my-salary",
+            "company calendar": "/company-calendar",
+            "dashboard": "/",
+            "indent": "/indent",
+            "find enquiry": "/find-enquiry",
+            "call tracker": "/call-tracker",
+            "joining": "/joining",
+            "after joining work": "/after-joining-work",
+            "leaving": "/leaving",
+            "after leaving work": "/after-leaving-work",
+            "employee": "/employee",
+            "leave management": "/leave-management",
+            "gate pass": "/gate-pass",
+            "attendance": "/attendance",
+            "payroll": "/payroll",
+            "mis report": "/misreport"
+          };
+
+          // Find first accessible route
+          const firstAccessibleRoute = accessList.find(page => pageRoutes[page]);
+          const targetRoute = firstAccessibleRoute ? pageRoutes[firstAccessibleRoute] : "/my-profile";
+
+          navigate(targetRoute, { replace: true });
+        } else {
+          // Fallback if no Pages Access defined
+          navigate("/my-profile", { replace: true });
+        }
+      }
 
     } catch (err) {
       console.error(err);
@@ -239,9 +229,8 @@ if (adminStatus === "yes") {
           <div>
             <button
               type="submit"
-              className={`w-full flex justify-center py-3 px-4 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-md hover:shadow-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${
-                submitting ? "opacity-75 cursor-not-allowed" : ""
-              }`}
+              className={`w-full flex justify-center py-3 px-4 text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-purple-600 shadow-md hover:shadow-lg hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${submitting ? "opacity-75 cursor-not-allowed" : ""
+                }`}
               disabled={submitting}
             >
               {submitting ? (

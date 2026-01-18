@@ -7,7 +7,7 @@ const Videos = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [videoCategories, setVideoCategories] = useState([]);
-  
+
   const [formData, setFormData] = useState({
     videoName: '',
     category: '',
@@ -15,7 +15,7 @@ const Videos = () => {
     uploadedBy: ''
   });
 
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec';
+  const SCRIPT_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
   const FOLDER_ID = '1L4Bz6-oltUO7LEz8Z4yFCzBn5Pv5Msh5'; // Replace with your actual Google Drive folder ID for videos
 
   useEffect(() => {
@@ -27,16 +27,16 @@ const Videos = () => {
     try {
       const response = await fetch(`${SCRIPT_URL}?sheet=Master&action=fetch`);
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         const data = result.data;
         const headers = data[0];
-        
+
         // Find Videos Category column index
-        const categoryIndex = headers.findIndex(h => 
+        const categoryIndex = headers.findIndex(h =>
           h.toLowerCase().includes('videos category') || h.toLowerCase().includes('video category')
         );
-        
+
         if (categoryIndex !== -1) {
           // Extract unique categories (skip header row and filter empty values)
           const categories = [...new Set(
@@ -58,7 +58,7 @@ const Videos = () => {
     try {
       const response = await fetch(`${SCRIPT_URL}?sheet=Videos&action=fetch`);
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         // Skip header row and format data
         const formattedVideos = result.data.slice(1).map((row, index) => ({
@@ -70,7 +70,7 @@ const Videos = () => {
           uploadedBy: row[4] || '',
           videoFile: row[5] || ''
         }));
-        
+
         setVideos(formattedVideos);
       }
     } catch (error) {
@@ -90,7 +90,7 @@ const Videos = () => {
       }
       return max;
     }, 0);
-    
+
     return `VI-${String(maxId + 1).padStart(3, '0')}`;
   };
 
@@ -110,14 +110,14 @@ const Videos = () => {
         alert('Please upload a valid video file');
         return;
       }
-      
+
       // Check file size (max 100MB)
       const maxSize = 100 * 1024 * 1024; // 100MB in bytes
       if (file.size > maxSize) {
         alert('Video file size should not exceed 100MB');
         return;
       }
-      
+
       setFormData(prev => ({
         ...prev,
         uploadedVideo: file
@@ -131,7 +131,7 @@ const Videos = () => {
       reader.onload = async (e) => {
         try {
           const base64Data = e.target.result;
-          
+
           const formData = new FormData();
           formData.append('action', 'uploadFile');
           formData.append('base64Data', base64Data);
@@ -145,7 +145,7 @@ const Videos = () => {
           });
 
           const result = await response.json();
-          
+
           if (result.success) {
             resolve(result.fileUrl);
           } else {
@@ -168,17 +168,17 @@ const Videos = () => {
     }
 
     setSubmitting(true);
-    
+
     try {
       // Upload video to Google Drive
       const videoUrl = await uploadVideoToGoogleDrive(formData.uploadedVideo);
-      
+
       // Generate timestamp in MM/DD/YYYY HH:MM:SS format
       const now = new Date();
       const timestamp = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-      
+
       const videoId = generateVideoId();
-      
+
       // Prepare row data - [Timestamp, Video ID, Video Name, Category, Uploaded By, Video File]
       const rowData = [
         timestamp,
@@ -201,7 +201,7 @@ const Videos = () => {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         alert('Video uploaded successfully!');
         setShowModal(false);
@@ -241,7 +241,7 @@ const Videos = () => {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         alert('Video deleted successfully!');
         fetchVideos();
@@ -323,9 +323,9 @@ const Videos = () => {
                           <td className="px-6 py-4 text-sm text-gray-700">{video.uploadedBy}</td>
                           <td className="px-6 py-4 text-sm">
                             {video.videoFile ? (
-                              <a 
-                                href={video.videoFile} 
-                                target="_blank" 
+                              <a
+                                href={video.videoFile}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-600 hover:underline flex items-center gap-1"
                               >

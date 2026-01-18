@@ -8,7 +8,7 @@ const Documents = () => {
   const [submitting, setSubmitting] = useState(false);
   const [documentTypes, setDocumentTypes] = useState([]);
   const [documentCategories, setDocumentCategories] = useState([]);
-  
+
   const [formData, setFormData] = useState({
     documentName: '',
     documentType: '',
@@ -17,8 +17,8 @@ const Documents = () => {
     uploadedBy: ''
   });
 
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec';
-  const FOLDER_ID = '1L4Bz6-oltUO7LEz8Z4yFCzBn5Pv5Msh5'; 
+  const SCRIPT_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
+  const FOLDER_ID = '1L4Bz6-oltUO7LEz8Z4yFCzBn5Pv5Msh5';
 
   useEffect(() => {
     fetchMasterData();
@@ -29,17 +29,17 @@ const Documents = () => {
     try {
       const response = await fetch(`${SCRIPT_URL}?sheet=Master&action=fetch`);
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         const data = result.data;
         const headers = data[0];
-        
+
         const typeIndex = headers.findIndex(h => h.toLowerCase().includes('document type'));
         const categoryIndex = headers.findIndex(h => h.toLowerCase().includes('document category'));
-        
+
         const types = [...new Set(data.slice(1).map(row => row[typeIndex]).filter(val => val && val.trim()))];
         const categories = [...new Set(data.slice(1).map(row => row[categoryIndex]).filter(val => val && val.trim()))];
-        
+
         setDocumentTypes(types);
         setDocumentCategories(categories);
       }
@@ -54,7 +54,7 @@ const Documents = () => {
     try {
       const response = await fetch(`${SCRIPT_URL}?sheet=Documents&action=fetch`);
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         const formattedDocs = result.data.slice(1).map((row, index) => ({
           rowIndex: index + 2,
@@ -66,7 +66,7 @@ const Documents = () => {
           uploadedFile: row[5] || '',
           uploadedBy: row[6] || ''
         }));
-        
+
         setDocuments(formattedDocs);
       }
     } catch (error) {
@@ -86,7 +86,7 @@ const Documents = () => {
       }
       return max;
     }, 0);
-    
+
     return `DI-${String(maxId + 1).padStart(3, '0')}`;
   };
 
@@ -114,7 +114,7 @@ const Documents = () => {
       reader.onload = async (e) => {
         try {
           const base64Data = e.target.result;
-          
+
           const formData = new FormData();
           formData.append('action', 'uploadFile');
           formData.append('base64Data', base64Data);
@@ -128,7 +128,7 @@ const Documents = () => {
           });
 
           const result = await response.json();
-          
+
           if (result.success) {
             resolve(result.fileUrl);
           } else {
@@ -144,29 +144,29 @@ const Documents = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.documentName || !formData.documentType || !formData.documentCategory || 
-        !formData.uploadedFile || !formData.uploadedBy) {
+    if (!formData.documentName || !formData.documentType || !formData.documentCategory ||
+      !formData.uploadedFile || !formData.uploadedBy) {
       alert('Please fill all fields');
       return;
     }
 
     setSubmitting(true);
-    
+
     try {
       const fileUrl = await uploadFileToGoogleDrive(formData.uploadedFile);
-      
-      const timestamp = new Date().toLocaleString('en-US', { 
-        month: '2-digit', 
-        day: '2-digit', 
-        year: 'numeric', 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit', 
-        hour12: false 
+
+      const timestamp = new Date().toLocaleString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
       }).replace(',', '');
-      
+
       const documentId = generateDocumentId();
-      
+
       const rowData = [
         timestamp,
         documentId,
@@ -188,7 +188,7 @@ const Documents = () => {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         alert('Document uploaded successfully!');
         setShowModal(false);
@@ -228,7 +228,7 @@ const Documents = () => {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         alert('Document deleted successfully!');
         fetchDocuments();
@@ -297,9 +297,9 @@ const Documents = () => {
                           <td className="px-6 py-4 text-sm text-gray-700">{doc.documentCategory}</td>
                           <td className="px-6 py-4 text-sm">
                             {doc.uploadedFile ? (
-                              <a 
-                                href={doc.uploadedFile} 
-                                target="_blank" 
+                              <a
+                                href={doc.uploadedFile}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-600 hover:underline flex items-center gap-1"
                               >

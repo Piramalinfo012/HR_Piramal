@@ -26,7 +26,7 @@ const Payroll = () => {
       try {
         // Fetch data from Google Sheets using the provided AppScript URL
         const response = await fetch(
-          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Payroll&action=fetch"
+          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Payroll&action=fetch`
         );
         const data = await response.json();
 
@@ -79,32 +79,32 @@ const Payroll = () => {
   };
 
   // Filter data based on search term and selected period
-   const filteredData = payrollData.filter((item) => {
+  const filteredData = payrollData.filter((item) => {
     // Filter by search term (emp code, name, designation, year, month)
-    const matchesSearch = 
+    const matchesSearch =
       item.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.year.toString().includes(searchTerm) ||
       item.month.toString().toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     // Filter by selected period (year-month)
     let matchesPeriod = true;
     if (selectedPeriod) {
       const [selectedYear, selectedMonthNum] = selectedPeriod.split('-');
-      
+
       // Convert numeric month to full month name
       const monthNames = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
       ];
       const selectedMonthName = monthNames[parseInt(selectedMonthNum) - 1];
-      
+
       // Match with year in column P and month name in column Q
-      matchesPeriod = item.year.toString() === selectedYear && 
-                     item.month.toString() === selectedMonthName;
+      matchesPeriod = item.year.toString() === selectedYear &&
+        item.month.toString() === selectedMonthName;
     }
-    
+
     return matchesSearch && matchesPeriod;
   });
 
@@ -113,11 +113,10 @@ const Payroll = () => {
       {/* Notification */}
       {notification && (
         <div
-          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
-            notification.type === "error"
-              ? "bg-red-100 text-red-800 border border-red-300"
-              : "bg-green-100 text-green-800 border border-green-300"
-          }`}
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${notification.type === "error"
+            ? "bg-red-100 text-red-800 border border-red-300"
+            : "bg-green-100 text-green-800 border border-green-300"
+            }`}
         >
           {notification.message}
         </div>

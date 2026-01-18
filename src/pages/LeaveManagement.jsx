@@ -34,7 +34,7 @@ const LeaveManagement = () => {
   const fetchHodNames = async () => {
     try {
       const response = await fetch(
-        `https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=${encodeURIComponent('Master')}&action=fetch`
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=${encodeURIComponent('Master')}&action=fetch`
       );
 
       if (!response.ok) {
@@ -103,7 +103,7 @@ const LeaveManagement = () => {
   const fetchEmployees = async () => {
     try {
       const response = await fetch(
-        `https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=${encodeURIComponent('JOINING')}&action=fetch`
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=${encodeURIComponent('JOINING')}&action=fetch`
       );
 
       if (!response.ok) {
@@ -246,7 +246,7 @@ const LeaveManagement = () => {
         formData.designation         // Designation (Column K, index 10)
       ];
 
-      const response = await fetch('https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec', {
+      const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
         method: 'POST',
         body: new URLSearchParams({
           sheetName: 'Leave Management',
@@ -294,7 +294,7 @@ const LeaveManagement = () => {
 
     try {
       const fullDataResponse = await fetch(
-        `https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=${encodeURIComponent('Leave Management')}&action=fetch`
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=${encodeURIComponent('Leave Management')}&action=fetch`
       );
 
       if (!fullDataResponse.ok) {
@@ -344,7 +344,7 @@ const LeaveManagement = () => {
       };
 
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+        import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
           method: "POST",
           headers: {
@@ -380,7 +380,7 @@ const LeaveManagement = () => {
 
     try {
       const response = await fetch(
-        `https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=${encodeURIComponent('Leave Management')}&action=fetch`
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=${encodeURIComponent('Leave Management')}&action=fetch`
       );
 
       if (!response.ok) {

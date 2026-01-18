@@ -133,26 +133,22 @@ const Joining = () => {
           htmlBody += `
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f9f9f9;">Candidate Name:</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${
-              doc.name || "N/A"
+            <td style="padding: 8px; border: 1px solid #ddd;">${doc.name || "N/A"
             }</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f9f9f9;">Enquiry No:</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${
-              doc.serialNo || "N/A"
+            <td style="padding: 8px; border: 1px solid #ddd;">${doc.serialNo || "N/A"
             }</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f9f9f9;">Position:</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${
-              doc.documentType || "N/A"
+            <td style="padding: 8px; border: 1px solid #ddd;">${doc.documentType || "N/A"
             }</td>
           </tr>
           <tr>
             <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f9f9f9;">Department:</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">${
-              doc.category || "N/A"
+            <td style="padding: 8px; border: 1px solid #ddd;">${doc.category || "N/A"
             }</td>
           </tr>
         `;
@@ -243,9 +239,8 @@ const Joining = () => {
   const handleShareClick = (item) => {
     setSelectedItem(item);
     // Create the share link with enquiry number
-    const shareLink = `https://hr-joining-form.vercel.app/?enquiry=${
-      item.candidateEnquiryNo || ""
-    }`;
+    const shareLink = `https://hr-joining-form.vercel.app/?enquiry=${item.candidateEnquiryNo || ""
+      }`;
 
     setShareFormData({
       recipientName: item.candidateName || "", // Auto-fill from Column E
@@ -275,8 +270,7 @@ const Joining = () => {
         },
       ];
 
-      const URL =
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec";
+      const URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 
       const params = new URLSearchParams();
       params.append("action", "shareViaEmail");
@@ -329,10 +323,10 @@ const Joining = () => {
     try {
       const [enquiryResponse, followUpResponse] = await Promise.all([
         fetch(
-          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=ENQUIRY&action=fetch"
+          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=ENQUIRY&action=fetch`
         ),
         fetch(
-          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Follow - Up&action=fetch"
+          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Follow - Up&action=fetch`
         ),
       ]);
 
@@ -611,8 +605,7 @@ const Joining = () => {
   };
 
   const postToJoiningSheet = async (rowData) => {
-    const URL =
-      "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec";
+    const URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 
     try {
       console.log("Attempting to post:", {
@@ -677,7 +670,7 @@ const Joining = () => {
       params.append("folderId", folderId);
 
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+        import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
           method: "POST",
           headers: {
@@ -707,7 +700,7 @@ const Joining = () => {
 
   const updateEnquirySheet = async (enquiryNo, timestamp) => {
     const URL =
-      "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec";
+      import.meta.env.VITE_GOOGLE_SHEET_URL;
 
     try {
       const params = new URLSearchParams();
@@ -775,9 +768,8 @@ const Joining = () => {
       });
 
       const now = new Date();
-      const formattedTimestamp = `${
-        now.getMonth() + 1
-      }/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+      const formattedTimestamp = `${now.getMonth() + 1
+        }/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
 
       const formatDateForStorage = (dateString) => {
         if (!dateString) return "";
@@ -911,11 +903,10 @@ const Joining = () => {
         <div className="border-b border-gray-300 border-opacity-20">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "pending"
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
                   ? "border-indigo-500 text-indigo-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+                }`}
               onClick={() => setActiveTab("pending")}
             >
               <Clock size={16} className="inline mr-2" />
@@ -1459,9 +1450,8 @@ const Joining = () => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 flex items-center justify-center min-h-[42px] ${
-                    submitting ? "opacity-90 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 flex items-center justify-center min-h-[42px] ${submitting ? "opacity-90 cursor-not-allowed" : ""
+                    }`}
                   disabled={submitting}
                 >
                   {submitting ? (
@@ -1597,9 +1587,8 @@ const Joining = () => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 flex items-center justify-center min-h-[42px] ${
-                    submitting ? "opacity-90 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-4 py-2 text-white bg-indigo-700 rounded-md hover:bg-indigo-800 flex items-center justify-center min-h-[42px] ${submitting ? "opacity-90 cursor-not-allowed" : ""
+                    }`}
                   disabled={submitting}
                 >
                   {submitting ? (

@@ -21,7 +21,7 @@ const Attendance = () => {
 
     try {
       const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Report&action=fetch'
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Report&action=fetch`
       );
 
       if (!response.ok) {
@@ -45,15 +45,15 @@ const Attendance = () => {
       const headers = rawData[3]; // row 4 in sheet (0-based index = 3)
       const dataRows = rawData.length > 4 ? rawData.slice(4) : [];
 
-const getIndex = (headerName) => {
-    const index = headers.findIndex(
-      (h) => h && h.toString().trim().toLowerCase() === headerName.toLowerCase()
-    );
-    if (index === -1) {
-      console.warn(`Column "${headerName}" not found in sheet. Available headers:`, headers);
-    }
-    return index;
-  };
+      const getIndex = (headerName) => {
+        const index = headers.findIndex(
+          (h) => h && h.toString().trim().toLowerCase() === headerName.toLowerCase()
+        );
+        if (index === -1) {
+          console.warn(`Column "${headerName}" not found in sheet. Available headers:`, headers);
+        }
+        return index;
+      };
 
 
       const processedData = dataRows.map((row) => ({
@@ -102,19 +102,19 @@ const getIndex = (headerName) => {
     XLSX.writeFile(workbook, "attendance_data.xlsx");
   };
 
- const downloadDailyData = async (empId, name, month) => {
+  const downloadDailyData = async (empId, name, month) => {
     // Check if we have valid parameters
     if (!empId || !month) {
       console.error('Missing parameters - empId:', empId, 'month:', month);
       alert('Cannot download: Missing employee ID or month information');
       return;
     }
-    
+
     setDownloading(prev => ({ ...prev, [`${name}-${month}`]: true }));
-      
+
     try {
       const response = await fetch(
-        `https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Report Daily&action=fetch`
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Report Daily&action=fetch`
       );
 
       if (!response.ok) {
@@ -136,7 +136,7 @@ const getIndex = (headerName) => {
 
       // Get headers from the first row
       const headers = rawData[0];
-      
+
       // Find column indices
       const getIndex = (headerName) => {
         return headers.findIndex(
@@ -146,10 +146,10 @@ const getIndex = (headerName) => {
 
       const empIdIndex = getIndex('Employee ID');
       const monthIndex = getIndex('Month');
-      
+
       console.log('Searching for - Emp ID:', empId, 'Month:', month);
       console.log('Found indices - Emp ID:', empIdIndex, 'Month:', monthIndex);
-      
+
       if (empIdIndex === -1 || monthIndex === -1) {
         throw new Error('Required columns not found in daily data');
       }
@@ -157,11 +157,11 @@ const getIndex = (headerName) => {
       // Filter data based on employee ID and month
       const filteredData = rawData.filter((row, index) => {
         if (index === 0) return false; // Skip header row
-        
+
         const rowEmpId = row[empIdIndex] ? row[empIdIndex].toString().trim() : '';
         const rowMonth = row[monthIndex] ? row[monthIndex].toString().trim().toLowerCase() : '';
         const targetMonth = month.toString().trim().toLowerCase();
-        
+
         return rowEmpId === empId.toString().trim() && rowMonth === targetMonth;
       });
 
@@ -173,15 +173,15 @@ const getIndex = (headerName) => {
 
       // Create PDF document
       const doc = new jsPDF({
-        orientation:'landscape',
-        unit:'mm',
-        format:'a4'
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
       });
-      
+
       // Add title
       doc.setFontSize(16);
       doc.text(`Daily Attendance - ${name} (${empId}) - ${month}`, 14, 15);
-      
+
       // Prepare data for the table
       const tableData = filteredData.map(row => {
         return headers.map((header, index) => {
@@ -200,7 +200,7 @@ const getIndex = (headerName) => {
 
       // Save the PDF
       doc.save(`${empId}_${name}_${month}_daily_attendance.pdf`);
-      
+
     } catch (error) {
       console.error('Error downloading daily data:', error);
       alert(`Error: ${error.message}`);
@@ -257,13 +257,13 @@ const getIndex = (headerName) => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  
+
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Punch Days</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absent</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Days</th>
-                  
+
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Late Days</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Late Not Allowed</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Late Allowed</th>
@@ -286,7 +286,7 @@ const getIndex = (headerName) => {
                   <tr>
                     <td colSpan="14" className="px-6 py-12 text-center">
                       <p className="text-red-500">Error: {error}</p>
-                      <button 
+                      <button
                         onClick={fetchAttendanceData}
                         className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                       >
@@ -297,34 +297,34 @@ const getIndex = (headerName) => {
                 ) : filteredData.length > 0 ? (
                   filteredData.map((item, index) => (
                     <tr key={index} className="hover:bg-gray-50">
-                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.year}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.year}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.empId}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-                      
+
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.month}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.punchDays}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.absents}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.totalWorking}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.lateDays}</td>
-                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.lateNotAllowed}</td> 
-                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.lateAllowed}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.punchMiss}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.holidays}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <button
-  onClick={() => downloadDailyData(item.empId, item.name, item.month)}
-  disabled={downloading[`${item.name}-${item.month}`]}
-  className="p-2 text-blue-600 hover:text-blue-800 disabled:opacity-50"
-  title="Download daily attendance"
-> 
-  {downloading[`${item.name}-${item.month}`] ? (
-    <div className="w-4 h-4 border-2 border-blue-600 border-dashed rounded-full animate-spin"></div>
-  ) : (
-    <Download size={16} />
-  )}
-</button>
-                        </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.lateNotAllowed}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.lateAllowed}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.punchMiss}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.holidays}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <button
+                          onClick={() => downloadDailyData(item.empId, item.name, item.month)}
+                          disabled={downloading[`${item.name}-${item.month}`]}
+                          className="p-2 text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                          title="Download daily attendance"
+                        >
+                          {downloading[`${item.name}-${item.month}`] ? (
+                            <div className="w-4 h-4 border-2 border-blue-600 border-dashed rounded-full animate-spin"></div>
+                          ) : (
+                            <Download size={16} />
+                          )}
+                        </button>
+                      </td>
                     </tr>
                   ))
                 ) : (
