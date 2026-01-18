@@ -15,7 +15,7 @@ const Videos = () => {
     uploadedBy: ''
   });
 
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec';
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec';
   const FOLDER_ID = '1L4Bz6-oltUO7LEz8Z4yFCzBn5Pv5Msh5'; // Replace with your actual Google Drive folder ID for videos
 
   useEffect(() => {

@@ -9,8 +9,13 @@ const OnlinePosting = () => {
   const [postFormData, setPostFormData] = useState({
     siteStatus: "",
     socialSiteTypes: [],
+    siteStatus: "",
+    socialSiteTypes: [],
+    onlinePlatformAttachment: "",
+    status: "Done",
   });
 
+  const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("pending");
 
   const [indentData, setIndentData] = useState([]);
@@ -45,98 +50,77 @@ const OnlinePosting = () => {
   const fetchIndentDataFromRow7 = async () => {
     try {
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=INDENT&action=fetch"
+        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=FMS&action=fetch"
       );
 
       const result = await response.json();
 
-      if (result.success && result.data && result.data.length >= 7) {
-        // Get data starting from row 7 (array index 6) to end
-        const dataFromRow7 = result.data.slice(6);
+      if (result.success && result.data && result.data.length >= 2) {
+        // Data starts from Row 2 (index 1) - headers are on Row 1
+        const dataFromRow2 = result.data.slice(8);
 
-        // Find headers (assuming they're in row 6 - array index 5)
-        const headers = result.data[5].map((h) => h.trim());
+        // Process the data using explicit indices based on FMS Sheet (Indent.jsx & Backend)
+        // Col A(0): Timestamp
+        // Col B(1): Indent Number
+        // Col C(2): Indenter Name
+        // Col D(3): Post
+        // Col E(4): Salary
+        // Col F(5): Office Timing
+        // Col G(6): Type Of Week
+        // Col H(7): Residence
+        // Col I(8): Gender
+        // Col J(9): Department
+        // Col K(10): Prefer
+        // Col L(11): Number Of Post
+        // Col M(12): Completion Date
+        // Col N(13): Qualifications / Experience
+        // ...
+        // Col R(17): Site Status
+        // Col S(18): Social Site Types
 
-        // Find column indices for important fields
-        const timestampIndex = headers.indexOf("Timestamp");
-        const indentNumberIndex = headers.indexOf("Indent Number");
-        const postIndex = headers.indexOf("Post");
-        const genderIndex = headers.indexOf("Gender");
-        const departmentIndex = headers.indexOf("Department");
-        const preferIndex = headers.indexOf("Prefer");
-        const noOFPostIndex = headers.indexOf("Number Of Posts");
-        const completionDateIndex = headers.indexOf("Completion Date");
-        const experienceIndex = headers.indexOf("Experience");
+        const processedData = dataFromRow2.map((row) => ({
+          status: row[0],              // Col A (0)
+          stepCode: row[1],            // Col B (1): Step Code
+          indentNumber: row[4],        // Col C (2): Indent No
+          timestamp: row[3],           // Col D (3): Timestamp
+          indenterName: row[5],        // Col E (4): Person Name
+          post: row[6],                // Col F (5): Post
+          salary: row[7],              // Col G (6): Salary
+          officeTiming: row[8],        // Col H (7): Office Timing
+          typeOfWeek: row[9],          // Col I (8): Types of Weekly Off
+          residence: row[10],           // Col J (9): Residence
+          gender: row[11],             // Col K (10): Gender
+          department: row[12],         // Col L (11): Department
+          prefer: row[13],             // Col M (12): Prefer
+          noOfPost: row[14],           // Col N (13): Number Of Post
+          completionDate: row[15],     // Col O (14): Completion Date
+          experience: row[16],         // Col P (15): Required Qualifications
 
-        const jobConsultancyNameIndex = headers.indexOf("Job Cunsultancy Name");
-        const salaryIndex = headers.indexOf("Salary");
-        const officeTimingIndex = headers.indexOf("Office Timing");
-        const typeOfWeekIndex = headers.indexOf("Type Of Week");
-        const residenceIndex = headers.indexOf("Residence");
-        const closeByIndex = headers.indexOf("Close By");
-        const indenterNameIndex = headers.indexOf("Indenter Name");
-        const cunsultancyNumberIndex = headers.indexOf("Cunsultancy Number");
-        const cunsultancyScreensortImageIndex = headers.indexOf(
-          "Cunsultancy Screensort Image"
-        );
-
-        const Planned1Index = headers.indexOf("Planned 1");
-        const actual1Index = headers.indexOf("Actual1");
-
-        const siteStatusIndex = headers.indexOf("Site Status");
-        const socialSiteTypesIndex = headers.indexOf("Social Site Types");
-
-        // Add other column indices as needed
-
-        // Process the data
-        const processedData = dataFromRow7.map((row) => ({
-          timestamp: row[timestampIndex],
-          indentNumber: row[indentNumberIndex],
-          post: row[postIndex],
-          gender: row[genderIndex],
-          department: row[departmentIndex],
-          prefer: row[preferIndex],
-          noOfPost: row[noOFPostIndex],
-          completionDate: row[completionDateIndex],
-          experience: row[experienceIndex],
-
-          jobConsultancyName: row[jobConsultancyNameIndex],
-          salary: row[salaryIndex],
-          officeTiming: row[officeTimingIndex],
-          typeOfWeek: row[typeOfWeekIndex],
-          residence: row[residenceIndex],
-          closeBy: row[closeByIndex],
-          indenterName: row[indenterNameIndex],
-          cunsultancyNumber: row[cunsultancyNumberIndex],
-          cunsultancyScreensortImage: row[cunsultancyScreensortImageIndex],
-
-          plaaned1: row[Planned1Index],
-          actual1: row[actual1Index],
-
-          socialSiteTypes: row[socialSiteTypesIndex],
-
-          siteStatus: row[siteStatusIndex],
-          // Add other fields as needed
+          // Derived columns for Online Posting - Checking R and S based on FMS structure
+          siteStatus: row[17],       // Col R (17)
+          socialSiteTypes: row[18],  // Col S (18)
         }));
 
         const pendingTasks = processedData.filter((item) => {
-          // console.log("Itme", item.actual1, item.plaaned1);
-          return !item.actual1 && item.plaaned1;
+          const hasSiteStatus = item.siteStatus && item.siteStatus.toString().trim() !== "";
+          const hasSocialSiteTypes = item.socialSiteTypes && item.socialSiteTypes.toString().trim() !== "";
+          // Pending: Site Status is NOT null (Column R) AND Social Site Types IS null (Column S)
+          return hasSiteStatus && !hasSocialSiteTypes;
         });
 
         const historyTasks = processedData.filter((item) => {
-          // console.log("Itme", item.actual1, item.plaaned1);
-          return item.actual1 && item.plaaned1;
+          const hasSiteStatus = item.siteStatus && item.siteStatus.toString().trim() !== "";
+          const hasSocialSiteTypes = item.socialSiteTypes && item.socialSiteTypes.toString().trim() !== "";
+          // History: Site Status is NOT null (Column R) AND Social Site Types is NOT null (Column S)
+          return hasSiteStatus && hasSocialSiteTypes;
         });
 
         setHistoryIndentData(historyTasks);
-
-        // console.log("Pending Tasks:", pendingTasks);
         setIndentData(pendingTasks);
+
         return {
           success: true,
           data: processedData,
-          headers: headers,
         };
       } else {
         return {
@@ -150,6 +134,51 @@ const OnlinePosting = () => {
         success: false,
         error: error.message,
       };
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result;
+
+        const response = await fetch(
+          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
+          {
+            method: "POST",
+            body: new URLSearchParams({
+              action: "uploadFile",
+              base64Data: base64Data,
+              fileName: file.name,
+              mimeType: file.type,
+              folderId: "1L4Bz6-oltUO7LEz8Z4yFCzBn5Pv5Msh5",
+            }),
+          }
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          setPostFormData((prev) => ({
+            ...prev,
+            onlinePlatformAttachment: result.fileUrl,
+          }));
+          toast.success("File uploaded successfully!");
+        } else {
+          toast.error("File upload failed");
+        }
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("File upload error");
+      setUploading(false);
     }
   };
 
@@ -168,16 +197,27 @@ const OnlinePosting = () => {
     try {
       setSubmitting(true);
 
+      const PO_NUMBER = "PO-1";
+
+      const dataResponseRow = [
+        selectedIndent.indentNumber,
+        PO_NUMBER,
+        new Date().toLocaleString(),
+        postFormData.status,
+        postFormData.socialSiteTypes.join(", "),
+        postFormData.onlinePlatformAttachment
+      ];
+
+
+      // Submit to Data Resposnse
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec",
+        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
         {
           method: "POST",
           body: new URLSearchParams({
-            sheetName: "INDENT",
-            action: "updatePostColumns",
-            indentNumber: selectedIndent.indentNumber,
-            siteStatus: postFormData.siteStatus,
-            socialSiteTypes: postFormData.socialSiteTypes.join(", "),
+            sheetName: "Data Resposnse",
+            action: "bulkInsert",
+            rowsData: JSON.stringify([dataResponseRow]),
           }),
         }
       );
@@ -185,8 +225,8 @@ const OnlinePosting = () => {
       const result = await response.json();
 
       if (result.success) {
-        toast.success("Post data updated successfully!");
-        setPostFormData({ siteStatus: "", socialSiteTypes: [] });
+        toast.success("Post data submitted successfully!");
+        setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", status: "Done" });
         setShowPostModal(false);
 
         // Refresh table data
@@ -194,7 +234,7 @@ const OnlinePosting = () => {
         await fetchIndentDataFromRow7();
         setTableLoading(false);
       } else {
-        toast.error("Failed to update: " + (result.error || "Unknown error"));
+        toast.error("Failed to submit: " + (result.error || "Unknown error"));
       }
     } catch (error) {
       console.error("Update error:", error);
@@ -241,7 +281,8 @@ const OnlinePosting = () => {
               <button
                 onClick={() => {
                   setShowPostModal(false);
-                  setPostFormData({ siteStatus: "", socialSiteTypes: [] });
+                  setShowPostModal(false);
+                  setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", status: "Done" });
                 }}
                 className="text-gray-500 hover:text-gray-700"
               >
@@ -249,97 +290,116 @@ const OnlinePosting = () => {
               </button>
             </div>
             <form onSubmit={handlePostSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Indent Number
-                </label>
-
-                <input
-                  type="text"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  disabled
-                  value={selectedIndent.indentNumber}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Site Status *
-                </label>
-                <select
-                  name="siteStatus"
-                  value={postFormData.siteStatus}
-                  onChange={(e) =>
-                    setPostFormData((prev) => ({
-                      ...prev,
-                      siteStatus: e.target.value,
-                    }))
-                  }
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-
-              {postFormData.siteStatus === "Yes" && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Social Site Types *
+                    Indent Number
                   </label>
-                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
-                    {socialSiteOptions.map((option) => (
-                      <div key={option} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id={`post-${option}`}
-                          value={option}
-                          checked={postFormData.socialSiteTypes.includes(
-                            option
-                          )}
-                          onChange={(e) => {
-                            const { value, checked } = e.target;
-                            setPostFormData((prev) => {
-                              if (checked) {
-                                return {
-                                  ...prev,
-                                  socialSiteTypes: [
-                                    ...prev.socialSiteTypes,
-                                    value,
-                                  ],
-                                };
-                              } else {
-                                return {
-                                  ...prev,
-                                  socialSiteTypes: prev.socialSiteTypes.filter(
-                                    (t) => t !== value
-                                  ),
-                                };
-                              }
-                            });
-                          }}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <label
-                          htmlFor={`post-${option}`}
-                          className="ml-2 block text-sm text-gray-700"
-                        >
-                          {option}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
+
+                  <input
+                    type="text"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50"
+                    disabled
+                    value={selectedIndent.indentNumber}
+                  />
                 </div>
-              )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status *
+                  </label>
+                  <select
+                    name="status"
+                    value={postFormData.status}
+                    onChange={(e) =>
+                      setPostFormData((prev) => ({
+                        ...prev,
+                        status: e.target.value,
+                      }))
+                    }
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    required
+                  >
+                    <option value="Done">Done</option>
+                    <option value="Not Done">Not Done</option>
+                  </select>
+                </div>
+              </div>
+
+
+
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Online Platform Attachment
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      onChange={handleFileUpload}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      disabled={uploading}
+                    />
+                  </div>
+                  {uploading && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
+                  {postFormData.onlinePlatformAttachment && (
+                    <p className="text-xs text-green-600 mt-1 truncate">
+                      Uploaded: {postFormData.onlinePlatformAttachment}
+                    </p>
+                  )}
+                </div>
+              </>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Social Site Types *
+                </label>
+                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+                  {socialSiteOptions.map((option) => (
+                    <div key={option} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id={`post-${option}`}
+                        value={option}
+                        checked={postFormData.socialSiteTypes.includes(
+                          option
+                        )}
+                        onChange={(e) => {
+                          const { value, checked } = e.target;
+                          setPostFormData((prev) => {
+                            if (checked) {
+                              return {
+                                ...prev,
+                                socialSiteTypes: [
+                                  ...prev.socialSiteTypes,
+                                  value,
+                                ],
+                              };
+                            }
+                          });
+                        }}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <label
+                        htmlFor={`post-${option}`}
+                        className="ml-2 block text-sm text-gray-700"
+                      >
+                        {option}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
 
               <div className="flex justify-end space-x-2 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowPostModal(false);
-                    setPostFormData({ siteStatus: "", socialSiteTypes: [] });
+                    setShowPostModal(false);
+                    setShowPostModal(false);
+                    setShowPostModal(false);
+                    setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", status: "Done" });
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-all duration-200"
                   disabled={submitting}
@@ -408,22 +468,20 @@ const OnlinePosting = () => {
         <div className="border-b border-gray-300 border-opacity-20">
           <nav className="flex -mb-px">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "pending"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
               onClick={() => setActiveTab("pending")}
             >
               <Clock size={16} className="inline mr-2" />
               Pending ({filteredPendingData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${
-                activeTab === "history"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
+              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
               onClick={() => setActiveTab("history")}
             >
               <CheckCircle size={16} className="inline mr-2" />
@@ -445,6 +503,9 @@ const OnlinePosting = () => {
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Indent Number
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Indenter Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Post
@@ -481,9 +542,6 @@ const OnlinePosting = () => {
                         Residence
                       </th>
 
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Indenter Name
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
@@ -518,6 +576,10 @@ const OnlinePosting = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             {item.indentNumber}
                           </td>
+
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {item.indenterName}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.post}
                           </td>
@@ -540,40 +602,40 @@ const OnlinePosting = () => {
                             <div className="text-sm text-gray-900 break-words">
                               {item.completionDate
                                 ? (() => {
-                                    const date = new Date(item.completionDate);
-                                    if (!date || isNaN(date.getTime()))
-                                      return "Invalid date";
-                                    const day = date
-                                      .getDate()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const month = (date.getMonth() + 1)
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const year = date.getFullYear();
-                                    const hours = date
-                                      .getHours()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const minutes = date
-                                      .getMinutes()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const seconds = date
-                                      .getSeconds()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    return (
-                                      <div>
-                                        <div className="font-medium break-words">
-                                          {`${day}/${month}/${year}`}
-                                        </div>
-                                        <div className="text-xs text-gray-500 break-words">
-                                          {`${hours}:${minutes}:${seconds}`}
-                                        </div>
+                                  const date = new Date(item.completionDate);
+                                  if (!date || isNaN(date.getTime()))
+                                    return "Invalid date";
+                                  const day = date
+                                    .getDate()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const month = (date.getMonth() + 1)
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const year = date.getFullYear();
+                                  const hours = date
+                                    .getHours()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const minutes = date
+                                    .getMinutes()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const seconds = date
+                                    .getSeconds()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  return (
+                                    <div>
+                                      <div className="font-medium break-words">
+                                        {`${day}/${month}/${year}`}
                                       </div>
-                                    );
-                                  })()
+                                      <div className="text-xs text-gray-500 break-words">
+                                        {`${hours}:${minutes}:${seconds}`}
+                                      </div>
+                                    </div>
+                                  );
+                                })()
                                 : "—"}
                             </div>
                           </td>
@@ -589,10 +651,6 @@ const OnlinePosting = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.residence}
-                          </td>
-
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.indenterName}
                           </td>
                         </tr>
                       ))
@@ -719,40 +777,40 @@ const OnlinePosting = () => {
                             <div className="text-sm text-gray-900 break-words">
                               {item.completionDate
                                 ? (() => {
-                                    const date = new Date(item.completionDate);
-                                    if (!date || isNaN(date.getTime()))
-                                      return "Invalid date";
-                                    const day = date
-                                      .getDate()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const month = (date.getMonth() + 1)
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const year = date.getFullYear();
-                                    const hours = date
-                                      .getHours()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const minutes = date
-                                      .getMinutes()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    const seconds = date
-                                      .getSeconds()
-                                      .toString()
-                                      .padStart(2, "0");
-                                    return (
-                                      <div>
-                                        <div className="font-medium break-words">
-                                          {`${day}/${month}/${year}`}
-                                        </div>
-                                        <div className="text-xs text-gray-500 break-words">
-                                          {`${hours}:${minutes}:${seconds}`}
-                                        </div>
+                                  const date = new Date(item.completionDate);
+                                  if (!date || isNaN(date.getTime()))
+                                    return "Invalid date";
+                                  const day = date
+                                    .getDate()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const month = (date.getMonth() + 1)
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const year = date.getFullYear();
+                                  const hours = date
+                                    .getHours()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const minutes = date
+                                    .getMinutes()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  const seconds = date
+                                    .getSeconds()
+                                    .toString()
+                                    .padStart(2, "0");
+                                  return (
+                                    <div>
+                                      <div className="font-medium break-words">
+                                        {`${day}/${month}/${year}`}
                                       </div>
-                                    );
-                                  })()
+                                      <div className="text-xs text-gray-500 break-words">
+                                        {`${hours}:${minutes}:${seconds}`}
+                                      </div>
+                                    </div>
+                                  );
+                                })()
                                 : "—"}
                             </div>
                           </td>

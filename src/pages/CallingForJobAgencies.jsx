@@ -82,7 +82,7 @@ const CallingForJobAgencies = () => {
   const fetchIndentDataFromRow7 = async () => {
     try {
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=INDENT&action=fetch"
+        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=INDENT&action=fetch"
       );
 
       const result = await response.json();
@@ -217,7 +217,7 @@ const CallingForJobAgencies = () => {
         const base64Data = reader.result;
 
         const response = await fetch(
-          "https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec",
+          "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
           {
             method: "POST",
             body: new URLSearchParams({
@@ -277,7 +277,7 @@ const CallingForJobAgencies = () => {
       const timestamp = getCurrentTimestamp();
 
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec",
+        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec",
         {
           method: "POST",
           body: new URLSearchParams({

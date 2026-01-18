@@ -55,7 +55,7 @@ const Dashboard = () => {
   const fetchLeaveManagementAnalytics = async () => {
     try {
       const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=Leave%20Management&action=fetch'
+        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=Leave%20Management&action=fetch'
       );
 
       if (!response.ok) {
@@ -126,7 +126,7 @@ const Dashboard = () => {
   const fetchJoiningCount = async () => {
     try {
       const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=JOINING&action=fetch'
+        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=JOINING&action=fetch'
       );
   
       if (!response.ok) {
@@ -239,7 +239,7 @@ const Dashboard = () => {
   const fetchDepartmentData = async () => {
   try {
     const response = await fetch(
-      'https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=JOINING&action=fetch'
+      'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=JOINING&action=fetch'
     );
 
     if (!response.ok) {
@@ -294,7 +294,7 @@ const Dashboard = () => {
   const fetchLeaveCount = async () => {
     try {
       const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=LEAVING&action=fetch'
+        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=LEAVING&action=fetch'
       );
 
       if (!response.ok) {
@@ -415,7 +415,7 @@ const Dashboard = () => {
    const fetchIndentDataFromRow7 = async () => {
     try {
       const response = await fetch(
-        "https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=INDENT&action=fetch"
+        "https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=INDENT&action=fetch"
       );
 
       const result = await response.json();

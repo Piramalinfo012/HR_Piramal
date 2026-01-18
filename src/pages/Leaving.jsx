@@ -27,7 +27,7 @@ const fetchJoiningData = async () => {
 
   try {
     const response = await fetch(
-      'https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=JOINING&action=fetch'
+      'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=JOINING&action=fetch'
     );
     
     if (!response.ok) {
@@ -99,7 +99,7 @@ const fetchJoiningData = async () => {
 
     try {
       const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=LEAVING&action=fetch'
+        'https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec?sheet=LEAVING&action=fetch'
       );
       
       if (!response.ok) {
@@ -275,7 +275,7 @@ const handleSubmit = async (e) => {
       value: formattedLeavingDate, // This will be stored in JOINING sheet
     });
 
-    const updateJoiningResponse = await fetch('https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec', {
+    const updateJoiningResponse = await fetch('https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec', {
       method: 'POST',
       body: updateJoiningParams,
     });
@@ -303,7 +303,7 @@ const handleSubmit = async (e) => {
       value: formData.reasonOfLeaving,
     });
 
-    const updateReasonResponse = await fetch('https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec', {
+    const updateReasonResponse = await fetch('https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec', {
       method: 'POST',
       body: updateReasonParams,
     });
@@ -329,7 +329,7 @@ const handleSubmit = async (e) => {
       rowData: JSON.stringify(rowData),
     });
 
-    const insertResponse = await fetch('https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec', {
+    const insertResponse = await fetch('https://script.google.com/macros/s/AKfycbxtIL7N05BBt2ihqlPtASeHCjhp4P7cnTvRRqz2u_7uXAfA67EO6zB6R2NpI_DUkcY/exec', {
       method: 'POST',
       body: insertParams,
     });

@@ -404,7 +404,7 @@ const Sidebar = ({ onClose }) => {
     { path: "/", icon: LayoutDashboard, label: "Dashboard" },
     { path: "/indent", icon: FileText, label: "Indent" },
     { path: "/online_posting", icon: FileText, label: "Online Posting" },
-    { path: "/find-enquiry", icon: Search, label: "Find Enquiry" },
+    // { path: "/find-enquiry", icon: Search, label: "Find Enquiry" },
     {
       path: "/calling_for_job_agencies",
       icon: Search,
@@ -415,7 +415,7 @@ const Sidebar = ({ onClose }) => {
       icon: Search,
       label: "Full Fill Position",
     },
-    { path: "/call-tracker", icon: Phone, label: "Call Tracker" },
+    // { path: "/call-tracker", icon: Phone, label: "Call Tracker" },
     { path: "/joining", icon: NotebookPen, label: "Joining" },
     {
       path: "/after-joining-work",
@@ -430,26 +430,26 @@ const Sidebar = ({ onClose }) => {
     },
     { path: "/employee", icon: Users, label: "Employee" },
     { path: "/leave-management", icon: BookPlus, label: "Leave Management" },
-    { path: "/gate-pass", icon: DoorOpen, label: "Gate Pass" },
-    {
-      type: "dropdown",
-      icon: Book,
-      label: "Attendance",
-      isOpen: attendanceOpen,
-      toggle: () => setAttendanceOpen(!attendanceOpen),
-      items: [
-        { path: "/attendance", label: "Monthly" },
-        { path: "/attendancedaily", label: "Daily" },
-      ],
-    },
-    { path: "/payroll", icon: BadgeDollarSign, label: "Payroll" },
+    // { path: "/gate-pass", icon: DoorOpen, label: "Gate Pass" },
+    // {
+    //   type: "dropdown",
+    //   icon: Book,
+    //   label: "Attendance",
+    //   isOpen: attendanceOpen,
+    //   toggle: () => setAttendanceOpen(!attendanceOpen),
+    //   items: [
+    //     { path: "/attendance", label: "Monthly" },
+    //     { path: "/attendancedaily", label: "Daily" },
+    //   ],
+    // },
+    // { path: "/payroll", icon: BadgeDollarSign, label: "Payroll" },
     { path: "/misreport", icon: AlarmClockCheck, label: "MIS Report" },
 
-    { path: "/documents", icon: File, label: "Documents" },
-    { path: "/vendor", icon: PersonStandingIcon, label: "Vendors" },
-    { path: "/video", icon: Video, label: "Videos" },
-    { path: "/inventory", icon: Inbox, label: "Inventory" },
-    { path: "/hrleads", icon: Inbox, label: "HR Leads" },
+    // { path: "/documents", icon: File, label: "Documents" },
+    // { path: "/vendor", icon: PersonStandingIcon, label: "Vendors" },
+    // { path: "/video", icon: Video, label: "Videos" },
+    // { path: "/inventory", icon: Inbox, label: "Inventory" },
+    // { path: "/hrleads", icon: Inbox, label: "HR Leads" },
   ];
 
   const employeeMenuItems = [
@@ -512,9 +512,8 @@ const Sidebar = ({ onClose }) => {
 
   const SidebarContent = ({ onClose, isCollapsed = false }) => (
     <div
-      className={`flex flex-col h-full ${
-        isCollapsed ? "w-16" : "w-64"
-      } bg-indigo-900 text-white`}
+      className={`flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"
+        } bg-indigo-900 text-white`}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-5 border-b border-indigo-800">
@@ -580,11 +579,10 @@ const Sidebar = ({ onClose }) => {
               <div key={item.label}>
                 <button
                   onClick={item.toggle}
-                  className={`flex items-center justify-between w-full py-2.5 px-4 rounded-lg transition-colors ${
-                    item.isOpen
-                      ? "bg-indigo-800 text-white"
-                      : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
-                  }`}
+                  className={`flex items-center justify-between w-full py-2.5 px-4 rounded-lg transition-colors ${item.isOpen
+                    ? "bg-indigo-800 text-white"
+                    : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
+                    }`}
                 >
                   <div className="flex items-center">
                     <item.icon
@@ -608,10 +606,9 @@ const Sidebar = ({ onClose }) => {
                         key={subItem.path}
                         to={subItem.path}
                         className={({ isActive }) =>
-                          `flex items-center py-2 px-4 rounded-lg transition-colors ${
-                            isActive
-                              ? "bg-indigo-700 text-white"
-                              : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
+                          `flex items-center py-2 px-4 rounded-lg transition-colors ${isActive
+                            ? "bg-indigo-700 text-white"
+                            : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
                           }`
                         }
                         onClick={() => {
@@ -633,10 +630,9 @@ const Sidebar = ({ onClose }) => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center py-2.5 px-4 rounded-lg transition-colors ${
-                  isActive
-                    ? "bg-indigo-800 text-white"
-                    : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
+                `flex items-center py-2.5 px-4 rounded-lg transition-colors ${isActive
+                  ? "bg-indigo-800 text-white"
+                  : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
                 }`
               }
               onClick={() => {
@@ -691,9 +687,8 @@ const Sidebar = ({ onClose }) => {
       {/* Mobile menu button - visible only on mobile */}
       {/* Mobile menu button - visible only on mobile */}
       <button
-        className={`md:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-900 text-white rounded-md shadow-md transition-opacity duration-300 ${
-          isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
-        }`}
+        className={`md:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-900 text-white rounded-md shadow-md transition-opacity duration-300 ${isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
         onClick={() => setIsOpen(true)}
       >
         <Menu size={24} />
@@ -701,9 +696,8 @@ const Sidebar = ({ onClose }) => {
 
       {/* Tablet menu button - visible on tablet (hidden on mobile and desktop) */}
       <button
-        className={`hidden md:block lg:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-900 text-white rounded-md shadow-md transition-opacity duration-300 ${
-          isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
-        }`}
+        className={`hidden md:block lg:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-900 text-white rounded-md shadow-md transition-opacity duration-300 ${isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
         onClick={() => setIsOpen(true)}
       >
         <Menu size={24} />
@@ -716,18 +710,16 @@ const Sidebar = ({ onClose }) => {
 
       {/* Tablet Sidebar - collapsible */}
       <div
-        className={`hidden md:block lg:hidden fixed inset-0 z-40 transition-all duration-300 ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className={`hidden md:block lg:hidden fixed inset-0 z-40 transition-all duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
       >
         <div
           className="fixed inset-0 bg-black bg-opacity-50"
           onClick={() => setIsOpen(false)}
         />
         <div
-          className={`fixed left-0 top-0 h-full z-50 transform ${
-            isOpen ? "translate-x-0" : "-translate-x-full"
-          } transition-transform duration-300 ease-in-out`}
+          className={`fixed left-0 top-0 h-full z-50 transform ${isOpen ? "translate-x-0" : "-translate-x-full"
+            } transition-transform duration-300 ease-in-out`}
         >
           <SidebarContent onClose={() => setIsOpen(false)} />
         </div>
@@ -735,18 +727,16 @@ const Sidebar = ({ onClose }) => {
 
       {/* Mobile Sidebar - collapsible */}
       <div
-        className={`md:hidden fixed inset-0 z-40 transition-all duration-300 ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className={`md:hidden fixed inset-0 z-40 transition-all duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
       >
         <div
           className="fixed inset-0 bg-black bg-opacity-50"
           onClick={() => setIsOpen(false)}
         />
         <div
-          className={`fixed left-0 top-0 h-full z-50 transform ${
-            isOpen ? "translate-x-0" : "-translate-x-full"
-          } transition-transform duration-300 ease-in-out`}
+          className={`fixed left-0 top-0 h-full z-50 transform ${isOpen ? "translate-x-0" : "-translate-x-full"
+            } transition-transform duration-300 ease-in-out`}
         >
           <SidebarContent onClose={() => setIsOpen(false)} />
         </div>
