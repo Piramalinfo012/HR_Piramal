@@ -34,7 +34,7 @@ const Employee = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING&action=fetch`
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING_FMS&action=fetch`
       );
 
       if (!response.ok) {
@@ -42,68 +42,61 @@ const Employee = () => {
       }
 
       const result = await response.json();
-      console.log("Raw JOINING API response:", result);
+      console.log("Raw JOINING_FMS API response:", result);
 
       if (!result.success) {
         throw new Error(
-          result.error || "Failed to fetch data from JOINING sheet"
+          result.error || "Failed to fetch data from JOINING_FMS sheet"
         );
       }
 
-      // Handle both array formats (direct data or result.data)
       const rawData = result.data || result;
 
       if (!Array.isArray(rawData)) {
         throw new Error("Expected array data not received");
       }
 
-      // Get headers from row 6 (index 5 in 0-based array)
-      const headers = rawData[5];
+      // Headers for JOINING_FMS are typically in row 7 (index 6)
+      const headers = rawData[6] || [];
 
-      // Process data starting from row 7 (index 6)
-      const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
+      // Process data starting from row 8 (index 7)
+      const dataRows = rawData.length > 7 ? rawData.slice(7) : [];
 
       const getIndex = (headerName) => {
         const index = headers.findIndex(
           (h) =>
-            h && h.toString().trim().toLowerCase() === headerName.toLowerCase()
+            h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
         );
-        if (index === -1) {
-          console.warn(`Column "${headerName}" not found in sheet`);
-        }
         return index;
       };
 
+      // Define default indices based on common JOINING_FMS structure if headers not found
+      const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
+      const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
+      const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
+      const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
+      const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+      const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
+      const idxBF = 57; // Column BF (0-based index 57)
+
       const processedData = dataRows.map((row) => ({
-        employeeId: row[1] || "", // Column B (index 1)
-        candidateName: row[2] || "", // Column C (index 2)
-        fatherName: row[3] || "", // Column D (index 3)
-        dateOfJoining: row[4] || "", // Column E (index 4)
-        designation: row[5] || "", // Column F (index 5)
-        aadharPhoto: row[6] || "", // Column G (index 6)
-        candidatePhoto: row[7] || "", // Column H (index 7)
-        address: row[8] || "", // Column I (index 8)
-        dateOfBirth: row[9] || "", // Column J (index 9)
-        gender: row[10] || "", // Column K (index 10)
-        mobileNo: row[11] || "", // Column L (index 11)
-        familyNo: row[12] || "", // Column M (index 12)
-        relationshipWithFamily: row[13] || "", // Column N (index 13)
-        accountNo: row[14] || "", // Column O (index 14)
-        ifsc: row[15] || "", // Column P (index 15)
-        branch: row[16] || "", // Column Q (index 16)
-        passbook: row[17] || "", // Column R (index 17)
-        emailId: row[18] || "", // Column S (index 18)
-        department: row[20] || "", // Column U (index 20)
-        equipment: row[21] || "", // Column V (index 21)
-        aadharNo: row[22] || "", // Column W (index 22) - Fixed index
-        // Keep existing filter fields
-        columnAA: row[26] || "",
-        columnY: row[24] || "",
+        employeeId: row[idxIndent] || "",
+        candidateName: row[idxName] || "",
+        department: row[idxDept] || "",
+        designation: row[idxDesig] || "",
+        mobileNo: row[idxMobile] || "",
+        emailId: row[idxEmail] || "",
+        columnBF: row[idxBF] || "",
+        // Other fields can be added as needed, but focus on requested filter
+        fatherName: row[11] || "", // Often +1 from name
+        dateOfJoining: row[12] || "", // Often +2 from name
+        aadharPhoto: row[getIndex("Aadhar Photo") !== -1 ? getIndex("Aadhar Photo") : (idxName + 18)] || "",
+        candidatePhoto: row[getIndex("Candidate Photo") !== -1 ? getIndex("Candidate Photo") : (idxName + 19)] || "",
       }));
 
-      // Filter logic: Column AQ has value AND Column AO is null/empty
+      // Filter logic: Column BF (index 57) is not null/empty
       const activeEmployees = processedData.filter(
-        (employee) => employee.columnAA && !employee.columnY
+        (employee) => employee.columnBF && employee.columnBF.toString().trim() !== ""
       );
 
       setJoiningData(activeEmployees);
@@ -237,8 +230,8 @@ const Employee = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "joining"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("joining")}
             >
@@ -247,8 +240,8 @@ const Employee = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "leaving"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("leaving")}
             >

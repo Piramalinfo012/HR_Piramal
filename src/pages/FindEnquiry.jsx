@@ -56,7 +56,7 @@ const FindEnquiry = () => {
   });
 
   // Google Drive folder ID for file uploads
-  const GOOGLE_DRIVE_FOLDER_ID = "1L4Bz6-oltUO7LEz8Z4yFCzBn5Pv5Msh5";
+  const GOOGLE_DRIVE_FOLDER_ID = "1tSoT0na5lGKAE82z0kDiDNU6ikkHJjA1OayGwV5CFq9tfc3BVrbLl3g-nkyKwHoYIMzTI2aI";
 
   // Fetch all necessary data
   const fetchAllData = async () => {
@@ -645,11 +645,11 @@ const FindEnquiry = () => {
           toast.success(`Resume uploaded for candidate ${i + 1}`);
         }
 
-        // Create timestamp in dd/mm/yyyy hh:mm:ss format
+        // Create timestamp in dd/mm/yy hh:mm:ss format
         const now = new Date();
         const day = String(now.getDate()).padStart(2, '0');
         const month = String(now.getMonth() + 1).padStart(2, '0');
-        const year = now.getFullYear();
+        const year = String(now.getFullYear()).slice(-2);
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
@@ -937,8 +937,8 @@ const FindEnquiry = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("pending")}
             >
@@ -947,8 +947,8 @@ const FindEnquiry = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                  ? "border-indigo-500 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-indigo-500 text-indigo-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("history")}
             >

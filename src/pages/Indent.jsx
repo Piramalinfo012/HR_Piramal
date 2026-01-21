@@ -70,15 +70,14 @@ const Indent = () => {
 
   const getCurrentTimestamp = () => {
     const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
-    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = String(now.getFullYear()).slice(-2);
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
     const seconds = String(now.getSeconds()).padStart(2, "0");
 
-    // Using YYYY-MM-DD format to prevent backend month overflow (the 2027 issue)
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   };
 
   const fetchIndentDataFromRow7 = async () => {
@@ -92,27 +91,27 @@ const Indent = () => {
       if (result && result.success && result.data && result.data.length >= 7) {
         // Headers are on Row 1 (index 0), Data starts on Row 2 (index 1)
         const headers = result.data[0].map((h) => (h ? h.trim() : ""));
-        const dataFromRow2 = result.data.slice(1);
+        const dataFromRow2 = result.data.slice(8);
 
         // MAPPING matched to FMS Sheet (Step 0 Screenshot)
         const processedData = dataFromRow2
           .filter((row) => row && row[1]) // Column B (Indent No) or A (Timestamp) as filter
           .map((row) => ({
             status: "OPEN",                              // Default to OPEN (Not in FMS Col A)
-            indentNumber: (row[4] || "").toString(),     // B (1)
+            indentNumber: (row[4] || "").toString(),     // B (1) -> Changed back to 4
             // timestamp: (row[0] || "").toString(),        // A (0)
-            indenterName: (row[5] || "").toString(),     // C (2)
-            post: (row[6] || "").toString(),             // D (3)
-            salary: (row[7] || "").toString(),           // E (4)
-            officeTiming: (row[8] || "").toString(),     // F (5)
-            typeOfWeek: (row[9] || "").toString(),       // G (6)
-            residence: (row[10] || "").toString(),        // H (7)
-            gender: (row[11] || "").toString(),           // I (8)
-            department: (row[12] || "").toString(),       // J (9)
-            prefer: (row[13] || "").toString(),          // K (10)
-            noOfPost: (row[14] || "").toString(),        // L (11)
-            completionDate: (row[15] || "").toString(),  // M (12)
-            qualifications: (row[16] || "").toString(),  // N (13)
+            indenterName: (row[5] || "").toString(),     // C (2) -> Changed back to 5
+            post: (row[6] || "").toString(),             // D (3) -> Changed back to 6
+            salary: (row[7] || "").toString(),           // E (4) -> Changed back to 7
+            officeTiming: (row[8] || "").toString(),     // F (5) -> Changed back to 8
+            typeOfWeek: (row[9] || "").toString(),       // G (6) -> Changed back to 9
+            residence: (row[10] || "").toString(),        // H (7) -> Changed back to 10
+            gender: (row[11] || "").toString(),           // I (8) -> Changed back to 11
+            department: (row[12] || "").toString(),       // J (9) -> Changed back to 12
+            prefer: (row[13] || "").toString(),          // K (10) -> Changed back to 13
+            noOfPost: (row[14] || "").toString(),        // L (11) -> Changed back to 14
+            completionDate: (row[15] || "").toString(),  // M (12) -> Changed back to 15
+            qualifications: (row[16] || "").toString(),  // N (13) -> Changed back to 16
           }))
           .reverse();
 
@@ -316,7 +315,7 @@ const Indent = () => {
               base64Data: base64Data,
               fileName: file.name,
               mimeType: file.type,
-              folderId: "1L4Bz6-oltUO7LEz8Z4yFCzBn5Pv5Msh5", // Replace with your folder ID
+              folderId: "1tSoT0na5lGKAE82z0kDiDNU6ikkHJjA1OayGwV5CFq9tfc3BVrbLl3g-nkyKwHoYIMzTI2aI", // Replace with your folder ID
             }),
           }
         );

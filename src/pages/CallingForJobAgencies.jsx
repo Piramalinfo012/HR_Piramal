@@ -36,7 +36,6 @@ const CallingForJobAgencies = () => {
     closedBy: "",
     jobConsultancyName: "",
     socialSiteTypes: [], // New field for social site types
-    consultancyWhatsapp: "",
     uploadedFileUrl: "",
   });
   const [indentData, setIndentData] = useState([]);
@@ -69,9 +68,9 @@ const CallingForJobAgencies = () => {
 
   const getCurrentTimestamp = () => {
     const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
-    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = String(now.getFullYear()).slice(-2);
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
     const seconds = String(now.getSeconds()).padStart(2, "0");
@@ -233,7 +232,7 @@ const CallingForJobAgencies = () => {
               base64Data: base64Data,
               fileName: file.name,
               mimeType: file.type,
-              folderId: "1L4Bz6-oltUO7LEz8Z4yFCzBn5Pv5Msh5",
+              folderId: "1ok_nkIuB761YbEMx8yXtdjCGrtKI7YhqcVUzGYve8FYA6svVawuyvsZbz326MXb94E01DgGc",
             }),
           }
         );
@@ -273,7 +272,6 @@ const CallingForJobAgencies = () => {
 
     if (
       !formData.jobConsultancyName &&
-      !formData.consultancyWhatsapp &&
       !formData.uploadedFileUrl
     ) {
       toast.error("Please fill at least one field");
@@ -282,7 +280,7 @@ const CallingForJobAgencies = () => {
 
     try {
       setSubmitting(true);
-      const timestamp = new Date().toLocaleString(); // Use local string format as per other components
+      const timestamp = getCurrentTimestamp();
 
       const PO_NUMBER = "PO-2";
 
@@ -294,7 +292,8 @@ const CallingForJobAgencies = () => {
         formData.status,
         "", // Col E empty
         "", // Col F empty
-        formData.jobConsultancyName
+        formData.jobConsultancyName, // Col G: Consultancy Name
+        formData.uploadedFileUrl, // Col H: Attachment URL
       ];
 
       const response = await fetch(
@@ -315,10 +314,10 @@ const CallingForJobAgencies = () => {
         setFormData((prev) => ({
           ...prev,
           jobConsultancyName: "",
-          consultancyWhatsapp: "",
           uploadedFileUrl: "",
         }));
         setShowModal(false);
+
         await fetchIndentDataFromRow7();
       } else {
         toast.error("Failed to submit: " + (result.error || "Unknown error"));
@@ -364,11 +363,6 @@ const CallingForJobAgencies = () => {
       socialSiteTypes: [],
       socialSite: "",
       jobConsultancyName: "",
-      consultancyWhatsapp: "",
-      socialSiteTypes: [],
-      socialSite: "",
-      jobConsultancyName: "",
-      consultancyWhatsapp: "",
       uploadedFileUrl: "",
       status: "Done",
     });
@@ -381,7 +375,6 @@ const CallingForJobAgencies = () => {
       ...formData,
       indentNumber: item.indentNumber, // Store this for update
       jobConsultancyName: "",
-      consultancyWhatsapp: "",
       uploadedFileUrl: "",
       status: "Done",
     });
@@ -737,19 +730,7 @@ const CallingForJobAgencies = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Consultancy WhatsApp
-                </label>
-                <input
-                  type="tel"
-                  name="consultancyWhatsapp"
-                  value={formData.consultancyWhatsapp}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Enter WhatsApp number"
-                />
-              </div>
+              {/* WhatsApp field removed as per user request */}
 
               {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -770,7 +751,7 @@ const CallingForJobAgencies = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Upload File *
+                  Upload File
                 </label>
                 <input
                   type="file"
@@ -778,7 +759,6 @@ const CallingForJobAgencies = () => {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   accept="image/*,application/pdf"
                   disabled={fileUploading || submitting}
-                  required
                 />
                 {fileUploading && (
                   <div className="flex items-center mt-2">

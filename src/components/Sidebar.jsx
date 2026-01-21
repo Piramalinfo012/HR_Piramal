@@ -31,6 +31,7 @@ import {
   PersonStandingIcon,
   Video,
   Inbox,
+  CheckCircle,
 } from "lucide-react";
 
 import useAuthStore from "../store/authStore";
@@ -410,6 +411,32 @@ const Sidebar = ({ onClose }) => {
       icon: Search,
       label: "Calling For Job Agencies",
     },
+    { path: "/whatsapp", icon: Phone, label: "Whatsapp" },
+    {
+      path: "/candidate_shortlisted",
+      icon: Users,
+      label: "Candidate Selection",
+    },
+    {
+      path: "/candidate_sortlisted",
+      icon: Users,
+      label: "Candidate Sortlisted",
+    },
+    {
+      path: "/verification_before_interview",
+      icon: Search,
+      label: "Verification Before Interview",
+    },
+    {
+      path: "/interview_final_selection",
+      icon: CheckCircle,
+      label: "Interview & Final Selection",
+    },
+    {
+      path: "/joining_follow_up",
+      icon: Clock,
+      label: "Joining Follow Up",
+    },
     // {
     //   path: "/full_fill_position",
     //   icon: Search,
@@ -418,18 +445,39 @@ const Sidebar = ({ onClose }) => {
     // { path: "/call-tracker", icon: Phone, label: "Call Tracker" },
     { path: "/joining", icon: NotebookPen, label: "Joining" },
     {
-      path: "/after-joining-work",
-      icon: UserCheck,
-      label: "After Joining Work",
+      path: "/check-salary-slip-and-resume",
+      icon: FileText,
+      label: "Check Salary Slip & Resume Copy",
     },
-    { path: "/leaving", icon: UserX, label: "Leaving" },
     {
-      path: "/after-leaving-work",
-      icon: UserMinus,
-      label: "After Leaving Work",
+      path: "/joining-letter-release",
+      icon: FileText,
+      label: "Joining Letter Release",
     },
+    {
+      path: "/induction-or-training",
+      icon: Users,
+      label: "Induction Or Training",
+    },
+
+    {
+      path: "/asset-assignment",
+      icon: LayoutDashboard,
+      label: "Asset Assignment (IT Team)",
+    },
+    // {
+    //   path: "/after-joining-work",
+    //   icon: UserCheck,
+    //   label: "After Joining Work",
+    // },
+    // { path: "/leaving", icon: UserX, label: "Leaving" },
+    // {
+    //   path: "/after-leaving-work",
+    //   icon: UserMinus,
+    //   label: "After Leaving Work",
+    // },
     { path: "/employee", icon: Users, label: "Employee" },
-    { path: "/leave-management", icon: BookPlus, label: "Leave Management" },
+    // { path: "/leave-management", icon: BookPlus, label: "Leave Management" },
     // { path: "/gate-pass", icon: DoorOpen, label: "Gate Pass" },
     // {
     //   type: "dropdown",
@@ -494,6 +542,23 @@ const Sidebar = ({ onClose }) => {
 
       // For regular items, check label
       const itemLabel = item.label.toLowerCase();
+
+      // Temporary bypass for new pages
+      const newPages = [
+        "check salary slip & resume copy",
+        "joining letter release",
+        "induction or training",
+        "induction or welcome",
+        "asset assignment (it team)",
+        "whatsapp",
+        "candidate selection",
+        "candidate sortlisted",
+        "verification before interview",
+        "interview & final selection",
+        "joining follow up",
+      ];
+      if (newPages.includes(itemLabel)) return true;
+
       return userPageAccess.includes(itemLabel);
     });
 

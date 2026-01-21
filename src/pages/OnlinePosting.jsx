@@ -9,8 +9,6 @@ const OnlinePosting = () => {
   const [postFormData, setPostFormData] = useState({
     siteStatus: "",
     socialSiteTypes: [],
-    siteStatus: "",
-    socialSiteTypes: [],
     onlinePlatformAttachment: "",
     status: "Done",
   });
@@ -57,66 +55,48 @@ const OnlinePosting = () => {
 
       if (result.success && result.data && result.data.length >= 2) {
         // Data starts from Row 2 (index 1) - headers are on Row 1
+        // Reverting to slice(8) as it was working before
         const dataFromRow2 = result.data.slice(8);
-
-        // Process the data using explicit indices based on FMS Sheet (Indent.jsx & Backend)
-        // Col A(0): Timestamp
-        // Col B(1): Indent Number
-        // Col C(2): Indenter Name
-        // Col D(3): Post
-        // Col E(4): Salary
-        // Col F(5): Office Timing
-        // Col G(6): Type Of Week
-        // Col H(7): Residence
-        // Col I(8): Gender
-        // Col J(9): Department
-        // Col K(10): Prefer
-        // Col L(11): Number Of Post
-        // Col M(12): Completion Date
-        // Col N(13): Qualifications / Experience
-        // ...
-        // Col R(17): Site Status
-        // Col S(18): Social Site Types
 
         const processedData = dataFromRow2.map((row) => ({
           status: row[0],              // Col A (0)
           stepCode: row[1],            // Col B (1): Step Code
-          indentNumber: row[4],        // Col C (2): Indent No
-          timestamp: row[3],           // Col D (3): Timestamp
-          indenterName: row[5],        // Col E (4): Person Name
-          post: row[6],                // Col F (5): Post
-          salary: row[7],              // Col G (6): Salary
-          officeTiming: row[8],        // Col H (7): Office Timing
-          typeOfWeek: row[9],          // Col I (8): Types of Weekly Off
-          residence: row[10],           // Col J (9): Residence
-          gender: row[11],             // Col K (10): Gender
-          department: row[12],         // Col L (11): Department
-          prefer: row[13],             // Col M (12): Prefer
-          noOfPost: row[14],           // Col N (13): Number Of Post
-          completionDate: row[15],     // Col O (14): Completion Date
-          experience: row[16],         // Col P (15): Required Qualifications
+          indentNumber: row[4],        // Col E (4)
+          timestamp: row[3],           // Col D (3)
+          indenterName: row[5],        // Col F (5)
+          post: row[6],                // Col G (6)
+          salary: row[7],              // Col H (7)
+          officeTiming: row[8],        // Col I (8)
+          typeOfWeek: row[9],          // Col J (9)
+          residence: row[10],           // Col K (10)
+          gender: row[11],             // Col L (11)
+          department: row[12],         // Col M (12)
+          prefer: row[13],             // Col N (13)
+          noOfPost: row[14],           // Col O (14)
+          completionDate: row[15],     // Col P (14)
+          experience: row[16],         // Col Q (15)
 
           // Derived columns for Online Posting - Checking R and S based on FMS structure
           siteStatus: row[17],       // Col R (17)
           socialSiteTypes: row[18],  // Col S (18)
         }));
 
-        const pendingTasks = processedData.filter((item) => {
+        const filteredPending = processedData.filter((item) => {
           const hasSiteStatus = item.siteStatus && item.siteStatus.toString().trim() !== "";
           const hasSocialSiteTypes = item.socialSiteTypes && item.socialSiteTypes.toString().trim() !== "";
           // Pending: Site Status is NOT null (Column R) AND Social Site Types IS null (Column S)
           return hasSiteStatus && !hasSocialSiteTypes;
         });
 
-        const historyTasks = processedData.filter((item) => {
+        const filteredHistory = processedData.filter((item) => {
           const hasSiteStatus = item.siteStatus && item.siteStatus.toString().trim() !== "";
           const hasSocialSiteTypes = item.socialSiteTypes && item.socialSiteTypes.toString().trim() !== "";
           // History: Site Status is NOT null (Column R) AND Social Site Types is NOT null (Column S)
           return hasSiteStatus && hasSocialSiteTypes;
         });
 
-        setHistoryIndentData(historyTasks);
-        setIndentData(pendingTasks);
+        setHistoryIndentData(filteredHistory);
+        setIndentData(filteredPending);
 
         return {
           success: true,
@@ -141,75 +121,100 @@ const OnlinePosting = () => {
     const file = e.target.files[0];
     if (!file) return;
 
+    console.log("📁 File selected:", file);
+    console.log("📄 File name:", file.name);
+    console.log("📄 File type:", file.type);
+    console.log("📄 File size:", file.size);
+
     try {
       setUploading(true);
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Data = reader.result;
 
-        const response = await fetch(
-          import.meta.env.VITE_GOOGLE_SHEET_URL,
-          {
-            method: "POST",
-            body: new URLSearchParams({
-              action: "uploadFile",
-              base64Data: base64Data,
-              fileName: file.name,
-              mimeType: file.type,
-              folderId: "1L4Bz6-oltUO7LEz8Z4yFCzBn5Pv5Msh5",
-            }),
-          }
-        );
+      console.log("🔄 Converting file to base64...");
+      const base64Data = await convertFileToBase64(file);
+      console.log("✅ Base64 created");
+      console.log("🧾 Base64 length:", base64Data.length);
+      console.log("🧾 Base64 preview:", base64Data.substring(0, 50));
 
-        const result = await response.json();
+      console.log("🚀 Sending request to Apps Script...");
 
-        if (result.success) {
-          setPostFormData((prev) => ({
-            ...prev,
-            onlinePlatformAttachment: result.fileUrl,
-          }));
-          toast.success("File uploaded successfully!");
-        } else {
-          toast.error("File upload failed");
-        }
-        setUploading(false);
-      };
-      reader.readAsDataURL(file);
+      const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          action: "uploadFile",
+          base64Data: base64Data,
+          fileName: file.name,
+          mimeType: file.type,
+          folderId: "11INOky8szb4bHx4-M-62HqkXi-SAM6K-",
+        }),
+      });
+
+      console.log("📥 Raw response:", response);
+
+      const result = await response.json();
+      console.log("📥 Parsed response JSON:", result);
+
+      if (result.success) {
+        console.log("✅ Upload success, file URL:", result.fileUrl);
+        setPostFormData((prev) => ({
+          ...prev,
+          onlinePlatformAttachment: result.fileUrl,
+        }));
+        toast.success("File uploaded!");
+      } else {
+        console.error("❌ Upload failed:", result);
+        toast.error(result.error || "Upload failed");
+      }
+
     } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("File upload error");
+      console.error("🔥 Frontend error:", error);
+      toast.error("Frontend error");
+    } finally {
       setUploading(false);
     }
   };
 
+
+  // Helper function
+  const convertFileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const handlePostSubmit = async (e) => {
     e.preventDefault();
-
-    console.log("postFormData.siteStatus", postFormData.siteStatus);
-
-    if (postFormData.siteStatus === "Yes") {
-      if (postFormData.socialSiteTypes.length === 0) {
-        toast.error("Please select at least one Social Site Type");
-        return;
-      }
-    }
 
     try {
       setSubmitting(true);
 
       const PO_NUMBER = "PO-1";
 
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
       const dataResponseRow = [
         selectedIndent.indentNumber,
         PO_NUMBER,
-        new Date().toLocaleString(),
+        timestamp,
         postFormData.status,
         postFormData.socialSiteTypes.join(", "),
         postFormData.onlinePlatformAttachment
       ];
 
 
-      // Submit to Data Resposnse
+      // Submit to DATA RESPONSE
       const response = await fetch(
         import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
@@ -252,7 +257,7 @@ const OnlinePosting = () => {
   const filteredPendingData = indentData.filter((item) => {
     const matchesSearch =
       item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
+      item.indentNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -260,7 +265,7 @@ const OnlinePosting = () => {
     const matchesSearch =
       item.siteStatus?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.socialSiteTypes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
+      item.indentNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -366,13 +371,16 @@ const OnlinePosting = () => {
                         onChange={(e) => {
                           const { value, checked } = e.target;
                           setPostFormData((prev) => {
+                            const currentTypes = prev.socialSiteTypes || [];
                             if (checked) {
                               return {
                                 ...prev,
-                                socialSiteTypes: [
-                                  ...prev.socialSiteTypes,
-                                  value,
-                                ],
+                                socialSiteTypes: [...currentTypes, value],
+                              };
+                            } else {
+                              return {
+                                ...prev,
+                                socialSiteTypes: currentTypes.filter((t) => t !== value),
                               };
                             }
                           });

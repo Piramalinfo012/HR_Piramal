@@ -40,7 +40,17 @@ import HrLeads from "./pages/HrLeads";
 import OnlinePosting from "./pages/OnlinePosting";
 import CallingForJobAgencies from "./pages/CallingForJobAgencies";
 import FullFillPostion from "./pages/FullFillPostion";
-
+import CheckSalarySlipAndResume from "./pages/CheckSalarySlipAndResume";
+import JoiningLetterRelease from "./pages/JoiningLetterRelease";
+import InductionTraining from "./pages/InductionTraining";
+import InductionWelcome from "./pages/InductionWelcome";
+import AssetAssignment from "./pages/AssetAssignment";
+import Whatsapp from "./pages/Whatsapp";
+import CandidateShortlisted from "./pages/CandidateShortlisted";
+import CandidateSortlisted from "./pages/CandidateSortlisted";
+import VerificationBeforeInterview from "./pages/VerificationBeforeInterview";
+import InterviewSelection from "./pages/InterviewSelection";
+import JoiningFollowUp from "./pages/JoiningFollowUp";
 function App() {
   return (
     <div className="gradient-bg min-h-screen">
@@ -63,6 +73,11 @@ function App() {
             <Route path="find-enquiry" element={<FindEnquiry />} />
             <Route path="call-tracker" element={<CallTracker />} />
             <Route path="joining" element={<Joining />} />
+            <Route path="check-salary-slip-and-resume" element={<CheckSalarySlipAndResume />} />
+            <Route path="joining-letter-release" element={<JoiningLetterRelease />} />
+            <Route path="induction-or-training" element={<InductionTraining />} />
+            <Route path="induction-or-welcome" element={<InductionWelcome />} />
+            <Route path="asset-assignment" element={<AssetAssignment />} />
             <Route path="after-joining-work" element={<AfterJoiningWork />} />
             <Route path="leaving" element={<Leaving />} />
             <Route path="after-leaving-work" element={<AfterLeavingWork />} />
@@ -84,7 +99,13 @@ function App() {
 
             <Route path="online_posting" element={<OnlinePosting />} />
             <Route path="calling_for_job_agencies" element={<CallingForJobAgencies />} />
+            <Route path="whatsapp" element={<Whatsapp />} />
             <Route path="full_fill_position" element={<FullFillPostion />} />
+            <Route path="candidate_shortlisted" element={<CandidateShortlisted />} />
+            <Route path="candidate_sortlisted" element={<CandidateSortlisted />} />
+            <Route path="verification_before_interview" element={<VerificationBeforeInterview />} />
+            <Route path="interview_final_selection" element={<InterviewSelection />} />
+            <Route path="joining_follow_up" element={<JoiningFollowUp />} />
 
             <Route path="documents" element={<Documents />} />
             <Route path="vendor" element={<Vendors />} />
