@@ -201,7 +201,7 @@ const Payroll = () => {
                 <p className="text-red-600">Error: {error}</p>
                 <button
                   onClick={() => window.location.reload()}
-                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="mt-4 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                 >
                   Retry
                 </button>

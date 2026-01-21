@@ -9,6 +9,8 @@ const CandidateSortlisted = () => {
     const [activeTab, setActiveTab] = useState("pending");
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [deptFilter, setDeptFilter] = useState("");
+    const [desigFilter, setDesigFilter] = useState("");
     const [tableLoading, setTableLoading] = useState(false);
     const [actionSubmitting, setActionSubmitting] = useState(false);
     const [showActionModal, setShowActionModal] = useState(false);
@@ -85,11 +87,11 @@ const CandidateSortlisted = () => {
             const now = new Date();
             const day = String(now.getDate()).padStart(2, '0');
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = now.getFullYear();
+            const year = String(now.getFullYear()).slice(-2);
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
             // 1. Submit to DATA RESPONSE
             const responseData = [];
@@ -143,8 +145,6 @@ const CandidateSortlisted = () => {
         const term = searchTerm.toLowerCase();
 
         // Filtering by Tab Logic
-        // Pending: Column V (indentId) is not null, Column W (statusMarker) is null
-        // History: Both Column V and Column W are not null
         const hasIndent = !!(item.indentId && item.indentId.toString().trim());
         const hasStatus = !!(item.statusMarker && item.statusMarker.toString().trim());
 
@@ -152,18 +152,21 @@ const CandidateSortlisted = () => {
             ? (hasIndent && !hasStatus)
             : (hasIndent && hasStatus);
 
-        if (index < 10) { // Log first 10 for debug
-            console.log(`Debug Row ${index}: Name=${item.candidateName}, IndentID=${item.indentId}, Status=${item.statusMarker}, hasIndent=${hasIndent}, hasStatus=${hasStatus}, matchesTab=${matchesTab}`);
-        }
+        const matchesDept = !deptFilter || item.department === deptFilter;
+        const matchesDesig = !desigFilter || item.designation === desigFilter;
 
         const matchesSearch = (
             (item.candidateName || "").toLowerCase().includes(term) ||
             (item.id || "").toLowerCase().includes(term) ||
-            (item.designation || "").toLowerCase().includes(term)
+            (item.designation || "").toLowerCase().includes(term) ||
+            (item.department || "").toLowerCase().includes(term)
         );
 
-        return matchesTab && matchesSearch;
+        return matchesTab && matchesSearch && matchesDept && matchesDesig;
     });
+
+    const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
+    const designations = [...new Set(candidateData.map(item => item.designation))].filter(Boolean).sort();
 
     return (
         <div className="space-y-6 page-content p-6">
@@ -171,34 +174,77 @@ const CandidateSortlisted = () => {
                 <h1 className="text-2xl font-bold text-gray-800 uppercase">CANDIDATE SORTLISTED</h1>
             </div>
 
-            <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-                <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
-                    <button
-                        onClick={() => setActiveTab("pending")}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-indigo-600 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
-                    >
-                        <Clock size={18} />
-                        Pending
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("history")}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "history" ? "bg-white text-indigo-600 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
-                    >
-                        <HistoryIcon size={18} />
-                        History
-                    </button>
+            <div className="bg-white p-4 rounded-lg shadow space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
+                    <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setActiveTab("pending")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        >
+                            <Clock size={18} />
+                            Pending
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("history")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "history" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        >
+                            <HistoryIcon size={18} />
+                            History
+                        </button>
+                    </div>
+
+                    <div className="flex flex-1 max-w-md">
+                        <div className="relative w-full">
+                            <input
+                                type="text"
+                                placeholder="Search by name, ID or designation..."
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        </div>
+                    </div>
                 </div>
 
-                <div className="flex flex-1 max-w-md">
-                    <div className="relative w-full">
-                        <input
-                            type="text"
-                            placeholder="Search by name, ID or designation..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Department</label>
+                        <select
+                            value={deptFilter}
+                            onChange={(e) => setDeptFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Departments</option>
+                            {departments.map(dept => (
+                                <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Designation</label>
+                        <select
+                            value={desigFilter}
+                            onChange={(e) => setDesigFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Designations</option>
+                            {designations.map(desig => (
+                                <option key={desig} value={desig}>{desig}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-end">
+                        <button
+                            onClick={() => {
+                                setSearchTerm("");
+                                setDeptFilter("");
+                                setDesigFilter("");
+                            }}
+                            className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
+                        >
+                            <X size={14} /> Clear All Filters
+                        </button>
                     </div>
                 </div>
             </div>
@@ -233,7 +279,7 @@ const CandidateSortlisted = () => {
                                                 {activeTab === "pending" ? (
                                                     <button
                                                         onClick={() => handleActionClick(item)}
-                                                        className="px-3 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 transition-colors"
+                                                        className="px-3 py-1 bg-navy text-white rounded text-xs hover:bg-navy-dark transition-colors"
                                                     >
                                                         Take Action
                                                     </button>
@@ -244,7 +290,7 @@ const CandidateSortlisted = () => {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{item.id}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
@@ -299,7 +345,7 @@ const CandidateSortlisted = () => {
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">
                                         <button type="button" onClick={() => setShowActionModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                                        <button type="submit" disabled={actionSubmitting} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                                        <button type="submit" disabled={actionSubmitting} className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50 flex items-center gap-2">
                                             {actionSubmitting ? "Submitting..." : "Submit Action"}
                                         </button>
                                     </div>

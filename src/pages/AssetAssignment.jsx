@@ -7,6 +7,8 @@ const AssetAssignment = () => {
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [deptFilter, setDeptFilter] = useState("");
+    const [desigFilter, setDesigFilter] = useState("");
     const [tableLoading, setTableLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("pending");
     const [showModal, setShowModal] = useState(false);
@@ -78,16 +80,29 @@ const AssetAssignment = () => {
         let filtered = candidateData;
         if (activeTab === "pending") filtered = filtered.filter(i => i.isPending);
         else if (activeTab === "history") filtered = filtered.filter(i => i.isHistory);
+
+        if (deptFilter) {
+            filtered = filtered.filter(item => item.department === deptFilter);
+        }
+
+        if (desigFilter) {
+            filtered = filtered.filter(item => item.designation === desigFilter);
+        }
+
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(item =>
                 (item.candidateName || "").toLowerCase().includes(term) ||
                 (item.indentNumber || "").toLowerCase().includes(term) ||
-                (item.designation || "").toLowerCase().includes(term)
+                (item.designation || "").toLowerCase().includes(term) ||
+                (item.department || "").toLowerCase().includes(term)
             );
         }
         return filtered;
     };
+
+    const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
+    const designations = [...new Set(candidateData.map(item => item.designation))].filter(Boolean).sort();
 
     const filteredData = getFilteredData();
 
@@ -124,14 +139,13 @@ const AssetAssignment = () => {
         setSubmitting(true);
         try {
             // Format timestamp as YYYY-MM-DD HH:MM:SS
-            const now = new Date();
             const day = String(now.getDate()).padStart(2, '0');
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = now.getFullYear();
+            const year = String(now.getFullYear()).slice(-2);
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
             const dataArray = [
                 selectedCandidate.indentNumber,
@@ -177,14 +191,14 @@ const AssetAssignment = () => {
                 <h1 className="text-2xl font-bold text-gray-800 uppercase">Asset Assignment</h1>
             </div>
 
-            <div className="bg-white p-4 rounded-lg shadow">
+            <div className="bg-white p-4 rounded-lg shadow space-y-4">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
                     <div className="flex-1 max-w-md">
                         <div className="relative w-full">
                             <input
                                 type="text"
-                                placeholder="Search by name, indent number or designation..."
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="Search by name, indent, etc..."
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
@@ -194,12 +208,53 @@ const AssetAssignment = () => {
                     <div className="flex space-x-2">
                         <button
                             onClick={() => setActiveTab('pending')}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'pending' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'pending' ? 'bg-navy text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                         >Pending</button>
                         <button
                             onClick={() => setActiveTab('history')}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'history' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'history' ? 'bg-navy text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                         >History</button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Department</label>
+                        <select
+                            value={deptFilter}
+                            onChange={(e) => setDeptFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Departments</option>
+                            {departments.map(dept => (
+                                <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Designation</label>
+                        <select
+                            value={desigFilter}
+                            onChange={(e) => setDesigFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Designations</option>
+                            {designations.map(desig => (
+                                <option key={desig} value={desig}>{desig}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-end">
+                        <button
+                            onClick={() => {
+                                setSearchTerm("");
+                                setDeptFilter("");
+                                setDesigFilter("");
+                            }}
+                            className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
+                        >
+                            <X size={14} /> Clear All Filters
+                        </button>
                     </div>
                 </div>
             </div>
@@ -225,12 +280,12 @@ const AssetAssignment = () => {
                                 ) : (
                                     filteredData.map((item, idx) => (
                                         <tr key={idx} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{item.indentNumber}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.indentNumber}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <button onClick={() => handleOpenModal(item)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">Assign Assets</button>
+                                                <button onClick={() => handleOpenModal(item)} className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors">Assign Assets</button>
                                             </td>
                                         </tr>
                                     ))
@@ -264,7 +319,7 @@ const AssetAssignment = () => {
                                                 id={`asset-${index}`}
                                                 checked={formData.assets.includes(option)}
                                                 onChange={() => handleAssetChange(option)}
-                                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                                className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
                                             />
                                             <label htmlFor={`asset-${index}`} className="ml-2 block text-sm text-gray-700 cursor-pointer">
                                                 {option}
@@ -282,7 +337,7 @@ const AssetAssignment = () => {
                                     value={formData.laptopDetails}
                                     onChange={handleInputChange}
                                     placeholder="e.g. Dell Latitude 5420"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                                 />
                             </div>
 
@@ -294,7 +349,7 @@ const AssetAssignment = () => {
                                     value={formData.mobileDetails}
                                     onChange={handleInputChange}
                                     placeholder="e.g. Samsung A23 - SIM 9876543210"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                                 />
                             </div>
 
@@ -306,13 +361,13 @@ const AssetAssignment = () => {
                                     value={formData.gmailId}
                                     onChange={handleInputChange}
                                     placeholder="e.g. employee@company.com"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Final Status <span className="text-red-500">*</span></label>
-                                <select name="status" value={formData.status} onChange={handleInputChange} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <select name="status" value={formData.status} onChange={handleInputChange} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy">
                                     <option value="">Select Status</option>
                                     <option value="Done">Done</option>
                                     <option value="Not Done">Not Done</option>
@@ -321,7 +376,7 @@ const AssetAssignment = () => {
 
                             <div className="flex justify-end gap-3 pt-4 border-t">
                                 <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
-                                <button type="submit" disabled={submitting} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
+                                <button type="submit" disabled={submitting} className="px-6 py-2 bg-navy text-white rounded-lg hover:bg-navy-dark transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
                                     {submitting ? "Submitting..." : "Submit Details"}
                                 </button>
                             </div>

@@ -8,6 +8,8 @@ const JoiningFollowUp = () => {
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [deptFilter, setDeptFilter] = useState("");
+    const [desigFilter, setDesigFilter] = useState("");
     const [showModal, setShowModal] = useState(false);
     const [tableLoading, setTableLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -173,14 +175,13 @@ const JoiningFollowUp = () => {
 
         try {
             const newID = `${formData.indentNumber}_${formData.designation}`;
-            const now = new Date();
             const day = String(now.getDate()).padStart(2, '0');
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = now.getFullYear();
+            const year = String(now.getFullYear()).slice(-2);
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
             const rowData = [];
             rowData[0] = timestamp; // Column A
@@ -281,14 +282,13 @@ const JoiningFollowUp = () => {
 
         setActionSubmitting(true);
         try {
-            const now = new Date();
             const day = String(now.getDate()).padStart(2, '0');
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = now.getFullYear();
+            const year = String(now.getFullYear()).slice(-2);
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
             // 1. Submit to DATA RESPONSE
             const responseData = [];
@@ -350,11 +350,18 @@ const JoiningFollowUp = () => {
         const matchesSearch = (
             (item.candidateName || "").toLowerCase().includes(term) ||
             (item.id || "").toLowerCase().includes(term) ||
-            (item.designation || "").toLowerCase().includes(term)
+            (item.designation || "").toLowerCase().includes(term) ||
+            (item.department || "").toLowerCase().includes(term)
         );
 
-        return matchesTab && matchesSearch;
+        const matchesDept = !deptFilter || item.department === deptFilter;
+        const matchesDesig = !desigFilter || item.designation === desigFilter;
+
+        return matchesTab && matchesSearch && matchesDept && matchesDesig;
     });
+
+    const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
+    const designations = [...new Set(candidateData.map(item => item.designation))].filter(Boolean).sort();
 
     return (
         <div className="space-y-6 page-content p-6">
@@ -362,34 +369,78 @@ const JoiningFollowUp = () => {
                 <h1 className="text-2xl font-bold text-gray-800">Follow up for joining/ Joining Date</h1>
             </div>
 
-            <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-                <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
-                    <button
-                        onClick={() => setActiveTab("pending")}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-indigo-600 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
-                    >
-                        <Clock size={18} />
-                        Pending
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("history")}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "history" ? "bg-white text-indigo-600 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
-                    >
-                        <CheckCircle size={18} />
-                        History
-                    </button>
+            {/* Filter and Search */}
+            <div className="bg-white p-4 rounded-lg shadow space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
+                    <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setActiveTab("pending")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        >
+                            <Clock size={18} />
+                            Pending
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("history")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "history" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        >
+                            <CheckCircle size={18} />
+                            History
+                        </button>
+                    </div>
+
+                    <div className="flex flex-1 max-w-md">
+                        <div className="relative w-full">
+                            <input
+                                type="text"
+                                placeholder="Search by name, ID or designation..."
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        </div>
+                    </div>
                 </div>
 
-                <div className="flex flex-1 max-w-md">
-                    <div className="relative w-full">
-                        <input
-                            type="text"
-                            placeholder="Search by name, ID or designation..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Department</label>
+                        <select
+                            value={deptFilter}
+                            onChange={(e) => setDeptFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Departments</option>
+                            {departments.map(dept => (
+                                <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Designation</label>
+                        <select
+                            value={desigFilter}
+                            onChange={(e) => setDesigFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Designations</option>
+                            {designations.map(desig => (
+                                <option key={desig} value={desig}>{desig}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-end">
+                        <button
+                            onClick={() => {
+                                setSearchTerm("");
+                                setDeptFilter("");
+                                setDesigFilter("");
+                            }}
+                            className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
+                        >
+                            <X size={14} /> Clear All Filters
+                        </button>
                     </div>
                 </div>
             </div>
@@ -420,7 +471,7 @@ const JoiningFollowUp = () => {
                                                 {activeTab === "pending" ? (
                                                     <button
                                                         onClick={() => handleActionClick(item)}
-                                                        className="px-3 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 transition-colors"
+                                                        className="px-3 py-1 bg-navy text-white rounded text-xs hover:bg-navy-dark transition-colors"
                                                     >
                                                         Take Action
                                                     </button>
@@ -431,7 +482,7 @@ const JoiningFollowUp = () => {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{item.id}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
@@ -548,14 +599,14 @@ const JoiningFollowUp = () => {
                                             <label className="block text-sm font-medium text-gray-700">Resume/cv</label>
                                             <div className="mt-1 flex items-center gap-4">
                                                 <input type="file" onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-                                                {fileUploading && <Clock className="animate-spin text-indigo-600" size={20} />}
+                                                {fileUploading && <Clock className="animate-spin text-navy" size={20} />}
                                                 {formData.resumeUrl && <CheckCircle className="text-green-600" size={20} />}
                                             </div>
                                         </div>
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">
                                         <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                                        <button type="submit" disabled={submitting || fileUploading} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                                        <button type="submit" disabled={submitting || fileUploading} className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50 flex items-center gap-2">
                                             {submitting ? "Submitting..." : "Submit Follow-up"}
                                         </button>
                                     </div>
@@ -616,7 +667,7 @@ const JoiningFollowUp = () => {
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">
                                         <button type="button" onClick={() => setShowActionModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                                        <button type="submit" disabled={actionSubmitting} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                                        <button type="submit" disabled={actionSubmitting} className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50 flex items-center gap-2">
                                             {actionSubmitting ? "Submitting..." : "Submit Action"}
                                         </button>
                                     </div>

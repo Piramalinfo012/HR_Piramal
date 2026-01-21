@@ -511,7 +511,7 @@ const Report = () => {
               onClick={() => setActiveReport('attendanceDayEnd')}
               className={`py-4 px-4 text-center font-medium text-sm ${
                 activeReport === 'attendanceDayEnd' 
-                  ? 'border-b-2 border-indigo-500 text-indigo-600' 
+                  ? 'border-b-2 border-indigo-500 text-navy' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -521,7 +521,7 @@ const Report = () => {
               onClick={() => setActiveReport('attendanceAnalysis')}
               className={`py-4 px-4 text-center font-medium text-sm ${
                 activeReport === 'attendanceAnalysis' 
-                  ? 'border-b-2 border-indigo-500 text-indigo-600' 
+                  ? 'border-b-2 border-indigo-500 text-navy' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -531,7 +531,7 @@ const Report = () => {
               onClick={() => setActiveReport('monthlyAttendance')}
               className={`py-4 px-4 text-center font-medium text-sm ${
                 activeReport === 'monthlyAttendance' 
-                  ? 'border-b-2 border-indigo-500 text-indigo-600' 
+                  ? 'border-b-2 border-indigo-500 text-navy' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -541,7 +541,7 @@ const Report = () => {
               onClick={() => setActiveReport('whatsappDayEnd')}
               className={`py-4 px-4 text-center font-medium text-sm ${
                 activeReport === 'whatsappDayEnd' 
-                  ? 'border-b-2 border-indigo-500 text-indigo-600' 
+                  ? 'border-b-2 border-indigo-500 text-navy' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -551,7 +551,7 @@ const Report = () => {
               onClick={() => setActiveReport('leaveReport')}
               className={`py-4 px-4 text-center font-medium text-sm ${
                 activeReport === 'leaveReport' 
-                  ? 'border-b-2 border-indigo-500 text-indigo-600' 
+                  ? 'border-b-2 border-indigo-500 text-navy' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -561,7 +561,7 @@ const Report = () => {
               onClick={() => setActiveReport('lateCutoff')}
               className={`py-4 px-4 text-center font-medium text-sm ${
                 activeReport === 'lateCutoff' 
-                  ? 'border-b-2 border-indigo-500 text-indigo-600' 
+                  ? 'border-b-2 border-indigo-500 text-navy' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -571,7 +571,7 @@ const Report = () => {
               onClick={() => setActiveReport('overtimeReport')}
               className={`py-4 px-4 text-center font-medium text-sm ${
                 activeReport === 'overtimeReport' 
-                  ? 'border-b-2 border-indigo-500 text-indigo-600' 
+                  ? 'border-b-2 border-indigo-500 text-navy' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >

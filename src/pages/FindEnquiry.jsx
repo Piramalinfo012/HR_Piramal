@@ -913,7 +913,7 @@ const FindEnquiry = () => {
             <input
               type="text"
               placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2  bg-white bg-opacity-10 focus:ring-indigo-500 text-gray-600  "
+              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2  bg-white bg-opacity-10 focus:ring-navy text-gray-600  "
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -937,7 +937,7 @@ const FindEnquiry = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                ? "border-indigo-500 text-indigo-600"
+                ? "border-indigo-500 text-navy"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("pending")}
@@ -947,7 +947,7 @@ const FindEnquiry = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                ? "border-indigo-500 text-indigo-600"
+                ? "border-indigo-500 text-navy"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("history")}
@@ -1145,7 +1145,7 @@ const FindEnquiry = () => {
                               href={item.candidatePhoto}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-800"
+                              className="text-navy hover:text-indigo-800"
                             >
                               View
                             </a>
@@ -1159,7 +1159,7 @@ const FindEnquiry = () => {
                               href={item.candidateResume}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-800"
+                              className="text-navy hover:text-indigo-800"
                             >
                               View
                             </a>
@@ -1790,7 +1790,7 @@ const FindEnquiry = () => {
               <button
                 type="button"
                 onClick={handleAddCandidate}
-                className="w-full py-3 border-2 border-dashed border-indigo-400 rounded-md text-indigo-600 hover:bg-indigo-50 font-medium"
+                className="w-full py-3 border-2 border-dashed border-indigo-400 rounded-md text-navy hover:bg-indigo-50 font-medium"
               >
                 + Add Another Candidate
               </button>

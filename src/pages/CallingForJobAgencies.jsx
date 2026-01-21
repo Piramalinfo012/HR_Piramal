@@ -11,6 +11,8 @@ const CallingForJobAgencies = () => {
   const [historyIndentData, setHistoryIndentData] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [deptFilter, setDeptFilter] = useState("");
+  const [desigFilter, setDesigFilter] = useState("");
 
   const [showModal, setShowModal] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
@@ -280,7 +282,14 @@ const CallingForJobAgencies = () => {
 
     try {
       setSubmitting(true);
-      const timestamp = getCurrentTimestamp();
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = String(now.getFullYear()).slice(-2);
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
       const PO_NUMBER = "PO-2";
 
@@ -385,8 +394,13 @@ const CallingForJobAgencies = () => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       (item.post || "").toLowerCase().includes(term) ||
-      (item.indentNumber || "").toLowerCase().includes(term);
-    return matchesSearch;
+      (item.indentNumber || "").toLowerCase().includes(term) ||
+      (item.department || "").toLowerCase().includes(term);
+
+    const matchesDept = !deptFilter || item.department === deptFilter;
+    const matchesDesig = !desigFilter || item.post === desigFilter; // In this page, 'post' seems to be the designation
+
+    return matchesSearch && matchesDept && matchesDesig;
   });
 
   const filteredHistoryData = historyIndentData.filter((item) => {
@@ -394,9 +408,19 @@ const CallingForJobAgencies = () => {
     const matchesSearch =
       (item.siteStatus || "").toLowerCase().includes(term) ||
       (item.socialSiteTypes || "").toLowerCase().includes(term) ||
-      (item.indentNumber || "").toLowerCase().includes(term);
-    return matchesSearch;
+      (item.indentNumber || "").toLowerCase().includes(term) ||
+      (item.department || "").toLowerCase().includes(term);
+
+    const matchesDept = !deptFilter || item.department === deptFilter;
+    const matchesDesig = !desigFilter || item.post === desigFilter;
+
+    return matchesSearch && matchesDept && matchesDesig;
   });
+
+  // Extract unique departments and posts (designations) for filters
+  const allData = [...indentData, ...historyIndentData];
+  const departments = [...new Set(allData.map(item => item.department))].filter(Boolean).sort();
+  const posts = [...new Set(allData.map(item => item.post))].filter(Boolean).sort();
 
   return (
     <div className="space-y-6 page-content p-6">
@@ -429,7 +453,7 @@ const CallingForJobAgencies = () => {
                   name="post"
                   value={formData.post}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Enter post title"
                   required
                 />
@@ -443,7 +467,7 @@ const CallingForJobAgencies = () => {
                   name="gender"
                   value={formData.gender}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
                   <option value="">Select Gender</option>
@@ -461,7 +485,7 @@ const CallingForJobAgencies = () => {
                   name="department"
                   value={formData.department}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                 >
                   <option value="">Select Department</option>
                   <option value="Production">Production</option>
@@ -479,7 +503,7 @@ const CallingForJobAgencies = () => {
                   name="prefer"
                   value={formData.prefer}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                 >
                   <option value="">Any</option>
                   <option value="Experience">Experience</option>
@@ -498,7 +522,7 @@ const CallingForJobAgencies = () => {
                     name="experience"
                     value={formData.experience}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                     placeholder="Enter experience details"
                     required={formData.prefer === "Experience"}
                   />
@@ -514,7 +538,7 @@ const CallingForJobAgencies = () => {
                   name="numberOfPost"
                   value={formData.numberOfPost}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Enter number of posts"
                   min="1"
                   required
@@ -530,7 +554,7 @@ const CallingForJobAgencies = () => {
                   name="competitionDate"
                   value={formData.competitionDate}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 />
               </div>
@@ -543,7 +567,7 @@ const CallingForJobAgencies = () => {
                   name="socialSite"
                   value={formData.socialSite}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
                   <option value="">Select</option>
@@ -567,7 +591,7 @@ const CallingForJobAgencies = () => {
                           value={option}
                           checked={formData.socialSiteTypes.includes(option)}
                           onChange={handleSocialSiteTypeChange}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
                         />
                         <label
                           htmlFor={option}
@@ -588,7 +612,7 @@ const CallingForJobAgencies = () => {
 
                 <input
                   type="text"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   disabled
                   value={formData.indentNumber}
                 />
@@ -605,7 +629,7 @@ const CallingForJobAgencies = () => {
                   name="jobConsultancyName"
                   value={formData.jobConsultancyName}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Enter job consultancy name"
                 />
               </div>
@@ -619,7 +643,7 @@ const CallingForJobAgencies = () => {
                   name="salary"
                   value={formData.salary}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Enter salary"
                 />
               </div>
@@ -633,7 +657,7 @@ const CallingForJobAgencies = () => {
                   name="officeTimingFrom"
                   value={formData.officeTimingFrom}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                 />
               </div>
 
@@ -646,7 +670,7 @@ const CallingForJobAgencies = () => {
                   name="officeTimingTo"
                   value={formData.officeTimingTo}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                 />
               </div>
 
@@ -658,7 +682,7 @@ const CallingForJobAgencies = () => {
                   name="typeOfWeek"
                   value={formData.typeOfWeek}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                 >
                   <option value="">Select</option>
                   <option value="Week off">Week off</option>
@@ -675,7 +699,7 @@ const CallingForJobAgencies = () => {
                   name="residence"
                   value={formData.residence}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                 >
                   <option value="">Select</option>
                   <option value="Stay">Stay</option>
@@ -693,7 +717,7 @@ const CallingForJobAgencies = () => {
                   name="closedBy"
                   value={formData.closedBy}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Enter name"
                 />
               </div>
@@ -707,7 +731,7 @@ const CallingForJobAgencies = () => {
                   name="indenterName"
                   value={formData.indenterName}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Enter indenter name"
                 />
               </div>
@@ -723,7 +747,7 @@ const CallingForJobAgencies = () => {
                   name="status"
                   value={formData.status}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                 >
                   <option value="Done">Done</option>
                   <option value="Not Done">Not Done</option>
@@ -739,7 +763,7 @@ const CallingForJobAgencies = () => {
                 <input
                   type="file"
                   onChange={handleFileUpload}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   accept="image/*,application/pdf"
                 />
                 {formData.uploadedFileUrl && (
@@ -756,14 +780,14 @@ const CallingForJobAgencies = () => {
                 <input
                   type="file"
                   onChange={handleFileUpload}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   accept="image/*,application/pdf"
                   disabled={fileUploading || submitting}
                 />
                 {fileUploading && (
                   <div className="flex items-center mt-2">
                     <svg
-                      className="animate-spin h-4 w-4 text-indigo-600 mr-2"
+                      className="animate-spin h-4 w-4 text-navy mr-2"
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
@@ -782,7 +806,7 @@ const CallingForJobAgencies = () => {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    <span className="text-sm text-indigo-600">
+                    <span className="text-sm text-navy">
                       Uploading file...
                     </span>
                   </div>
@@ -816,7 +840,7 @@ const CallingForJobAgencies = () => {
                 </button>
                 {/* <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-all duration-200 flex items-center justify-center"
+                  className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark transition-all duration-200 flex items-center justify-center"
                   disabled={submitting}
                 >
                   {submitting ? (
@@ -850,7 +874,7 @@ const CallingForJobAgencies = () => {
 
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-all duration-200 flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark transition-all duration-200 flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
                   disabled={submitting || fileUploading}
                 >
                   {submitting ? (
@@ -912,20 +936,63 @@ const CallingForJobAgencies = () => {
       )}
 
       {/* Filter and Search */}
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex flex-1 max-w-md">
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2  bg-white bg-opacity-10 focus:ring-indigo-500 text-gray-600  "
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 opacity-60"
-            />
+      <div className="bg-white p-4 rounded-lg shadow space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
+          <div className="flex flex-1 max-w-md">
+            <div className="relative w-full">
+              <input
+                type="text"
+                placeholder="Search by post, indent, etc..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={20}
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Department</label>
+            <select
+              value={deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+            >
+              <option value="">All Departments</option>
+              {departments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Post</label>
+            <select
+              value={desigFilter}
+              onChange={(e) => setDesigFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+            >
+              <option value="">All Posts</option>
+              {posts.map(post => (
+                <option key={post} value={post}>{post}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setDeptFilter("");
+                setDesigFilter("");
+              }}
+              className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
+            >
+              <X size={14} /> Clear All Filters
+            </button>
           </div>
         </div>
       </div>
@@ -935,7 +1002,7 @@ const CallingForJobAgencies = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                ? "border-indigo-500 text-indigo-600"
+                ? "border-indigo-500 text-navy"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("pending")}
@@ -945,7 +1012,7 @@ const CallingForJobAgencies = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                ? "border-indigo-500 text-indigo-600"
+                ? "border-indigo-500 text-navy"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("history")}
@@ -982,25 +1049,12 @@ const CallingForJobAgencies = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Prefer
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Experience
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        No. of Post
-                      </th>
+
+
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Completion Date
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Social Site
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Social Site Types
-                      </th>
 
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Job Consultancy
-                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Salary
                       </th>
@@ -1049,7 +1103,7 @@ const CallingForJobAgencies = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
                               onClick={() => handlePostClick(item)}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                              className="px-3 py-1 bg-navy text-white rounded hover:bg-navy-dark"
                             >
                               Post
                             </button>
@@ -1070,12 +1124,7 @@ const CallingForJobAgencies = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.prefer}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.experience}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.noOfPost}
-                          </td>
+
 
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <div className="text-sm text-gray-900 break-words">
@@ -1118,15 +1167,7 @@ const CallingForJobAgencies = () => {
                                 : "—"}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.socialSite}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.socialSiteTypes}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.jobConsultancyName}
-                          </td>
+
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.salary}
                           </td>
@@ -1223,7 +1264,7 @@ const CallingForJobAgencies = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
                               onClick={() => handlePostClick(item)}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                              className="px-3 py-1 bg-navy text-white rounded hover:bg-navy-dark"
                             >
                               Post
                             </button>
@@ -1244,9 +1285,7 @@ const CallingForJobAgencies = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.prefer}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.experience}
-                          </td>
+
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.noOfPost}
                           </td>

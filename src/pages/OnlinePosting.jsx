@@ -18,6 +18,8 @@ const OnlinePosting = () => {
 
   const [indentData, setIndentData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deptFilter, setDeptFilter] = useState("");
+  const [desigFilter, setDesigFilter] = useState("");
   const [historyIndentData, setHistoryIndentData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
@@ -198,11 +200,11 @@ const OnlinePosting = () => {
       const now = new Date();
       const day = String(now.getDate()).padStart(2, '0');
       const month = String(now.getMonth() + 1).padStart(2, '0');
-      const year = now.getFullYear();
+      const year = String(now.getFullYear()).slice(-2);
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
-      const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
       const dataResponseRow = [
         selectedIndent.indentNumber,
@@ -255,19 +257,35 @@ const OnlinePosting = () => {
   };
 
   const filteredPendingData = indentData.filter((item) => {
+    const term = searchTerm.toLowerCase();
     const matchesSearch =
-      item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.indentNumber?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+      item.post?.toLowerCase().includes(term) ||
+      item.indentNumber?.toLowerCase().includes(term) ||
+      item.department?.toLowerCase().includes(term);
+
+    const matchesDept = !deptFilter || item.department === deptFilter;
+    const matchesDesig = !desigFilter || item.post === desigFilter;
+
+    return matchesSearch && matchesDept && matchesDesig;
   });
 
   const filteredHistoryData = historyIndentData.filter((item) => {
+    const term = searchTerm.toLowerCase();
     const matchesSearch =
-      item.siteStatus?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.socialSiteTypes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.indentNumber?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+      item.siteStatus?.toLowerCase().includes(term) ||
+      item.socialSiteTypes?.toLowerCase().includes(term) ||
+      item.indentNumber?.toLowerCase().includes(term) ||
+      item.department?.toLowerCase().includes(term);
+
+    const matchesDept = !deptFilter || item.department === deptFilter;
+    const matchesDesig = !desigFilter || item.post === desigFilter;
+
+    return matchesSearch && matchesDept && matchesDesig;
   });
+
+  const allData = [...indentData, ...historyIndentData];
+  const departments = [...new Set(allData.map(item => item.department))].filter(Boolean).sort();
+  const posts = [...new Set(allData.map(item => item.post))].filter(Boolean).sort();
 
   return (
     <div className="space-y-6 page-content p-6">
@@ -303,7 +321,7 @@ const OnlinePosting = () => {
 
                   <input
                     type="text"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy bg-gray-50"
                     disabled
                     value={selectedIndent.indentNumber}
                   />
@@ -321,7 +339,7 @@ const OnlinePosting = () => {
                         status: e.target.value,
                       }))
                     }
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                     required
                   >
                     <option value="Done">Done</option>
@@ -341,7 +359,7 @@ const OnlinePosting = () => {
                     <input
                       type="file"
                       onChange={handleFileUpload}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy text-sm"
                       disabled={uploading}
                     />
                   </div>
@@ -385,7 +403,7 @@ const OnlinePosting = () => {
                             }
                           });
                         }}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
                       />
                       <label
                         htmlFor={`post-${option}`}
@@ -416,7 +434,7 @@ const OnlinePosting = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-all duration-200 flex items-center justify-center"
+                  className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark transition-all duration-200 flex items-center justify-center"
                   disabled={submitting}
                 >
                   {submitting ? (
@@ -454,20 +472,63 @@ const OnlinePosting = () => {
       )}
 
       {/* Filter and Search */}
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex flex-1 max-w-md">
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2  bg-white bg-opacity-10 focus:ring-indigo-500 text-gray-600  "
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 opacity-60"
-            />
+      <div className="bg-white p-4 rounded-lg shadow space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
+          <div className="flex flex-1 max-w-md">
+            <div className="relative w-full">
+              <input
+                type="text"
+                placeholder="Search by post, indent, etc..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={20}
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Department</label>
+            <select
+              value={deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+            >
+              <option value="">All Departments</option>
+              {departments.map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Post</label>
+            <select
+              value={desigFilter}
+              onChange={(e) => setDesigFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+            >
+              <option value="">All Posts</option>
+              {posts.map(post => (
+                <option key={post} value={post}>{post}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setDeptFilter("");
+                setDesigFilter("");
+              }}
+              className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
+            >
+              <X size={14} /> Clear All Filters
+            </button>
           </div>
         </div>
       </div>
@@ -477,7 +538,7 @@ const OnlinePosting = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                ? "border-indigo-500 text-indigo-600"
+                ? "border-indigo-500 text-navy"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("pending")}
@@ -487,7 +548,7 @@ const OnlinePosting = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                ? "border-indigo-500 text-indigo-600"
+                ? "border-indigo-500 text-navy"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("history")}
@@ -576,7 +637,7 @@ const OnlinePosting = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
                               onClick={() => handlePostClick(item, index + 7)}
-                              className="text-white bg-blue-600 px-3 py-1 rounded hover:bg-blue-700"
+                              className="text-white bg-navy px-3 py-1 rounded hover:bg-navy-dark"
                             >
                               Post
                             </button>
@@ -755,7 +816,7 @@ const OnlinePosting = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
                               onClick={() => handlePostClick(item, index + 7)}
-                              className="text-white bg-blue-600 px-3 py-1 rounded hover:bg-blue-700"
+                              className="text-white bg-navy px-3 py-1 rounded hover:bg-navy-dark"
                             >
                               Post
                             </button>

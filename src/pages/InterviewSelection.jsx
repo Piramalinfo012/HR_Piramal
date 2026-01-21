@@ -176,11 +176,11 @@ const InterviewSelection = () => {
             const now = new Date();
             const day = String(now.getDate()).padStart(2, '0');
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = now.getFullYear();
+            const year = String(now.getFullYear()).slice(-2);
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
             const rowData = [];
             rowData[0] = formData.indentNumber; // Column A (Indent Number)
@@ -284,11 +284,11 @@ const InterviewSelection = () => {
             const now = new Date();
             const day = String(now.getDate()).padStart(2, '0');
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = now.getFullYear();
+            const year = String(now.getFullYear()).slice(-2);
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
             // 1. Submit to DATA RESPONSE
             const responseData = [];
@@ -379,14 +379,14 @@ const InterviewSelection = () => {
                 <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
                     <button
                         onClick={() => setActiveTab("pending")}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-indigo-600 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
                     >
                         <Clock size={18} />
                         Pending
                     </button>
                     <button
                         onClick={() => setActiveTab("history")}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "history" ? "bg-white text-indigo-600 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "history" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
                     >
                         <CheckCircle size={18} />
                         History
@@ -398,7 +398,7 @@ const InterviewSelection = () => {
                         <input
                             type="text"
                             placeholder="Search by name, ID or designation..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -433,7 +433,7 @@ const InterviewSelection = () => {
                                                 {activeTab === "pending" ? (
                                                     <button
                                                         onClick={() => handleActionClick(item)}
-                                                        className="px-3 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 transition-colors"
+                                                        className="px-3 py-1 bg-navy text-white rounded text-xs hover:bg-navy-dark transition-colors"
                                                     >
                                                         Take Action
                                                     </button>
@@ -444,7 +444,7 @@ const InterviewSelection = () => {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{item.id}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
@@ -561,14 +561,14 @@ const InterviewSelection = () => {
                                             <label className="block text-sm font-medium text-gray-700">Resume/cv</label>
                                             <div className="mt-1 flex items-center gap-4">
                                                 <input type="file" onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-                                                {fileUploading && <Clock className="animate-spin text-indigo-600" size={20} />}
+                                                {fileUploading && <Clock className="animate-spin text-navy" size={20} />}
                                                 {formData.resumeUrl && <CheckCircle className="text-green-600" size={20} />}
                                             </div>
                                         </div>
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">
                                         <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                                        <button type="submit" disabled={submitting || fileUploading} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                                        <button type="submit" disabled={submitting || fileUploading} className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50 flex items-center gap-2">
                                             {submitting ? "Submitting..." : "Submit Record"}
                                         </button>
                                     </div>
@@ -630,7 +630,7 @@ const InterviewSelection = () => {
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">
                                         <button type="button" onClick={() => setShowActionModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                                        <button type="submit" disabled={actionSubmitting} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                                        <button type="submit" disabled={actionSubmitting} className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50 flex items-center gap-2">
                                             {actionSubmitting ? "Submitting..." : "Submit Action"}
                                         </button>
                                     </div>
@@ -692,7 +692,7 @@ const InterviewSelection = () => {
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">
                                         <button type="button" onClick={() => setShowActionModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                                        <button type="submit" disabled={actionSubmitting} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                                        <button type="submit" disabled={actionSubmitting} className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50 flex items-center gap-2">
                                             {actionSubmitting ? "Submitting..." : "Submit Action"}
                                         </button>
                                     </div>

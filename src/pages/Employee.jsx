@@ -230,7 +230,7 @@ const Employee = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "joining"
-                ? "border-indigo-500 text-indigo-600"
+                ? "border-indigo-500 text-navy"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("joining")}
@@ -240,7 +240,7 @@ const Employee = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "leaving"
-                ? "border-indigo-500 text-indigo-600"
+                ? "border-indigo-500 text-navy"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("leaving")}
@@ -346,7 +346,7 @@ const Employee = () => {
                           <p className="text-red-500">Error: {error}</p>
                           <button
                             onClick={fetchJoiningData}
-                            className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                            className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                           >
                             Retry
                           </button>
@@ -381,7 +381,7 @@ const Employee = () => {
                                 href={item.aadharPhoto}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-indigo-600 hover:text-indigo-800"
+                                className="text-navy hover:text-indigo-800"
                               >
                                 <ImageIcon size={20} />
                               </a>
@@ -395,7 +395,7 @@ const Employee = () => {
                                 href={item.candidatePhoto}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-indigo-600 hover:text-indigo-800"
+                                className="text-navy hover:text-indigo-800"
                               >
                                 <ImageIcon size={20} />
                               </a>
@@ -438,7 +438,7 @@ const Employee = () => {
                                 href={item.passbook}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-indigo-600 hover:text-indigo-800"
+                                className="text-navy hover:text-indigo-800"
                               ><ImageIcon size={20} /></a>
                             ) : (
                               "-"
@@ -530,7 +530,7 @@ const Employee = () => {
                           <p className="text-red-500">Error: {error}</p>
                           <button
                             onClick={fetchLeavingData}
-                            className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                            className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                           >
                             Retry
                           </button>

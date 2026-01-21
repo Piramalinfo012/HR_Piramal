@@ -480,11 +480,11 @@ const Indent = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           Indent
-          <span className="text-xs font-normal bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200">v2.1 (A-P Sync)</span>
+          
         </h1>
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-all duration-200"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-navy hover:bg-navy-dark transition-all duration-200"
           disabled={loading}
         >
           {loading ? (
@@ -545,7 +545,7 @@ const Indent = () => {
                   name="competitionDate"
                   value={formData.competitionDate}
                   onChange={handleInputChange}
-                  className="w-full border border-indigo-200 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-indigo-200 rounded-md px-3 py-2 focus:ring-2 focus:ring-navy"
                   required
                 />
               </div>
@@ -576,7 +576,7 @@ const Indent = () => {
                         name="post"
                         value={postField.post}
                         onChange={(e) => handlePostInputChange(index, e)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy text-sm"
                         placeholder="Enter post title"
                         required
                       />
@@ -591,7 +591,7 @@ const Indent = () => {
                           name="gender"
                           value={postField.gender}
                           onChange={(e) => handlePostInputChange(index, e)}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 text-sm"
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-navy text-sm"
                           required
                         >
                           <option value="">Select</option>
@@ -609,7 +609,7 @@ const Indent = () => {
                           name="numberOfPost"
                           value={postField.numberOfPost}
                           onChange={(e) => handlePostInputChange(index, e)}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 text-sm"
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-navy text-sm"
                           min="1"
                           required
                         />
@@ -625,7 +625,7 @@ const Indent = () => {
                           name="department"
                           value={postField.department}
                           onChange={(e) => handlePostInputChange(index, e)}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 text-sm"
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-navy text-sm"
                         >
                           <option value="">Select</option>
                           <option value="Production">Production</option>
@@ -642,7 +642,7 @@ const Indent = () => {
                           name="prefer"
                           value={postField.prefer}
                           onChange={(e) => handlePostInputChange(index, e)}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 text-sm"
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-navy text-sm"
                         >
                           <option value="">Any</option>
                           <option value="Experience">Experience</option>
@@ -661,7 +661,7 @@ const Indent = () => {
                           name="experience"
                           value={postField.experience}
                           onChange={(e) => handlePostInputChange(index, e)}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 text-sm"
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-navy text-sm"
                           placeholder="e.g. 2+ years in Manufacturing"
                         />
                       </div>
@@ -778,7 +778,7 @@ const Indent = () => {
               <button
                 type="button"
                 onClick={addPostField}
-                className="w-full py-2 border-2 border-dashed border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50 transition-all flex items-center justify-center font-medium"
+                className="w-full py-2 border-2 border-dashed border-indigo-300 text-navy rounded-lg hover:bg-indigo-50 transition-all flex items-center justify-center font-medium"
               >
                 <Plus size={16} className="mr-2" />
                 Add Another Post entry
@@ -795,7 +795,7 @@ const Indent = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-all duration-200 flex items-center justify-center"
+                  className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark transition-all duration-200 flex items-center justify-center"
                   disabled={submitting}
                 >
                   {submitting ? (
@@ -916,7 +916,7 @@ const Indent = () => {
                           {item.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">
                         {item.indentNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

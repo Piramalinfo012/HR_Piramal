@@ -484,7 +484,7 @@ const CallTracker = () => {
             <input
               type="text"
               placeholder="Search by candidate name or enquiry number..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-600"
+              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2 focus:ring-navy bg-white text-gray-600"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -502,7 +502,7 @@ const CallTracker = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                  ? "border-indigo-500 text-indigo-600"
+                  ? "border-indigo-500 text-navy"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("pending")}
@@ -512,7 +512,7 @@ const CallTracker = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                  ? "border-indigo-500 text-indigo-600"
+                  ? "border-indigo-500 text-navy"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("history")}
@@ -580,7 +580,7 @@ const CallTracker = () => {
                         <p className="text-red-500">Error: {error}</p>
                         <button
                           onClick={fetchEnquiryData}
-                          className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                          className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                         >
                           Retry
                         </button>
@@ -630,7 +630,7 @@ const CallTracker = () => {
                               href={item.candidatePhoto}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-800"
+                              className="text-navy hover:text-indigo-800"
                             >
                               View
                             </a>
@@ -644,7 +644,7 @@ const CallTracker = () => {
                               href={item.candidateResume}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-indigo-600 hover:text-indigo-800"
+                              className="text-navy hover:text-indigo-800"
                             >
                               View
                             </a>
@@ -786,7 +786,7 @@ const CallTracker = () => {
                   name="status"
                   value={formData.status}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy bg-white text-gray-700"
                   required
                 >
                   <option value="">Select Status (स्थिति चुनें)</option>
@@ -817,7 +817,7 @@ const CallTracker = () => {
                   value={formData.candidateSays}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy bg-white text-gray-700"
                   required
                 />
               </div>
@@ -838,7 +838,7 @@ const CallTracker = () => {
                       name="nextDate"
                       value={formData.nextDate}
                       onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy bg-white text-gray-700"
                       required
                     />
                   </div>

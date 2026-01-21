@@ -156,7 +156,7 @@ const CompanyCalendar = () => {
         {/* <button
           onClick={fetchCalendarData}
           disabled={loading}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+          className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50"
         >
           {loading ? 'Refreshing...' : 'Refresh Calendar'}
         </button> */}
@@ -215,7 +215,7 @@ const CompanyCalendar = () => {
                   >
                     {day && (
                       <>
-                        <div className={`text-sm font-medium ${isToday(day) ? 'text-indigo-600' : 'text-gray-900'}`}>
+                        <div className={`text-sm font-medium ${isToday(day) ? 'text-navy' : 'text-gray-900'}`}>
                           {day}
                         </div>
                         <div className="space-y-1 mt-1">

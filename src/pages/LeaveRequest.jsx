@@ -568,7 +568,7 @@ const LeaveRequest = () => {
           disabled={hasSubmittedToday()}
           className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${hasSubmittedToday()
               ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-indigo-600 hover:bg-indigo-700'
+              : 'bg-navy hover:bg-navy-dark'
             }`}
           title={hasSubmittedToday() ? "You have already submitted a leave request today. Please try again tomorrow." : ""}
         >
@@ -592,7 +592,7 @@ const LeaveRequest = () => {
               id="monthFilter"
               value={selectedMonth}
               onChange={handleMonthChange}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
             >
               {monthOptions.map(option => (
                 <option key={option.value} value={option.value}>
@@ -610,7 +610,7 @@ const LeaveRequest = () => {
               id="yearFilter"
               value={selectedYear}
               onChange={handleYearChange}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
             >
               {yearOptions.map(year => (
                 <option key={year} value={year}>
@@ -635,7 +635,7 @@ const LeaveRequest = () => {
                 </p>
               </div>
               <div className="p-3 rounded-full bg-indigo-100">
-                <Calendar size={24} className="text-indigo-600" />
+                <Calendar size={24} className="text-navy" />
               </div>
             </div>
           </div>
@@ -654,7 +654,7 @@ const LeaveRequest = () => {
               </p>
             </div>
             <div className="p-3 rounded-full bg-indigo-100">
-              <Calendar size={24} className="text-indigo-600" />
+              <Calendar size={24} className="text-navy" />
             </div>
           </div>
         </div>
@@ -684,7 +684,7 @@ const LeaveRequest = () => {
           <h2 className="text-lg font-bold text-gray-800 mb-4">My Leave Requests</h2>
           {tableLoading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy"></div>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -783,7 +783,7 @@ const LeaveRequest = () => {
                   name="designation"
                   value={formData.designation}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                 />
               </div>
 
@@ -793,7 +793,7 @@ const LeaveRequest = () => {
                   name="hodName"
                   value={formData.hodName}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
                   <option value="">Select HOD</option>
@@ -809,7 +809,7 @@ const LeaveRequest = () => {
                   name="leaveType"
                   value={formData.leaveType}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
                   <option value="">Select Leave Type</option>
@@ -827,7 +827,7 @@ const LeaveRequest = () => {
                     name="fromDate"
                     value={formData.fromDate}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                     required
                   />
                 </div>
@@ -838,7 +838,7 @@ const LeaveRequest = () => {
                     name="toDate"
                     value={formData.toDate}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                     required
                   />
                 </div>
@@ -859,7 +859,7 @@ const LeaveRequest = () => {
                   value={formData.reason}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Please provide reason for leave..."
                   required
                 />
@@ -875,7 +875,7 @@ const LeaveRequest = () => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 min-h-[42px] flex items-center justify-center ${submitting ? 'opacity-75 cursor-not-allowed' : ''
+                  className={`px-4 py-2 text-white bg-navy rounded-md hover:bg-navy-dark min-h-[42px] flex items-center justify-center ${submitting ? 'opacity-75 cursor-not-allowed' : ''
                     }`}
                   disabled={submitting}
                 >

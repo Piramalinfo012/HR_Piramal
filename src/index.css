@@ -2,9 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  --sidebar-gradient: linear-gradient(180deg, #312e81 0%, #1e1b4b 100%);
+  --accent-blue: #3b82f6;
+  --accent-indigo: #6366f1;
+  --navy-primary: #312e81;
+  --navy-hover: #1e1b4b;
+}
+
 body {
   background: radial-gradient(circle, #3b82f6, #8b5cf6);
   min-height: 100vh;
+  margin: 0;
 }
 
 .gradient-bg {
@@ -31,6 +41,7 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

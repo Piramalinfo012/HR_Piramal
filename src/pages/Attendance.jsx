@@ -288,7 +288,7 @@ const Attendance = () => {
                       <p className="text-red-500">Error: {error}</p>
                       <button
                         onClick={fetchAttendanceData}
-                        className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                        className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                       >
                         Retry
                       </button>

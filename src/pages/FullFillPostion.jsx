@@ -356,7 +356,7 @@ const FullFillPostion = () => {
                 </label>
                 <input
                   type="text"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   disabled
                   value={formData.indentNumber}
                 />
@@ -370,7 +370,7 @@ const FullFillPostion = () => {
                   name="status"
                   value={formData.status}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
                   <option value="">Select Status</option>
@@ -390,7 +390,7 @@ const FullFillPostion = () => {
                     name="closedBy"
                     value={formData.closedBy}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                     placeholder="Enter name"
                     required={formData.status === "Close"}
                   />
@@ -408,7 +408,7 @@ const FullFillPostion = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-all duration-200 flex items-center justify-center"
+                  className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark transition-all duration-200 flex items-center justify-center"
                   disabled={submitting}
                 >
                   {submitting ? (
@@ -442,7 +442,7 @@ const FullFillPostion = () => {
 
                 {/* <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-all duration-200 flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark transition-all duration-200 flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
                   disabled={submitting || fileUploading}
                 >
                   {submitting ? (
@@ -510,7 +510,7 @@ const FullFillPostion = () => {
             <input
               type="text"
               placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2  bg-white bg-opacity-10 focus:ring-indigo-500 text-gray-600  "
+              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2  bg-white bg-opacity-10 focus:ring-navy text-gray-600  "
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -527,7 +527,7 @@ const FullFillPostion = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                ? "border-indigo-500 text-indigo-600"
+                ? "border-indigo-500 text-navy"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("pending")}
@@ -537,7 +537,7 @@ const FullFillPostion = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                ? "border-indigo-500 text-indigo-600"
+                ? "border-indigo-500 text-navy"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               onClick={() => setActiveTab("history")}
@@ -643,7 +643,7 @@ const FullFillPostion = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
                               onClick={() => handlePostClick(item)}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                              className="px-3 py-1 bg-navy text-white rounded hover:bg-navy-dark"
                             >
                               Post
                             </button>
@@ -856,7 +856,7 @@ const FullFillPostion = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
                               onClick={() => handlePostClick(item)}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                              className="px-3 py-1 bg-navy text-white rounded hover:bg-navy-dark"
                             >
                               Post
                             </button>

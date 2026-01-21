@@ -202,7 +202,7 @@ const Attendancedaily = () => {
               disabled={filteredData.length === 0}
               className={`flex items-center px-4 py-2 rounded-lg ${filteredData.length === 0
                 ? 'bg-gray-300 cursor-not-allowed'
-                : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+                : 'bg-navy hover:bg-navy-dark text-white'}`}
             >
               <Download size={18} className="mr-2" />
               Download
@@ -256,7 +256,7 @@ const Attendancedaily = () => {
                       <p className="text-red-500">Error: {error}</p>
                       <button
                         onClick={fetchAttendanceData}
-                        className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                        className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                       >
                         Retry
                       </button>

@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 
 import useAuthStore from "../store/authStore";
+import logo from "../assets/logo.png";
 
 const Sidebar = ({ onClose }) => {
   const navigate = useNavigate();
@@ -578,14 +579,19 @@ const Sidebar = ({ onClose }) => {
   const SidebarContent = ({ onClose, isCollapsed = false }) => (
     <div
       className={`flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"
-        } bg-indigo-900 text-white`}
+        } bg-opacity-95 backdrop-blur-md shadow-2xl border-r border-white border-opacity-10`}
+      style={{ background: 'var(--sidebar-gradient)' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-5 border-b border-indigo-800">
+      <div className="flex items-center justify-between p-5 border-b border-white border-opacity-10">
         {!isCollapsed && (
-          <h1 className="text-xl font-bold flex items-center gap-2 text-white">
-            <Users size={24} />
-            <span>{currentLang === "en" ? "HR FMS" : "एचआर एफएमएस"}</span>
+          <h1 className="text-xl font-extrabold flex items-center gap-2 text-white tracking-tight">
+            <div className="w-10 h-10 overflow-hidden rounded-lg shadow-sm border border-white border-opacity-10 flex items-center justify-center bg-white">
+              <img src={logo} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200">
+              {currentLang === "en" ? "HR FMS" : "एचआर एफएमएस"}
+            </span>
             <div className="relative">
               <button
                 onClick={toggleLanguage}
@@ -644,9 +650,9 @@ const Sidebar = ({ onClose }) => {
               <div key={item.label}>
                 <button
                   onClick={item.toggle}
-                  className={`flex items-center justify-between w-full py-2.5 px-4 rounded-lg transition-colors ${item.isOpen
-                    ? "bg-indigo-800 text-white"
-                    : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
+                  className={`flex items-center justify-between w-full py-2.5 px-4 rounded-xl transition-all duration-300 border border-transparent ${item.isOpen
+                    ? "bg-white bg-opacity-10 text-white border-white border-opacity-20 shadow-lg"
+                    : "text-indigo-100 hover:bg-white hover:bg-opacity-5 hover:text-white"
                     }`}
                 >
                   <div className="flex items-center">
@@ -695,9 +701,9 @@ const Sidebar = ({ onClose }) => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center py-2.5 px-4 rounded-lg transition-colors ${isActive
-                  ? "bg-indigo-800 text-white"
-                  : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
+                `flex items-center py-2.5 px-4 rounded-xl transition-all duration-300 border border-transparent mb-1 group ${isActive
+                  ? "bg-white bg-opacity-20 text-white border-white border-opacity-30 shadow-lg scale-[1.02]"
+                  : "text-indigo-100 hover:bg-white hover:bg-opacity-10 hover:text-white hover:translate-x-1"
                 }`
               }
               onClick={() => {
@@ -716,17 +722,17 @@ const Sidebar = ({ onClose }) => {
       </nav>
 
       {/* Footer - Always visible */}
-      <div className="p-4 border-t border-white border-opacity-20">
-        <div className="flex items-center space-x-4 mb-4">
-          <div className="flex items-center space-x-2 cursor-pointer">
-            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
-              <User size={20} className="text-indigo-600" />
+      <div className="p-4 border-t border-white border-opacity-10 bg-black bg-opacity-10">
+        <div className="flex items-center space-x-3 mb-4 px-2">
+          <div className="flex items-center space-x-3 cursor-pointer group">
+            <div className="w-10 h-10 rounded-full bg-white bg-opacity-20 flex items-center justify-center border border-white border-opacity-20 transition-transform group-hover:scale-110">
+              <User size={20} className="text-white" />
             </div>
-            <div className={`${isCollapsed ? "hidden" : "block"} md:block`}>
-              <p className="text-sm font-medium text-white">
+            <div className={`${isCollapsed ? "hidden" : "block"}`}>
+              <p className="text-sm font-semibold text-white leading-tight">
                 {user?.Name || user?.Username || "Guest"}
               </p>
-              <p className="text-xs text-white">
+              <p className="text-[10px] text-indigo-200 uppercase tracking-widest font-bold">
                 {user?.Admin === "Yes" ? "Administrator" : "Employee"}
               </p>
             </div>
@@ -738,10 +744,10 @@ const Sidebar = ({ onClose }) => {
             onClose?.();
             setIsOpen(false);
           }}
-          className="flex items-center py-2.5 px-4 rounded-lg text-white opacity-80 hover:bg-white hover:bg-opacity-10 hover:opacity-100 cursor-pointer transition-colors w-full"
+          className="flex items-center py-2.5 px-4 rounded-xl text-white opacity-80 hover:bg-red-500 hover:bg-opacity-20 hover:text-red-300 hover:opacity-100 cursor-pointer transition-all duration-300 w-full group"
         >
-          <LogOutIcon className={isCollapsed ? "mx-auto" : "mr-3"} size={20} />
-          {!isCollapsed && <span>Logout</span>}
+          <LogOutIcon className={`${isCollapsed ? "mx-auto" : "mr-3"} group-hover:-translate-x-1 transition-transform`} size={20} />
+          {!isCollapsed && <span className="font-medium">Logout</span>}
         </button>
       </div>
     </div>

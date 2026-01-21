@@ -219,7 +219,7 @@ const Vendors = () => {
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 shadow-lg transition-colors"
+            className="bg-navy hover:bg-navy-dark text-white px-6 py-3 rounded-lg flex items-center gap-2 shadow-lg transition-colors"
           >
             <Plus size={20} />
             Add Vendor
@@ -368,7 +368,7 @@ const Vendors = () => {
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:bg-blue-400 flex items-center justify-center gap-2"
+                  className="flex-1 bg-navy hover:bg-navy-dark text-white px-4 py-2 rounded-lg transition-colors disabled:bg-blue-400 flex items-center justify-center gap-2"
                   disabled={submitting}
                 >
                   {submitting ? (

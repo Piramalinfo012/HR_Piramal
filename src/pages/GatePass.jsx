@@ -445,7 +445,7 @@ const GatePass = () => {
                   type="checkbox"
                   checked={selectedRow?.serialNo === item.serialNo}
                   onChange={() => handleCheckboxChange(item.serialNo, item)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
                 />
               </td>
               {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.serialNo}</td> */}
@@ -655,7 +655,7 @@ const GatePass = () => {
         <h1 className="text-2xl font-bold">Gate Pass Management</h1>
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-navy hover:bg-navy-dark"
         >
           <Plus size={16} className="mr-2" />
           New Request
@@ -683,7 +683,7 @@ const GatePass = () => {
             <button
               onClick={() => setActiveTab('pending')}
               className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'pending'
-                  ? 'border-indigo-500 text-indigo-600'
+                  ? 'border-indigo-500 text-navy'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
@@ -692,7 +692,7 @@ const GatePass = () => {
             <button
               onClick={() => setActiveTab('approved')}
               className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'approved'
-                  ? 'border-indigo-500 text-indigo-600'
+                  ? 'border-indigo-500 text-navy'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
@@ -701,7 +701,7 @@ const GatePass = () => {
             <button
               onClick={() => setActiveTab('rejected')}
               className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'rejected'
-                  ? 'border-indigo-500 text-indigo-600'
+                  ? 'border-indigo-500 text-navy'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
@@ -726,7 +726,7 @@ const GatePass = () => {
                 <p className="text-red-500">Error: {error}</p>
                 <button
                   onClick={fetchGatePassData}
-                  className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                  className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                 >
                   Retry
                 </button>
@@ -755,7 +755,7 @@ const GatePass = () => {
                   name="employeeName"
                   value={formData.employeeName}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
                   <option value="">Select Employee</option>
@@ -794,7 +794,7 @@ const GatePass = () => {
                   name="visitPlace"
                   value={formData.visitPlace}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Enter place to visit"
                   required
                 />
@@ -807,7 +807,7 @@ const GatePass = () => {
                   value={formData.visitReason}
                   onChange={handleInputChange}
                   rows={2}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Please provide reason for visit..."
                   required
                 />
@@ -821,7 +821,7 @@ const GatePass = () => {
                     name="departureTime"
                     value={formData.departureTime}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                     required
                   />
                 </div>
@@ -832,7 +832,7 @@ const GatePass = () => {
                     name="arrivalTime"
                     value={formData.arrivalTime}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   />
                 </div>
               </div>
@@ -843,7 +843,7 @@ const GatePass = () => {
                   name="hodName"
                   value={formData.hodName}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
                   <option value="">Select HOD</option>
@@ -860,7 +860,7 @@ const GatePass = () => {
                   name="whatsappNumber"
                   value={formData.whatsappNumber}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Enter WhatsApp number"
                   required
                 />
@@ -873,7 +873,7 @@ const GatePass = () => {
                   name="gatePassImage"
                   onChange={handleInputChange}
                   accept="image/*"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                 />
               </div>
 
@@ -888,7 +888,7 @@ const GatePass = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-navy text-white rounded-md text-sm font-medium hover:bg-navy-dark disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? 'Submitting...' : 'Submit Request'}
                 </button>

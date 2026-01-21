@@ -520,7 +520,7 @@ const MyProfile = () => {
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              className="flex items-center px-4 py-2 bg-navy text-white rounded-lg hover:bg-navy-dark"
             >
               <Edit3 size={16} className="mr-2" />
               Edit Profile
@@ -670,7 +670,7 @@ const MyProfile = () => {
                     name="email"
                     value={formData.email || ""}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   />
                 ) : (
                   <p className="text-gray-800">{profileData.email}</p>
@@ -688,7 +688,7 @@ const MyProfile = () => {
                     name="mobileNo"
                     value={formData.mobileNo || ""}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   />
                 ) : (
                   <p className="text-gray-800">{profileData.mobileNo}</p>
@@ -705,7 +705,7 @@ const MyProfile = () => {
                     name="familyMobileNo"
                     value={formData.familyMobileNo || ""}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   />
                 ) : (
                   <p className="text-gray-800">{profileData.familyMobileNo}</p>
@@ -726,7 +726,7 @@ const MyProfile = () => {
                 value={formData.currentAddress || ""}
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
               />
             ) : (
               <p className="text-gray-800 whitespace-pre-line">

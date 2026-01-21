@@ -212,7 +212,7 @@ const Joining = () => {
                 base64Data: base64Data,
                 fileName: file.name,
                 mimeType: file.type,
-                folderId: folderId,
+                folderId: '1DL_Xf0_9fszToIDlZ3MMsiebDSK4OeIu2FOa1kvA8vPZCGoVKN6Johxc95FLVqP9Qp7cBp9v',
               }),
             });
 
@@ -255,17 +255,19 @@ const Joining = () => {
       const now = new Date();
       const day = String(now.getDate()).padStart(2, '0');
       const month = String(now.getMonth() + 1).padStart(2, '0');
-      const year = now.getFullYear();
+      const year = String(now.getFullYear()).slice(-2);
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
-      const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
       // Prepare data for columns B to AD (29 columns total)
       // Column A will be empty (handled by backend)
       const rowData = [
         timestamp,
-        `${formData.candidateEnquiryNo} - ${formData.designation}`, // B
+        // Create ID format: IndentID_Designation (e.g., IN-32_Intern)
+        // Remove any name appended to the Enquiry No (e.g., IN-05_pooja -> IN-05)
+        `${formData.candidateEnquiryNo.split('_')[0].trim()}_${formData.designation}`, // B
         formData.nameAsPerAadhar,              // C
         formData.fatherName,                   // D
         formData.dateOfJoining,                // E
@@ -328,7 +330,7 @@ const Joining = () => {
             <input
               type="text"
               placeholder="Search by name, ID or designation..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -363,12 +365,12 @@ const Joining = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <button
                           onClick={() => handleOpenModal(item)}
-                          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                          className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors"
                         >
                           Fill Details
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{item.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
@@ -411,7 +413,7 @@ const Joining = () => {
                     value={formData.candidateEnquiryNo}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -426,7 +428,7 @@ const Joining = () => {
                     value={formData.nameAsPerAadhar}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -441,7 +443,7 @@ const Joining = () => {
                     value={formData.fatherName}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -456,7 +458,7 @@ const Joining = () => {
                     value={formData.dateOfJoining}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -471,7 +473,7 @@ const Joining = () => {
                     value={formData.joiningPlace}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -486,7 +488,7 @@ const Joining = () => {
                     value={formData.designation}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -501,7 +503,7 @@ const Joining = () => {
                     value={formData.salary}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -515,7 +517,7 @@ const Joining = () => {
                     name="aadharFrontPhoto"
                     onChange={handleFileChange}
                     accept="image/*"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -529,7 +531,7 @@ const Joining = () => {
                     name="panCard"
                     onChange={handleFileChange}
                     accept="image/*"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -543,7 +545,7 @@ const Joining = () => {
                     name="candidatePhoto"
                     onChange={handleFileChange}
                     accept="image/*"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -558,7 +560,7 @@ const Joining = () => {
                     onChange={handleInputChange}
                     required
                     rows="2"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -573,7 +575,7 @@ const Joining = () => {
                     onChange={handleInputChange}
                     required
                     rows="2"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -588,7 +590,7 @@ const Joining = () => {
                     value={formData.dobAsPerAadhar}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -602,7 +604,7 @@ const Joining = () => {
                     value={formData.gender}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   >
                     <option value="">Select Gender</option>
                     <option value="Male">Male</option>
@@ -622,7 +624,7 @@ const Joining = () => {
                     value={formData.mobileNo}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -636,7 +638,7 @@ const Joining = () => {
                     name="familyMobileNo"
                     value={formData.familyMobileNo}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -650,7 +652,7 @@ const Joining = () => {
                     name="twoReferenceNo"
                     value={formData.twoReferenceNo}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -664,7 +666,7 @@ const Joining = () => {
                     name="pastPfId"
                     value={formData.pastPfId}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -679,7 +681,7 @@ const Joining = () => {
                     value={formData.currentBankAcNo}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -694,7 +696,7 @@ const Joining = () => {
                     value={formData.ifscCode}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -709,7 +711,7 @@ const Joining = () => {
                     value={formData.branchName}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -723,7 +725,7 @@ const Joining = () => {
                     name="bankPassbookPhoto"
                     onChange={handleFileChange}
                     accept="image/*"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -738,7 +740,7 @@ const Joining = () => {
                     value={formData.personalEmail}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -752,7 +754,7 @@ const Joining = () => {
                     name="esicNo"
                     value={formData.esicNo}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -767,7 +769,7 @@ const Joining = () => {
                     value={formData.highestQualification}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -782,7 +784,7 @@ const Joining = () => {
                     value={formData.aadharCardNo}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -796,7 +798,7 @@ const Joining = () => {
                     name="qualificationPhoto"
                     onChange={handleFileChange}
                     accept="image/*"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -810,7 +812,7 @@ const Joining = () => {
                     name="salarySlip"
                     onChange={handleFileChange}
                     accept="image/*,.pdf"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
 
@@ -824,7 +826,7 @@ const Joining = () => {
                     name="resumeUpload"
                     onChange={handleFileChange}
                     accept=".pdf,.doc,.docx"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
               </div>
@@ -840,7 +842,7 @@ const Joining = () => {
                 <button
                   type="submit"
                   disabled={uploading}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-6 py-2 bg-navy text-white rounded-lg hover:bg-navy-dark transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {uploading ? (
                     <>

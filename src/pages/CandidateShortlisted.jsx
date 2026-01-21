@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Search, Plus, X, CheckCircle, Clock } from "lucide-react";
 import toast from "react-hot-toast";
+import { History as HistoryIcon } from "lucide-react";
 
 const CandidateShortlisted = () => {
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
-    const [showModal, setShowModal] = useState(false);
+    const [deptFilter, setDeptFilter] = useState("");
+    const [desigFilter, setDesigFilter] = useState("");
+    const [activeTab, setActiveTab] = useState("pending"); // New state for tabs
     const [tableLoading, setTableLoading] = useState(false);
+    const [actionSubmitting, setActionSubmitting] = useState(false); // New state
+    const [showModal, setShowModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [fileUploading, setFileUploading] = useState(false);
     const [indentOptions, setIndentOptions] = useState([]);
@@ -92,6 +97,9 @@ const CandidateShortlisted = () => {
                         candidateName: row[4], // Column E
                         contactNo: row[5], // Column F
                         mail: row[6], // Column G
+                        // Assuming indentId and statusMarker are in specific columns, e.g., A and H
+                        indentId: row[0], // Column A (Timestamp/Indent Number from handleSubmit)
+                        statusMarker: row[7], // Column H (Placeholder for status)
                     }));
                 setCandidateData(processedData);
             }
@@ -193,7 +201,8 @@ const CandidateShortlisted = () => {
             rowData[18] = formData.noticePeriod;
             rowData[19] = formData.interviewDate;
             rowData[20] = formData.resumeUrl;
-            rowData[0] = timestamp; // Column V (Timestamp)
+            rowData[0] = timestamp; // Column A (Timestamp) - This will be the indentId for filtering
+            rowData[7] = ""; // Column H (statusMarker) - Initially empty for pending
 
             const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
                 method: "POST",
@@ -244,12 +253,30 @@ const CandidateShortlisted = () => {
 
     const filteredData = candidateData.filter((item) => {
         const term = searchTerm.toLowerCase();
-        return (
+
+        // Filtering by Tab Logic
+        const hasIndent = !!(item.indentId && item.indentId.toString().trim());
+        const hasStatus = !!(item.statusMarker && item.statusMarker.toString().trim());
+
+        const matchesTab = activeTab === "pending"
+            ? (hasIndent && !hasStatus)
+            : (hasIndent && hasStatus);
+
+        const matchesDept = !deptFilter || item.department === deptFilter;
+        const matchesDesig = !desigFilter || item.designation === desigFilter;
+
+        const matchesSearch = (
             (item.candidateName || "").toLowerCase().includes(term) ||
             (item.id || "").toLowerCase().includes(term) ||
-            (item.designation || "").toLowerCase().includes(term)
+            (item.designation || "").toLowerCase().includes(term) ||
+            (item.department || "").toLowerCase().includes(term)
         );
+
+        return matchesTab && matchesSearch && matchesDept && matchesDesig;
     });
+
+    const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
+    const designations = [...new Set(candidateData.map(item => item.designation))].filter(Boolean).sort();
 
     return (
         <div className="space-y-6 page-content p-6">
@@ -257,24 +284,84 @@ const CandidateShortlisted = () => {
                 <h1 className="text-2xl font-bold text-gray-800 uppercase">RECRUITMENT FMS</h1>
                 <button
                     onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark transition-colors"
                 >
                     <Plus size={20} />
                     Shortlist Candidate
                 </button>
             </div>
 
-            <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-                <div className="flex flex-1 max-w-md">
-                    <div className="relative w-full">
-                        <input
-                            type="text"
-                            placeholder="Search by name, ID or designation..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <div className="bg-white p-4 rounded-lg shadow space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
+                    <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setActiveTab("pending")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        >
+                            <Clock size={18} />
+                            Pending
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("history")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "history" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        >
+                            <HistoryIcon size={18} />
+                            History
+                        </button>
+                    </div>
+
+                    <div className="flex flex-1 max-w-md">
+                        <div className="relative w-full">
+                            <input
+                                type="text"
+                                placeholder="Search by name, ID or designation..."
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Department</label>
+                        <select
+                            value={deptFilter}
+                            onChange={(e) => setDeptFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Departments</option>
+                            {departments.map(dept => (
+                                <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Designation</label>
+                        <select
+                            value={desigFilter}
+                            onChange={(e) => setDesigFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Designations</option>
+                            {designations.map(desig => (
+                                <option key={desig} value={desig}>{desig}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-end">
+                        <button
+                            onClick={() => {
+                                setSearchTerm("");
+                                setDeptFilter("");
+                                setDesigFilter("");
+                            }}
+                            className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
+                        >
+                            <X size={14} /> Clear All Filters
+                        </button>
                     </div>
                 </div>
             </div>
@@ -304,7 +391,7 @@ const CandidateShortlisted = () => {
                                 ) : (
                                     filteredData.map((item, index) => (
                                         <tr key={index} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{item.id}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
@@ -425,14 +512,14 @@ const CandidateShortlisted = () => {
                                             <label className="block text-sm font-medium text-gray-700">Resume/cv</label>
                                             <div className="mt-1 flex items-center gap-4">
                                                 <input type="file" onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-                                                {fileUploading && <Clock className="animate-spin text-indigo-600" size={20} />}
+                                                {fileUploading && <Clock className="animate-spin text-navy" size={20} />}
                                                 {formData.resumeUrl && <CheckCircle className="text-green-600" size={20} />}
                                             </div>
                                         </div>
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">
                                         <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                                        <button type="submit" disabled={submitting || fileUploading} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                                        <button type="submit" disabled={submitting || fileUploading} className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50 flex items-center gap-2">
                                             {submitting ? "Submitting..." : "Submit Candidate"}
                                         </button>
                                     </div>

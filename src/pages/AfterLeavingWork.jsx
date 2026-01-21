@@ -443,7 +443,7 @@ const AfterLeavingWork = () => {
                       <p className="text-red-500">Error: {error}</p>
                       <button
                         onClick={fetchLeavingData}
-                        className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                        className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                       >
                         Retry
                       </button>
@@ -534,7 +534,7 @@ const AfterLeavingWork = () => {
                       id={item.key}
                       checked={formData[item.key]}
                       onChange={() => handleCheckboxChange(item.key)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
                     />
                     <label htmlFor={item.key} className="ml-2 text-sm text-gray-700">
                       {item.label}
@@ -550,7 +550,7 @@ const AfterLeavingWork = () => {
                   name="finalReleaseDate"
                   value={formData.finalReleaseDate}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-700"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy bg-white text-gray-700"
                 />
               </div>
 
@@ -564,7 +564,7 @@ const AfterLeavingWork = () => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 min-h-[42px] flex items-center justify-center ${submitting ? 'opacity-75 cursor-not-allowed' : ''
+                  className={`px-4 py-2 text-white bg-navy rounded-md hover:bg-navy-dark min-h-[42px] flex items-center justify-center ${submitting ? 'opacity-75 cursor-not-allowed' : ''
                     }`}
                   disabled={submitting}
                 >

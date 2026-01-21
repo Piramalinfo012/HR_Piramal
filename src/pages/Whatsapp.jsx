@@ -11,6 +11,8 @@ const Whatsapp = () => {
     const [historyIndentData, setHistoryIndentData] = useState([]);
 
     const [searchTerm, setSearchTerm] = useState("");
+    const [deptFilter, setDeptFilter] = useState("");
+    const [desigFilter, setDesigFilter] = useState("");
 
     const [showModal, setShowModal] = useState(false);
     const [fileUploading, setFileUploading] = useState(false);
@@ -269,19 +271,33 @@ const Whatsapp = () => {
 
     const filteredPendingData = indentData.filter((item) => {
         const term = searchTerm.toLowerCase();
-        return (
+        const matchesSearch =
             (item.post || "").toLowerCase().includes(term) ||
-            (item.indentNumber || "").toLowerCase().includes(term)
-        );
+            (item.indentNumber || "").toLowerCase().includes(term) ||
+            (item.department || "").toLowerCase().includes(term);
+
+        const matchesDept = !deptFilter || item.department === deptFilter;
+        const matchesDesig = !desigFilter || item.post === desigFilter;
+
+        return matchesSearch && matchesDept && matchesDesig;
     });
 
     const filteredHistoryData = historyIndentData.filter((item) => {
         const term = searchTerm.toLowerCase();
-        return (
+        const matchesSearch =
             (item.post || "").toLowerCase().includes(term) ||
-            (item.indentNumber || "").toLowerCase().includes(term)
-        );
+            (item.indentNumber || "").toLowerCase().includes(term) ||
+            (item.department || "").toLowerCase().includes(term);
+
+        const matchesDept = !deptFilter || item.department === deptFilter;
+        const matchesDesig = !desigFilter || item.post === desigFilter;
+
+        return matchesSearch && matchesDept && matchesDesig;
     });
+
+    const allData = [...indentData, ...historyIndentData];
+    const departments = [...new Set(allData.map(item => item.department))].filter(Boolean).sort();
+    const posts = [...new Set(allData.map(item => item.post))].filter(Boolean).sort();
 
     return (
         <div className="space-y-6 page-content p-6">
@@ -315,7 +331,7 @@ const Whatsapp = () => {
                                     name="status"
                                     value={formData.status}
                                     onChange={handleInputChange}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-navy focus:border-navy"
                                 >
                                     <option value="Done">Done</option>
                                     <option value="Not Done">Not Done</option>
@@ -327,11 +343,11 @@ const Whatsapp = () => {
                                 <input
                                     type="file"
                                     onChange={handleFileUpload}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-navy focus:border-navy"
                                     accept="image/*"
                                     disabled={fileUploading || submitting}
                                 />
-                                {fileUploading && <p className="text-xs text-indigo-600 mt-1">Uploading...</p>}
+                                {fileUploading && <p className="text-xs text-navy mt-1">Uploading...</p>}
                                 {formData.screenshotUrl && !fileUploading && (
                                     <p className="text-xs text-green-600 mt-1">Screenshot uploaded successfully!</p>
                                 )}
@@ -348,7 +364,7 @@ const Whatsapp = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center disabled:opacity-50"
+                                    className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark flex items-center justify-center disabled:opacity-50"
                                     disabled={submitting || fileUploading}
                                 >
                                     {submitting ? "Processing..." : "Submit"}
@@ -359,17 +375,61 @@ const Whatsapp = () => {
                 </div>
             )}
 
-            <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-                <div className="flex flex-1 max-w-md">
-                    <div className="relative w-full">
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            {/* Filter and Search */}
+            <div className="bg-white p-4 rounded-lg shadow space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
+                    <div className="flex flex-1 max-w-md">
+                        <div className="relative w-full">
+                            <input
+                                type="text"
+                                placeholder="Search by post, indent, etc..."
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Department</label>
+                        <select
+                            value={deptFilter}
+                            onChange={(e) => setDeptFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Departments</option>
+                            {departments.map(dept => (
+                                <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Post</label>
+                        <select
+                            value={desigFilter}
+                            onChange={(e) => setDesigFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Posts</option>
+                            {posts.map(post => (
+                                <option key={post} value={post}>{post}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex items-end">
+                        <button
+                            onClick={() => {
+                                setSearchTerm("");
+                                setDeptFilter("");
+                                setDesigFilter("");
+                            }}
+                            className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
+                        >
+                            <X size={14} /> Clear All Filters
+                        </button>
                     </div>
                 </div>
             </div>
@@ -379,7 +439,7 @@ const Whatsapp = () => {
                     <nav className="flex -mb-px">
                         <button
                             className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                                ? "border-indigo-500 text-indigo-600"
+                                ? "border-indigo-500 text-navy"
                                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                                 }`}
                             onClick={() => setActiveTab("pending")}
@@ -389,7 +449,7 @@ const Whatsapp = () => {
                         </button>
                         <button
                             className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                                ? "border-indigo-500 text-indigo-600"
+                                ? "border-indigo-500 text-navy"
                                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                                 }`}
                             onClick={() => setActiveTab("history")}
@@ -428,7 +488,7 @@ const Whatsapp = () => {
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <button
                                                         onClick={() => handlePostClick(item)}
-                                                        className="px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
+                                                        className="px-3 py-1 bg-navy text-white rounded hover:bg-navy-dark text-sm"
                                                     >
                                                         Post
                                                     </button>

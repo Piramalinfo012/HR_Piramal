@@ -7,24 +7,24 @@ const Layout = () => {
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar - Remove the key prop that was causing re-render issues */}
       <Sidebar />
-      
+
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto pt-16 md:pt-16 lg:pt-4 p-4">
+        <main className="flex-1 overflow-y-auto pt-16 md:pt-16 lg:pt-4 p-4 scrollbar-hide">
           <div className="container mx-auto max-w-7xl">
             <Outlet />
           </div>
         </main>
 
         {/* Fixed Footer */}
-        <footer className="bg-white bg-opacity-95 backdrop-blur-sm border-t border-gray-200 py-3 px-4 flex-shrink-0 shadow-lg">
-          <div className="container mx-auto text-center text-sm text-gray-700">
+        <footer className="bg-white bg-opacity-10 backdrop-blur-md border-t border-white border-opacity-10 py-3 px-4 flex-shrink-0 shadow-2xl">
+          <div className="container mx-auto text-center text-sm text-white text-opacity-80">
             Powered by{' '}
-            <a 
-              href="https://www.botivate.in" 
-              target="_blank" 
+            <a
+              href="https://www.botivate.in"
+              target="_blank"
               rel="noopener noreferrer"
-              className="text-indigo-600 hover:text-indigo-800 font-medium underline"
+              className="text-white hover:text-indigo-200 font-bold underline transition-colors"
             >
               Botivate
             </a>

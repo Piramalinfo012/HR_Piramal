@@ -372,7 +372,7 @@ const NewPayrollModal = ({
             <button
               onClick={handleSubmitNewPayroll}
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50"
             >
               {loading ? "Submitting..." : "Submit"}
             </button>

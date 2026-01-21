@@ -359,7 +359,7 @@ const MyAttendance = () => {
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
             >
               {months.map((month, index) => (
                 <option key={index} value={index}>{month}</option>
@@ -371,7 +371,7 @@ const MyAttendance = () => {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
             >
               {years.map(year => (
                 <option key={year} value={year}>{year}</option>
@@ -422,7 +422,7 @@ const MyAttendance = () => {
         <div className="bg-white rounded-xl shadow-lg border p-6">
           <div className="flex items-center">
             <div className="p-3 rounded-full bg-indigo-100 mr-4">
-              <Clock size={24} className="text-indigo-600" />
+              <Clock size={24} className="text-navy" />
             </div>
             <div>
               <p className="text-sm text-gray-600 font-medium">Working Hours</p>

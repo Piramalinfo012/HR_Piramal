@@ -395,7 +395,7 @@ const Leaving = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === 'pending'
-                  ? 'border-indigo-500 text-indigo-600'
+                  ? 'border-indigo-500 text-navy'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               onClick={() => setActiveTab('pending')}
@@ -405,7 +405,7 @@ const Leaving = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === 'history'
-                  ? 'border-indigo-500 text-indigo-600'
+                  ? 'border-indigo-500 text-navy'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               onClick={() => setActiveTab('history')}
@@ -448,7 +448,7 @@ const Leaving = () => {
                         <p className="text-red-500">Error: {error}</p>
                         <button
                           onClick={fetchJoiningData}
-                          className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                          className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                         >
                           Retry
                         </button>
@@ -514,7 +514,7 @@ const Leaving = () => {
                         <p className="text-red-500">Error: {error}</p>
                         <button
                           onClick={fetchLeavingData}
-                          className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                          className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                         >
                           Retry
                         </button>

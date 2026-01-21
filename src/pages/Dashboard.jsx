@@ -123,10 +123,30 @@ const Dashboard = () => {
     }
   };
 
+  const fetchFmsTotalIndents = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
+      );
+      const result = await response.json();
+      if (result.success && result.data) {
+        // Data rows excluding header
+        const dataRows = result.data.slice(1);
+        // Filter out empty rows (checking for Column B / index 1)
+        const validRows = dataRows.filter(row => row[1] && row[1].toString().trim() !== "");
+        return validRows.length;
+      }
+      return 0;
+    } catch (error) {
+      console.error("Error fetching FMS total indents:", error);
+      return 0;
+    }
+  };
+
   const fetchJoiningCount = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING&action=fetch`
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING%20ENTRY%20FORM&action=fetch`
       );
 
       if (!response.ok) {
@@ -239,7 +259,7 @@ const Dashboard = () => {
   const fetchDepartmentData = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING&action=fetch`
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING%20ENTRY%20FORM&action=fetch`
       );
 
       if (!response.ok) {
@@ -499,10 +519,27 @@ const Dashboard = () => {
 
         }));
 
-        setIndentData(processedData);
+        // Filter for "OPEN" status (case-insensitive)
+        const openIndents = processedData.filter(item =>
+          (item.status || "").trim().toUpperCase() === "OPEN"
+        );
+
+        const finalData = openIndents.map(item => {
+          // Calculate Pending Joining: No. of Post - Total Joining
+          const noOfPost = parseInt(item.noOfPost) || 0;
+          const totalJoining = parseInt(item.totaljoining) || 0;
+          const pendingJoining = Math.max(0, noOfPost - totalJoining);
+
+          return {
+            ...item,
+            pendingJoining: pendingJoining
+          };
+        });
+
+        setIndentData(finalData);
         return {
           success: true,
-          data: processedData,
+          data: finalData,
           headers: headers,
         };
       } else {
@@ -535,14 +572,15 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [joiningResult, leavingResult, departmentResult] = await Promise.all([
+        const [joiningResult, leavingResult, departmentResult, fmsTotalIndents] = await Promise.all([
           fetchJoiningCount(),
           fetchLeaveCount(),
           fetchDepartmentData(),
+          fetchFmsTotalIndents(),
           fetchLeaveManagementAnalytics()
         ]);
 
-        setTotalEmployee(joiningResult.total + leavingResult.total);
+        setTotalEmployee(fmsTotalIndents);
         setDepartmentData(departmentResult);
 
         const monthlyData = prepareMonthlyHiringData(
@@ -572,7 +610,7 @@ const Dashboard = () => {
             <Users size={24} className="text-blue-600" />
           </div>
           <div>
-            <p className="text-sm text-gray-600 font-medium">Total Employees</p>
+            <p className="text-sm text-gray-600 font-medium">Total Indents</p>
             <h3 className="text-2xl font-bold text-gray-800">{totalEmployee}</h3>
           </div>
         </div>
@@ -667,7 +705,7 @@ const Dashboard = () => {
                   {departmentData.map((entry, index) => (
                     <Cell
                       key={`cell-${index}`}
-                      fill={index % 3 === 0 ? '#EF4444' : index % 3 === 1 ? '#10B981' : '#3B82F6'}
+                      fill={index % 3 === 0 ? '#EF4444' : index % 3 === 1 ? '#10B981' : '#312e81'}
                     />
                   ))}
                 </Bar>
@@ -701,7 +739,7 @@ const Dashboard = () => {
                 {designationData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={index % 3 === 0 ? '#EF4444' : index % 3 === 1 ? '#10B981' : '#3B82F6'}
+                    fill={index % 3 === 0 ? '#EF4444' : index % 3 === 1 ? '#10B981' : '#312e81'}
                   />
                 ))}
               </Bar>
@@ -740,7 +778,6 @@ const Dashboard = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Indenter Name
                 </th>
-
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Total Join
                 </th>
@@ -755,9 +792,9 @@ const Dashboard = () => {
             <tbody className="divide-y divide-gray-200 bg-white">
               {tableLoading ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center">
+                  <td colSpan="11" className="px-6 py-12 text-center">
                     <div className="flex justify-center flex-col items-center">
-                      <div className="w-6 h-6 border-4 border-blue-500 border-dashed rounded-full animate-spin mb-2"></div>
+                      <div className="w-6 h-6 border-4 border-navy border-dashed rounded-full animate-spin mb-2"></div>
                       <span className="text-gray-600 text-sm">
                         Loading indent data...
                       </span>
@@ -766,14 +803,13 @@ const Dashboard = () => {
                 </tr>
               ) : indentData.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center">
+                  <td colSpan="11" className="px-6 py-12 text-center">
                     <p className="text-gray-500">No indent data found.</p>
                   </td>
                 </tr>
               ) : (
                 indentData.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.indentNumber}
                     </td>
@@ -794,38 +830,8 @@ const Dashboard = () => {
                         {item.completionDate
                           ? (() => {
                             const date = new Date(item.completionDate);
-                            if (!date || isNaN(date.getTime()))
-                              return "Invalid date";
-                            const day = date
-                              .getDate()
-                              .toString()
-                              .padStart(2, "0");
-                            const month = (date.getMonth() + 1)
-                              .toString()
-                              .padStart(2, "0");
-                            const year = date.getFullYear();
-                            const hours = date
-                              .getHours()
-                              .toString()
-                              .padStart(2, "0");
-                            const minutes = date
-                              .getMinutes()
-                              .toString()
-                              .padStart(2, "0");
-                            const seconds = date
-                              .getSeconds()
-                              .toString()
-                              .padStart(2, "0");
-                            return (
-                              <div>
-                                <div className="font-medium break-words">
-                                  {`${day}/${month}/${year}`}
-                                </div>
-                                <div className="text-xs text-gray-500 break-words">
-                                  {`${hours}:${minutes}:${seconds}`}
-                                </div>
-                              </div>
-                            );
+                            if (!date || isNaN(date.getTime())) return "Invalid date";
+                            return date.toLocaleDateString('en-GB');
                           })()
                           : "—"}
                       </div>
@@ -834,16 +840,14 @@ const Dashboard = () => {
                       {item.indenterName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.totaljoining}
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.totalenquiry}
+                      {item.totaljoining || 0}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.noOfPost - item.totaljoining}
+                      {item.totalenquiry || 0}
                     </td>
-
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-navy">
+                      {item.pendingJoining}
+                    </td>
                   </tr>
                 ))
               )}

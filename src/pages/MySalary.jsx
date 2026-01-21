@@ -157,7 +157,7 @@ const MySalary = () => {
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
           >
             {years.map(year => (
               <option key={year} value={year}>{year}</option>
@@ -252,7 +252,7 @@ const MySalary = () => {
                       <p className="text-red-500">Error: {error}</p>
                       <button
                         onClick={fetchSalaryData}
-                        className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                        className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                       >
                         Retry
                       </button>
@@ -293,7 +293,7 @@ const MySalary = () => {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleViewPayslip(record)}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="text-navy hover:text-indigo-900"
                           title="View Payslip"
                         >
                           <Eye size={16} />

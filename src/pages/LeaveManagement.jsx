@@ -499,7 +499,7 @@ const LeaveManagement = () => {
                   type="checkbox"
                   checked={selectedRow?.serialNo === item.serialNo}
                   onChange={() => handleCheckboxChange(item.serialNo, item)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
                 />
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.employeeId}</td>
@@ -704,7 +704,7 @@ const LeaveManagement = () => {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-navy hover:bg-navy-dark"
         >
           <Plus size={16} className="mr-2" />
           New Leave Request
@@ -732,7 +732,7 @@ const LeaveManagement = () => {
             <button
               onClick={() => setActiveTab('pending')}
               className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'pending'
-                ? 'border-indigo-500 text-indigo-600'
+                ? 'border-indigo-500 text-navy'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
@@ -741,7 +741,7 @@ const LeaveManagement = () => {
             <button
               onClick={() => setActiveTab('approved')}
               className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'approved'
-                ? 'border-indigo-500 text-indigo-600'
+                ? 'border-indigo-500 text-navy'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
@@ -750,7 +750,7 @@ const LeaveManagement = () => {
             <button
               onClick={() => setActiveTab('rejected')}
               className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'rejected'
-                ? 'border-indigo-500 text-indigo-600'
+                ? 'border-indigo-500 text-navy'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
@@ -775,7 +775,7 @@ const LeaveManagement = () => {
                 <p className="text-red-500">Error: {error}</p>
                 <button
                   onClick={fetchLeaveData}
-                  className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                  className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                 >
                   Retry
                 </button>
@@ -804,7 +804,7 @@ const LeaveManagement = () => {
                   name="employeeName"
                   value={formData.employeeName}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
                   <option value="">Select Employee</option>
@@ -832,7 +832,7 @@ const LeaveManagement = () => {
                   name="designation"
                   value={formData.designation}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                 />
               </div>
 
@@ -842,7 +842,7 @@ const LeaveManagement = () => {
                   name="hodName"
                   value={formData.hodName}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
                   <option value="">Select HOD </option>
@@ -858,7 +858,7 @@ const LeaveManagement = () => {
                   name="leaveType"
                   value={formData.leaveType}
                   onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
                   <option value="">Select Leave Type</option>
@@ -876,7 +876,7 @@ const LeaveManagement = () => {
                     name="fromDate"
                     value={formData.fromDate}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                     required
                   />
                 </div>
@@ -887,7 +887,7 @@ const LeaveManagement = () => {
                     name="toDate"
                     value={formData.toDate}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                     required
                   />
                 </div>
@@ -908,7 +908,7 @@ const LeaveManagement = () => {
                   value={formData.reason}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Please provide reason for leave..."
                   required
                 />
@@ -924,7 +924,7 @@ const LeaveManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 min-h-[42px] flex items-center justify-center ${submitting ? 'opacity-75 cursor-not-allowed' : ''
+                  className={`px-4 py-2 text-white bg-navy rounded-md hover:bg-navy-dark min-h-[42px] flex items-center justify-center ${submitting ? 'opacity-75 cursor-not-allowed' : ''
                     }`}
                   disabled={submitting}
                 >
