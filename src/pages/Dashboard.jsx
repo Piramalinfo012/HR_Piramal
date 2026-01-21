@@ -435,55 +435,52 @@ const Dashboard = () => {
   const fetchIndentDataFromRow7 = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=INDENT&action=fetch`
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
       );
 
       const result = await response.json();
 
-      if (result.success && result.data && result.data.length >= 7) {
-        // Get data starting from row 7 (array index 6) to end
-        const dataFromRow7 = result.data.slice(6);
+      if (result.success && result.data && result.data.length > 0) {
+        // Dynamically find header row
+        let headerRowIndex = -1;
+        for (let i = 0; i < result.data.length; i++) {
+          const row = result.data[i];
+          if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
+            headerRowIndex = i;
+            break;
+          }
+        }
 
-        // Find headers (assuming they're in row 6 - array index 5)
-        const headers = result.data[5].map((h) => h.trim());
+        if (headerRowIndex === -1) {
+          console.warn("Could not find dynamic header row in FMS, falling back to Row 7");
+          headerRowIndex = 6;
+        }
 
-        // Find column indices for important fields
-        const timestampIndex = headers.indexOf("Timestamp");
-        const indentNumberIndex = headers.indexOf("Indent Number");
-        const postIndex = headers.indexOf("Post");
-        const genderIndex = headers.indexOf("Gender");
-        const departmentIndex = headers.indexOf("Department");
-        const preferIndex = headers.indexOf("Prefer");
-        const noOFPostIndex = headers.indexOf("Number Of Posts");
-        const completionDateIndex = headers.indexOf("Completion Date");
-        const experienceIndex = headers.indexOf("Experience");
+        const headers = result.data[headerRowIndex].map((h) => h ? h.trim() : "");
+        const dataFromRow7 = result.data.slice(headerRowIndex + 1);
 
-        const jobConsultancyNameIndex = headers.indexOf("Job Cunsultancy Name");
-        const salaryIndex = headers.indexOf("Salary");
-        const officeTimingIndex = headers.indexOf("Office Timing");
-        const typeOfWeekIndex = headers.indexOf("Type Of Week");
-        const residenceIndex = headers.indexOf("Residence");
-        const indenterNameIndex = headers.indexOf("Indenter Name");
-        const cunsultancyNumberIndex = headers.indexOf("Cunsultancy Number");
-        const cunsultancyScreensortImageIndex = headers.indexOf(
-          "Cunsultancy Screensort Image"
-        );
+        // Find column indices with more flexible matching
+        const findIdx = (names) => headers.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
 
-        const plaaned3Index = headers.indexOf("Planned 3");
-        const actual3Index = headers.indexOf("Actual 3");
+        const timestampIndex = findIdx(["Timestamp"]);
+        const indentNumberIndex = findIdx(["Indent No", "Indent Number"]);
+        const postIndex = findIdx(["Post"]);
+        const genderIndex = findIdx(["Gender"]);
+        const departmentIndex = findIdx(["Department"]);
+        const preferIndex = findIdx(["Prefer"]);
+        const noOFPostIndex = findIdx(["Number Of Post"]);
+        const completionDateIndex = findIdx(["Completion Date"]);
+        const experienceIndex = findIdx(["Experience"]);
 
-        const closeByIndexNew = headers.indexOf("Close By");
+        const jobConsultancyNameIndex = findIdx(["Job Cunsultancy Name", "Consultancy Name"]);
+        const salaryIndex = findIdx(["Salary"]);
+        const officeTimingIndex = findIdx(["Office Timing", "Timing"]);
+        const typeOfWeekIndex = findIdx(["Type Of Week", "Weekly Off"]);
+        const residenceIndex = findIdx(["Residence"]);
+        const indenterNameIndex = findIdx(["Indenter Name", "Person Name"]);
 
-        const siteStatusIndex = headers.indexOf("Site Status");
-        const socialSiteTypesIndex = headers.indexOf("Social Site Types");
-
-        const statusIndex = headers.indexOf("Status");
-        const closeByIndex = headers.indexOf("Close By");
-
-        const TotalEnquiryIndex = headers.indexOf("Total Enquiry");
-        const TotalJoiningIndex = headers.indexOf("Total Joining");
-
-        // Add other column indices as needed
+        const statusIndex = findIdx(["Position Status", "Status"]);
+        const TotalJoiningIndex = findIdx(["Total Joining"]);
 
         // Process the data
         const processedData = dataFromRow7.map((row) => ({
@@ -496,27 +493,13 @@ const Dashboard = () => {
           noOfPost: row[noOFPostIndex],
           completionDate: row[completionDateIndex],
           experience: row[experienceIndex],
-
-          jobConsultancyName: row[jobConsultancyNameIndex],
           salary: row[salaryIndex],
           officeTiming: row[officeTimingIndex],
           typeOfWeek: row[typeOfWeekIndex],
           residence: row[residenceIndex],
           indenterName: row[indenterNameIndex],
-          cunsultancyNumber: row[cunsultancyNumberIndex],
-          cunsultancyScreensortImage: row[cunsultancyScreensortImageIndex],
-          planned3: row[plaaned3Index],
-          actual3: row[actual3Index],
-          closeByNew: row[closeByIndexNew],
-          siteStatus: row[siteStatusIndex],
-          socialSiteTypes: row[socialSiteTypesIndex],
-          closeBy: row[closeByIndex],
           status: row[statusIndex],
-
-          totalenquiry: row[TotalEnquiryIndex],
           totaljoining: row[TotalJoiningIndex],
-
-
         }));
 
         // Filter for "OPEN" status (case-insensitive)

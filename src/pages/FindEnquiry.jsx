@@ -65,9 +65,9 @@ const FindEnquiry = () => {
     setError(null);
 
     try {
-      // Fetch INDENT data
+      // Fetch FMS data
       const indentResponse = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=INDENT&action=fetch`
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
       );
 
       if (!indentResponse.ok) {
@@ -76,41 +76,66 @@ const FindEnquiry = () => {
 
       const indentResult = await indentResponse.json();
 
-      if (
-        indentResult.success &&
-        indentResult.data &&
-        indentResult.data.length >= 7
-      ) {
-        const headers = indentResult.data[5].map((h) => h.trim());
-        const dataFromRow7 = indentResult.data.slice(6);
+      if (indentResult.success && indentResult.data && indentResult.data.length > 0) {
+        // Dynamically find header row
+        let headerRowIndex = -1;
+        for (let i = 0; i < indentResult.data.length; i++) {
+          const row = indentResult.data[i];
+          if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
+            headerRowIndex = i;
+            break;
+          }
+        }
 
-        const getIndex = (headerName) =>
-          headers.findIndex((h) => h === headerName);
+        if (headerRowIndex === -1) {
+          console.warn("Could not find dynamic header row in FMS for FindEnquiry, falling back to Row 7");
+          headerRowIndex = 6;
+        }
+
+        const headers = indentResult.data[headerRowIndex].map((h) => h ? h.trim() : "");
+        const dataFromRow7 = indentResult.data.slice(headerRowIndex + 1);
+
+        const findIdx = (names) => headers.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
+
+        const timestampIdx = findIdx(["Timestamp"]);
+        const indentIdx = findIdx(["Indent No", "Indent Number"]);
+        const postIdx = findIdx(["Post"]);
+        const deptIdx = findIdx(["Department"]);
+        const genderIdx = findIdx(["Gender"]);
+        const preferIdx = findIdx(["Prefer"]);
+        const noOfPostIdx = findIdx(["Number Of Post", "Number Of Posts"]);
+        const dateIdx = findIdx(["Completion Date"]);
+        const socialIdx = findIdx(["Social Site"]);
+        const statusIdx = findIdx(["Position Status", "Status"]);
+        const expIdx = findIdx(["Experience"]);
+
+        const planned2Idx = findIdx(["Planned 2"]);
+        const actual2Idx = findIdx(["Actual 2"]);
 
         const processedData = dataFromRow7
           .filter((row) => {
-            const status = row[getIndex("Status")];
-            const planned2 = row[getIndex("Planned 2")];
-            const actual2 = row[getIndex("Actual 2")];
+            const status = row[statusIdx];
+            const planned2 = row[planned2Idx];
+            const actual2 = row[actual2Idx];
 
             return (
               status === "NeedMore" && planned2 && (!actual2 || actual2 === "")
             );
           })
           .map((row) => ({
-            id: row[getIndex("Timestamp")],
-            indentNo: row[getIndex("Indent Number")],
-            post: row[getIndex("Post")],
-            department: row[getIndex("Department")],
-            gender: row[getIndex("Gender")],
-            prefer: row[getIndex("Prefer")],
-            numberOfPost: row[getIndex("Number Of Posts")],
-            competitionDate: row[getIndex("Completion Date")],
-            socialSite: row[getIndex("Social Site")],
-            status: row[getIndex("Status")],
-            plannedDate: row[getIndex("Planned 2")],
-            actual: row[getIndex("Actual 2")],
-            experience: row[getIndex("Experience")],
+            id: row[timestampIdx],
+            indentNo: row[indentIdx],
+            post: row[postIdx],
+            department: row[deptIdx],
+            gender: row[genderIdx],
+            prefer: row[preferIdx],
+            numberOfPost: row[noOfPostIdx],
+            competitionDate: row[dateIdx],
+            socialSite: row[socialIdx],
+            status: row[statusIdx],
+            plannedDate: row[planned2Idx],
+            actual: row[actual2Idx],
+            experience: row[expIdx],
           }));
 
         // Fetch ENQUIRY data to check for completed recruitments
@@ -224,7 +249,7 @@ const FindEnquiry = () => {
         }
       } else {
         throw new Error(
-          indentResult.error || "Not enough rows in INDENT sheet data"
+          indentResult.error || "Not enough rows in FMS sheet data"
         );
       }
     } catch (error) {
@@ -491,9 +516,9 @@ const FindEnquiry = () => {
   //     if (formData.status === "Complete") {
   //       console.log("Updating INDENT sheet for status Complete");
 
-  //       // Fetch INDENT data
+  //        // Fetch FMS data
   //       const indentFetchResponse = await fetch(
-  //          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=INDENT&action=fetch`
+  //         `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
   //       );
 
   //       const indentData = await indentFetchResponse.json();
@@ -705,18 +730,18 @@ const FindEnquiry = () => {
 
       toast.success(`${candidates.length} candidate(s) submitted successfully!`);
 
-      // Only update INDENT sheet if status is Complete
+      // Only update FMS sheet if status is Complete
       if (commonStatus === 'Complete') {
 
-        // Fetch INDENT data
+        // Fetch FMS data
         const indentFetchResponse = await fetch(
-          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=INDENT&action=fetch`
+          `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
         );
 
         const indentData = await indentFetchResponse.json();
 
         if (!indentData.success) {
-          throw new Error('Failed to fetch INDENT data: ' + (indentData.error || 'Unknown error'));
+          throw new Error('Failed to fetch FMS data: ' + (indentData.error || 'Unknown error'));
         }
 
         // Find the row index
@@ -729,7 +754,7 @@ const FindEnquiry = () => {
         }
 
         if (rowIndex === -1) {
-          throw new Error(`Could not find indentNo: ${selectedItem.indentNo} in INDENT sheet`);
+          throw new Error(`Could not find indentNo: ${selectedItem.indentNo} in FMS sheet`);
         }
 
         // Get headers
@@ -753,7 +778,7 @@ const FindEnquiry = () => {
                 'Content-Type': 'application/x-www-form-urlencoded',
               },
               body: new URLSearchParams({
-                sheetName: 'INDENT',
+                sheetName: 'FMS',
                 action: 'updateCell',
                 rowIndex: rowIndex.toString(),
                 columnIndex: (statusIndex + 1).toString(),
@@ -779,7 +804,7 @@ const FindEnquiry = () => {
                 'Content-Type': 'application/x-www-form-urlencoded',
               },
               body: new URLSearchParams({
-                sheetName: 'INDENT',
+                sheetName: 'FMS',
                 action: 'updateCell',
                 rowIndex: rowIndex.toString(),
                 columnIndex: (actual2Index + 1).toString(),
@@ -795,7 +820,7 @@ const FindEnquiry = () => {
           }
         }
 
-        toast.success('INDENT marked as Complete!');
+        toast.success('FMS marked as Complete!');
       }
 
       setShowModal(false);

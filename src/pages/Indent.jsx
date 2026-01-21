@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { HistoryIcon, Plus, X } from "lucide-react";
+import { HistoryIcon, Plus, X, Search } from "lucide-react";
 import useDataStore from "../store/dataStore";
 import toast from "react-hot-toast";
 
@@ -28,6 +28,9 @@ const Indent = () => {
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [deptFilter, setDeptFilter] = useState("");
+  const [desigFilter, setDesigFilter] = useState("");
 
   // Social site options
   const socialSiteOptions = [
@@ -88,30 +91,59 @@ const Indent = () => {
 
       const result = await response.json();
 
-      if (result && result.success && result.data && result.data.length >= 7) {
-        // Headers are on Row 1 (index 0), Data starts on Row 2 (index 1)
-        const headers = result.data[0].map((h) => (h ? h.trim() : ""));
-        const dataFromRow2 = result.data.slice(8);
+      if (result && result.success && result.data && result.data.length > 0) {
+        // Dynamically find header row
+        let headerRowIndex = -1;
+        for (let i = 0; i < result.data.length; i++) {
+          const row = result.data[i];
+          if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
+            headerRowIndex = i;
+            break;
+          }
+        }
 
-        // MAPPING matched to FMS Sheet (Step 0 Screenshot)
-        const processedData = dataFromRow2
-          .filter((row) => row && row[1]) // Column B (Indent No) or A (Timestamp) as filter
+        if (headerRowIndex === -1) {
+          console.warn("Could not find dynamic header row, falling back to Row 7");
+          headerRowIndex = 6;
+        }
+
+        const headers = result.data[headerRowIndex].map((h) => (h ? h.trim() : ""));
+        const dataRows = result.data.slice(headerRowIndex + 1);
+
+        const getIndex = (name) => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+
+        const statusIdx = getIndex("Position Status");
+        const indentIdx = getIndex("Indent No");
+        const nameIdx = getIndex("Person Name");
+        const postIdx = getIndex("Post");
+        const salaryIdx = getIndex("Salary");
+        const timingIdx = getIndex("Office Timing");
+        const weekOffIdx = getIndex("Weekly Off");
+        const residenceIdx = getIndex("Residence");
+        const genderIdx = getIndex("Gender");
+        const deptIdx = getIndex("Department");
+        const preferIdx = getIndex("Prefer");
+        const noOfPostIdx = getIndex("Number Of Post");
+        const dateIdx = getIndex("Completion Date");
+        const qualIdx = getIndex("Qualifications");
+
+        const processedData = dataRows
+          .filter((row) => row && (row[statusIdx] || row[indentIdx]))
           .map((row) => ({
-            status: "OPEN",                              // Default to OPEN (Not in FMS Col A)
-            indentNumber: (row[4] || "").toString(),     // B (1) -> Changed back to 4
-            // timestamp: (row[0] || "").toString(),        // A (0)
-            indenterName: (row[5] || "").toString(),     // C (2) -> Changed back to 5
-            post: (row[6] || "").toString(),             // D (3) -> Changed back to 6
-            salary: (row[7] || "").toString(),           // E (4) -> Changed back to 7
-            officeTiming: (row[8] || "").toString(),     // F (5) -> Changed back to 8
-            typeOfWeek: (row[9] || "").toString(),       // G (6) -> Changed back to 9
-            residence: (row[10] || "").toString(),        // H (7) -> Changed back to 10
-            gender: (row[11] || "").toString(),           // I (8) -> Changed back to 11
-            department: (row[12] || "").toString(),       // J (9) -> Changed back to 12
-            prefer: (row[13] || "").toString(),          // K (10) -> Changed back to 13
-            noOfPost: (row[14] || "").toString(),        // L (11) -> Changed back to 14
-            completionDate: (row[15] || "").toString(),  // M (12) -> Changed back to 15
-            qualifications: (row[16] || "").toString(),  // N (13) -> Changed back to 16
+            status: (row[statusIdx] || "OPEN").toString(),
+            indentNumber: (row[indentIdx] || "").toString(),
+            indenterName: (row[nameIdx] || "").toString(),
+            post: (row[postIdx] || "").toString(),
+            salary: (row[salaryIdx] || "").toString(),
+            officeTiming: (row[timingIdx] || "").toString(),
+            typeOfWeek: (row[weekOffIdx] || "").toString(),
+            residence: (row[residenceIdx] || "").toString(),
+            gender: (row[genderIdx] || "").toString(),
+            department: (row[deptIdx] || "").toString(),
+            prefer: (row[preferIdx] || "").toString(),
+            noOfPost: (row[noOfPostIdx] || "").toString(),
+            completionDate: (row[dateIdx] || "").toString(),
+            qualifications: (row[qualIdx] || "").toString(),
           }))
           .reverse();
 
@@ -145,19 +177,19 @@ const Indent = () => {
       const result = await response.json();
 
       if (result.success && result.data && result.data.length > 1) {
-        // Find the first row with actual headers (skip empty rows)
-        let headerRowIndex = 0;
-        while (
-          headerRowIndex < result.data.length &&
-          result.data[headerRowIndex].every(
-            (cell) => !cell || cell.trim() === ""
-          )
-        ) {
-          headerRowIndex++;
+        // Find the first row with actual headers
+        let headerRowIndex = -1;
+        for (let i = 0; i < result.data.length; i++) {
+          const row = result.data[i];
+          if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
+            headerRowIndex = i;
+            break;
+          }
         }
 
-        if (headerRowIndex >= result.data.length) {
-          throw new Error("No header row found in sheet");
+        if (headerRowIndex === -1) {
+          console.warn("Could not find dynamic header row in FMS for last indent, falling back to Row 7");
+          headerRowIndex = 6;
         }
 
         const headers = result.data[headerRowIndex].map((h) =>
@@ -480,44 +512,75 @@ const Indent = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           Indent
-          
         </h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-navy hover:bg-navy-dark transition-all duration-200"
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <svg
-                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              Loading...
-            </>
-          ) : (
-            <>
-              <Plus size={16} className="mr-2" />
-              Create Indent
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search indents..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm w-64"
+            />
+          </div>
+          <select
+            value={deptFilter}
+            onChange={(e) => setDeptFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm"
+          >
+            <option value="">All Departments</option>
+            {[...new Set(indentData.map(item => item.department))].filter(Boolean).sort().map(dept => (
+              <option key={dept} value={dept}>{dept}</option>
+            ))}
+          </select>
+          <select
+            value={desigFilter}
+            onChange={(e) => setDesigFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm"
+          >
+            <option value="">All Posts</option>
+            {[...new Set(indentData.map(item => item.post))].filter(Boolean).sort().map(post => (
+              <option key={post} value={post}>{post}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setShowModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-navy hover:bg-navy-dark transition-all duration-200"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Loading...
+              </>
+            ) : (
+              <>
+                <Plus size={16} className="mr-2" />
+                Create Indent
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Modal */}
@@ -907,53 +970,62 @@ const Indent = () => {
                     </td>
                   </tr>
                 ) : (
-                  indentData.map((item, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
+                  indentData
+                    .filter(item => {
+                      const matchesSearch = Object.values(item).some(val =>
+                        val.toString().toLowerCase().includes(searchTerm.toLowerCase())
+                      );
+                      const matchesDept = !deptFilter || item.department === deptFilter;
+                      const matchesDesig = !desigFilter || item.post === desigFilter;
+                      return matchesSearch && matchesDept && matchesDesig;
+                    })
+                    .map((item, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
 
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs rounded-full ${item.status?.toLowerCase() === 'open' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">
-                        {item.indentNumber}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.indenterName}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.post}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.salary}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.typeOfWeek}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.residence}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.gender}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.department}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.prefer}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.noOfPost}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.completionDate}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.qualifications}
-                      </td>
-                    </tr>
-                  ))
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs rounded-full ${item.status?.toLowerCase() === 'open' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">
+                          {item.indentNumber}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.indenterName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.post}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.salary}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.typeOfWeek}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.residence}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.gender}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.department}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.prefer}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.noOfPost}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.completionDate}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.qualifications}
+                        </td>
+                      </tr>
+                    ))
                 )}
               </tbody>
             </table>
