@@ -223,7 +223,7 @@ const Whatsapp = () => {
             const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
                 method: "POST",
                 body: new URLSearchParams({
-                    sheetName: "DATA RESPONSE",
+                    sheetName: "Data Resposnse",
                     action: "bulkInsert",
                     rowsData: JSON.stringify([dataResponseRow]),
                 }),

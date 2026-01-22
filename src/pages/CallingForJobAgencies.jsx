@@ -36,10 +36,12 @@ const CallingForJobAgencies = () => {
 
     socialSite: "",
     closedBy: "",
-    jobConsultancyName: "",
-    socialSiteTypes: [], // New field for social site types
+    jobConsultancyNames: [], // Updated to handle multiple selected consultancies
+    consultancyContacts: {}, // New: { [agencyName]: { contactPerson: "", contactNumber: "" } }
+    socialSiteTypes: [],
     uploadedFileUrl: "",
   });
+  const [consultancyOptions, setConsultancyOptions] = useState([]); // List of consultancies from USER sheet
   const [indentData, setIndentData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
@@ -63,6 +65,22 @@ const CallingForJobAgencies = () => {
       } else {
         console.error("Error:", result.error);
       }
+
+      // Fetch Consultancy Names from USER sheet
+      try {
+        const userRes = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`);
+        const userJson = await userRes.json();
+        if (userJson.success) {
+          // Column J is index 9. Header is row 0.
+          const options = userJson.data.slice(1)
+            .map(row => row[9])
+            .filter(name => name && name.toString().trim() !== "");
+          setConsultancyOptions([...new Set(options)]);
+        }
+      } catch (error) {
+        console.error("Error fetching consultancy names:", error);
+      }
+
       setTableLoading(false);
     };
     loadData();
@@ -214,6 +232,40 @@ const CallingForJobAgencies = () => {
     }));
   };
 
+  const handleConsultancyChange = (option) => {
+    setFormData((prev) => {
+      const isSelected = prev.jobConsultancyNames.includes(option);
+      const updatedNames = isSelected
+        ? prev.jobConsultancyNames.filter((name) => name !== option)
+        : [...prev.jobConsultancyNames, option];
+
+      const updatedContacts = { ...prev.consultancyContacts };
+      if (isSelected) {
+        delete updatedContacts[option];
+      } else {
+        updatedContacts[option] = { contactPerson: "", contactNumber: "" };
+      }
+
+      return {
+        ...prev,
+        jobConsultancyNames: updatedNames,
+        consultancyContacts: updatedContacts,
+      };
+    });
+  };
+
+  const handleContactInfoChange = (agencyName, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      consultancyContacts: {
+        ...prev.consultancyContacts,
+        [agencyName]: {
+          ...prev.consultancyContacts[agencyName],
+          [field]: value,
+        },
+      },
+    }));
+  };
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -273,10 +325,9 @@ const CallingForJobAgencies = () => {
     e.preventDefault();
 
     if (
-      !formData.jobConsultancyName &&
-      !formData.uploadedFileUrl
+      formData.jobConsultancyNames.length === 0
     ) {
-      toast.error("Please fill at least one field");
+      toast.error("Please select at least one Job Consultancy");
       return;
     }
 
@@ -292,17 +343,38 @@ const CallingForJobAgencies = () => {
       const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 
       const PO_NUMBER = "PO-2";
+      const consultancyNames = formData.jobConsultancyNames.join(", ");
+      const contactPersons = formData.jobConsultancyNames
+        .map(name => formData.consultancyContacts[name]?.contactPerson || "")
+        .join(", ");
+      const contactNumbers = formData.jobConsultancyNames
+        .map(name => formData.consultancyContacts[name]?.contactNumber || "")
+        .join(", ");
 
-      // Row Data: [Indent Number, Step Code ("PO-2"), Timestamp, Status, "", "", Job Consultancy Name]
+      // Row Data: [Indent Number, Step Code ("PO-2"), Timestamp, Status, "", "", Job Consultancy Name, Attachment URL, "", "", "", Contact Person, Contact Number]
+      // Mapping:
+      // A (0): Indent Number
+      // B (1): Step Code
+      // C (2): Timestamp
+      // D (3): Status
+      // E-K (4-10): Placeholders or empty
+      // L (11): Contact Person
+      // M (12): Contact Number
+
       const dataResponseRow = [
         formData.indentNumber,
         PO_NUMBER,
         timestamp,
         formData.status,
-        "", // Col E empty
-        "", // Col F empty
-        formData.jobConsultancyName, // Col G: Consultancy Name
-        formData.uploadedFileUrl, // Col H: Attachment URL
+        "", // Col E 
+        "", // Col F 
+        consultancyNames, // Col G: Consultancy Name
+        "", // Col H: Attachment URL (removed)
+        "", // Col I
+        "", // Col J
+        "", // Col K
+        contactPersons, // Col L: Contact Person
+        contactNumbers, // Col M: Contact Number
       ];
 
       const response = await fetch(
@@ -322,7 +394,8 @@ const CallingForJobAgencies = () => {
         toast.success("Posted successfully!");
         setFormData((prev) => ({
           ...prev,
-          jobConsultancyName: "",
+          jobConsultancyNames: [],
+          consultancyContacts: {},
           uploadedFileUrl: "",
         }));
         setShowModal(false);
@@ -371,7 +444,9 @@ const CallingForJobAgencies = () => {
       closedBy: "",
       socialSiteTypes: [],
       socialSite: "",
-      jobConsultancyName: "",
+      jobConsultancyNames: [],
+      contactPerson: "",
+      contactNumber: "",
       uploadedFileUrl: "",
       status: "Done",
     });
@@ -383,7 +458,8 @@ const CallingForJobAgencies = () => {
     setFormData({
       ...formData,
       indentNumber: item.indentNumber, // Store this for update
-      jobConsultancyName: "",
+      jobConsultancyNames: [],
+      consultancyContacts: {},
       uploadedFileUrl: "",
       status: "Done",
     });
@@ -624,15 +700,66 @@ const CallingForJobAgencies = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Job Consultancy Name
                 </label>
-                <input
-                  type="text"
-                  name="jobConsultancyName"
-                  value={formData.jobConsultancyName}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="Enter job consultancy name"
-                />
+                <div className="space-y-4 max-h-80 overflow-y-auto border border-gray-300 rounded-md p-3">
+                  {consultancyOptions.length > 0 ? (
+                    consultancyOptions.map((option) => (
+                      <div key={option} className="space-y-2 border-b border-gray-100 pb-3 last:border-0">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`consultancy-${option}`}
+                            value={option}
+                            checked={formData.jobConsultancyNames.includes(option)}
+                            onChange={() => handleConsultancyChange(option)}
+                            className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
+                          />
+                          <label
+                            htmlFor={`consultancy-${option}`}
+                            className="ml-2 block text-sm font-medium text-gray-700"
+                          >
+                            {option}
+                          </label>
+                        </div>
+
+                        {formData.jobConsultancyNames.includes(option) && (
+                          <div className="ml-6 grid grid-cols-1 gap-2 border-l-2 border-navy/20 pl-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">
+                                Contact person name
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.consultancyContacts[option]?.contactPerson || ""}
+                                onChange={(e) => handleContactInfoChange(option, "contactPerson", e.target.value)}
+                                className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-navy"
+                                placeholder="Contact name"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500 mb-1">
+                                Contact number
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.consultancyContacts[option]?.contactNumber || ""}
+                                onChange={(e) => handleContactInfoChange(option, "contactNumber", e.target.value)}
+                                className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-navy"
+                                placeholder="Contact number"
+                                required
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No consultancies found</p>
+                  )}
+                </div>
               </div>
+
+              {/* Global contact info fields removed, now per consultancy */}
 
               {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -756,79 +883,6 @@ const CallingForJobAgencies = () => {
 
               {/* WhatsApp field removed as per user request */}
 
-              {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Upload File
-                </label>
-                <input
-                  type="file"
-                  onChange={handleFileUpload}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  accept="image/*,application/pdf"
-                />
-                {formData.uploadedFileUrl && (
-                  <p className="text-xs text-green-600 mt-1">
-                    File uploaded successfully!
-                  </p>
-                )}
-              </div> */}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Upload File
-                </label>
-                <input
-                  type="file"
-                  onChange={handleFileUpload}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  accept="image/*,application/pdf"
-                  disabled={fileUploading || submitting}
-                />
-                {fileUploading && (
-                  <div className="flex items-center mt-2">
-                    <svg
-                      className="animate-spin h-4 w-4 text-navy mr-2"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    <span className="text-sm text-navy">
-                      Uploading file...
-                    </span>
-                  </div>
-                )}
-                {formData.uploadedFileUrl && !fileUploading && (
-                  <p className="text-xs text-green-600 mt-1 flex items-center">
-                    <svg
-                      className="w-4 h-4 mr-1"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    File uploaded successfully!
-                  </p>
-                )}
-              </div>
-
               <div className="flex justify-end space-x-2 pt-4">
                 <button
                   type="button"
@@ -931,8 +985,8 @@ const CallingForJobAgencies = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </div >
+        </div >
       )}
 
       {/* Filter and Search */}
@@ -1386,7 +1440,7 @@ const CallingForJobAgencies = () => {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 
