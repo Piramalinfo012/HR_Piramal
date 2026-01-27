@@ -7,6 +7,8 @@ const JoiningLetterRelease = () => {
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [deptFilter, setDeptFilter] = useState("");
+    const [desigFilter, setDesigFilter] = useState("");
     const [tableLoading, setTableLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("pending");
     const [showModal, setShowModal] = useState(false);
@@ -129,24 +131,36 @@ const JoiningLetterRelease = () => {
             filtered = filtered.filter(item => item.isHistory);
         }
 
+        if (deptFilter) {
+            filtered = filtered.filter(item => item.department === deptFilter);
+        }
+
+        if (desigFilter) {
+            filtered = filtered.filter(item => item.designation === desigFilter);
+        }
+
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter((item) =>
                 (item.candidateName || "").toLowerCase().includes(term) ||
                 (item.indentNumber || "").toLowerCase().includes(term) ||
-                (item.designation || "").toLowerCase().includes(term)
+                (item.designation || "").toLowerCase().includes(term) ||
+                (item.department || "").toLowerCase().includes(term)
             );
         }
 
         return filtered;
     };
 
+    const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
+    const designations = [...new Set(candidateData.map(item => item.designation))].filter(Boolean).sort();
+
     const filteredData = getFilteredData();
 
     const handleOpenModal = (candidate) => {
         setSelectedCandidate(candidate);
         setFormData({
-            status: "",
+            status: "Yes",
             attachmentUrl: ""
         });
         setShowModal(true);
@@ -273,40 +287,71 @@ const JoiningLetterRelease = () => {
 
             {/* Search and Tabs */}
             <div className="bg-white p-4 rounded-lg shadow">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-                    <div className="flex-1 max-w-md">
-                        <div className="relative w-full">
-                            <input
-                                type="text"
-                                placeholder="Search by name, indent number or designation..."
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="flex space-x-2">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg w-fit">
                         <button
                             onClick={() => setActiveTab("pending")}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === "pending"
-                                ? "bg-navy text-white"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                }`}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
                         >
                             Pending
                         </button>
                         <button
                             onClick={() => setActiveTab("history")}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === "history"
-                                ? "bg-navy text-white"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                                }`}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "history" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
                         >
                             History
                         </button>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row items-end gap-3 flex-1 justify-end">
+                        <div className="relative flex-1 max-w-xs">
+                            <input
+                                type="text"
+                                placeholder="Search..."
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <div className="w-40">
+                                <select
+                                    value={deptFilter}
+                                    onChange={(e) => setDeptFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                                >
+                                    <option value="">All Departments</option>
+                                    {departments.map(dept => (
+                                        <option key={dept} value={dept}>{dept}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="w-40">
+                                <select
+                                    value={desigFilter}
+                                    onChange={(e) => setDesigFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                                >
+                                    <option value="">All Posts</option>
+                                    {designations.map(desig => (
+                                        <option key={desig} value={desig}>{desig}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setSearchTerm("");
+                                    setDeptFilter("");
+                                    setDesigFilter("");
+                                }}
+                                className="p-2 text-gray-400 hover:text-navy transition-colors"
+                                title="Clear Filters"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -427,9 +472,9 @@ const JoiningLetterRelease = () => {
                                     required
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                                 >
-                                    <option value="">Select Status</option>
-                                    <option value="Done">Done</option>
-                                    <option value="Not Done">Not Done</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                    <option value="Hold">Hold</option>
                                 </select>
                             </div>
 

@@ -413,10 +413,11 @@ const Sidebar = ({ onClose }) => {
       label: "Calling For Job Agencies",
     },
     { path: "/whatsapp", icon: Phone, label: "Whatsapp" },
+    { path: "/call-tracker", icon: Phone, label: "Call Tracker" },
     {
       path: "/candidate_shortlisted",
       icon: Users,
-      label: "Candidate Selection",
+      label: "Interview Schedule",
     },
     {
       path: "/candidate_sortlisted",
@@ -438,12 +439,7 @@ const Sidebar = ({ onClose }) => {
       icon: Clock,
       label: "Joining Follow Up",
     },
-    // {
-    //   path: "/full_fill_position",
-    //   icon: Search,
-    //   label: "Full Fill Position",
-    // },
-    // { path: "/call-tracker", icon: Phone, label: "Call Tracker" },
+
     { path: "/joining", icon: NotebookPen, label: "Joining" },
     {
       path: "/check-salary-slip-and-resume",
@@ -552,11 +548,12 @@ const Sidebar = ({ onClose }) => {
         "induction or welcome",
         "asset assignment (it team)",
         "whatsapp",
-        "candidate selection",
+        "interview schedule",
         "candidate sortlisted",
         "verification before interview",
         "interview & final selection",
         "joining follow up",
+        "call tracker",
       ];
       if (newPages.includes(itemLabel)) return true;
 

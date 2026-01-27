@@ -11,7 +11,8 @@ const FullFillPostion = () => {
   const [historyIndentData, setHistoryIndentData] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
-
+  const [deptFilter, setDeptFilter] = useState("");
+  const [postFilter, setPostFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -288,7 +289,7 @@ const FullFillPostion = () => {
   const handleCancel = () => {
     setFormData({
       indentNumber: "",
-      status: "",
+      status: "Yes",
       closedBy: "",
     });
     setShowModal(false);
@@ -296,26 +297,36 @@ const FullFillPostion = () => {
   const handlePostClick = (item) => {
     setFormData({
       indentNumber: item.indentNumber,
-      status: "",
+      status: "Yes",
       closedBy: "",
     });
     setShowModal(true);
   };
 
   const filteredPendingData = indentData.filter((item) => {
+    const term = searchTerm.toLowerCase();
     const matchesSearch =
-      item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+      item.post?.toLowerCase().includes(term) ||
+      item.indentNumber?.toLowerCase().includes(term) ||
+      item.department?.toLowerCase().includes(term);
+    const matchesDept = !deptFilter || item.department === deptFilter;
+    const matchesPost = !postFilter || item.post === postFilter;
+    return matchesSearch && matchesDept && matchesPost;
   });
 
   const filteredHistoryData = historyIndentData.filter((item) => {
+    const term = searchTerm.toLowerCase();
     const matchesSearch =
-      item.siteStatus?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.socialSiteTypes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+      item.post?.toLowerCase().includes(term) ||
+      item.indentNumber?.toLowerCase().includes(term) ||
+      item.department?.toLowerCase().includes(term);
+    const matchesDept = !deptFilter || item.department === deptFilter;
+    const matchesPost = !postFilter || item.post === postFilter;
+    return matchesSearch && matchesDept && matchesPost;
   });
+
+  const departments = [...new Set(indentData.concat(historyIndentData).map(item => item.department))].filter(Boolean).sort();
+  const posts = [...new Set(indentData.concat(historyIndentData).map(item => item.post))].filter(Boolean).sort();
 
   return (
     <div className="space-y-6 page-content p-6">
@@ -362,9 +373,9 @@ const FullFillPostion = () => {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
                 >
-                  <option value="">Select Status</option>
-                  <option value="Need More">Need More</option>
-                  <option value="Close">Close</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                  <option value="Hold">Hold</option>
                 </select>
               </div>
 
@@ -492,32 +503,13 @@ const FullFillPostion = () => {
         </div>
       )}
 
-      {/* Filter and Search */}
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex flex-1 max-w-md">
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2  bg-white bg-opacity-10 focus:ring-navy text-gray-600  "
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 opacity-60"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div className="border-b border-gray-300 border-opacity-20">
-          <nav className="flex -mb-px">
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg w-fit">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                ? "border-indigo-500 text-navy"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              className={`py-2 px-4 font-medium text-sm rounded-md transition-all ${activeTab === "pending"
+                ? "bg-white text-navy shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
                 }`}
               onClick={() => setActiveTab("pending")}
             >
@@ -525,18 +517,78 @@ const FullFillPostion = () => {
               Pending ({filteredPendingData.length})
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                ? "border-indigo-500 text-navy"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              className={`py-2 px-4 font-medium text-sm rounded-md transition-all ${activeTab === "history"
+                ? "bg-white text-navy shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
                 }`}
               onClick={() => setActiveTab("history")}
             >
               <CheckCircle size={16} className="inline mr-2" />
               History ({filteredHistoryData.length})
             </button>
-          </nav>
-        </div>
+          </div>
 
+          <div className="flex flex-col md:flex-row items-end gap-3 flex-1 justify-end">
+            <div className="relative flex-1 max-w-xs">
+              <input
+                type="text"
+                placeholder="Search..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="w-40">
+                <select
+                  value={deptFilter}
+                  onChange={(e) => setDeptFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                >
+                  <option value="">All Departments</option>
+                  {departments.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-40">
+                <select
+                  value={postFilter}
+                  onChange={(e) => setPostFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                >
+                  <option value="">All Posts</option>
+                  {posts.map((post) => (
+                    <option key={post} value={post}>
+                      {post}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setDeptFilter("");
+                  setPostFilter("");
+                }}
+                className="p-2 text-gray-400 hover:text-navy transition-colors"
+                title="Clear Filters"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden mt-6">
         <div className="p-6">
           {activeTab === "pending" && (
             <div className="overflow-x-auto">
@@ -955,7 +1007,7 @@ const FullFillPostion = () => {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

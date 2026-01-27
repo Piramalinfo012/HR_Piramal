@@ -9,6 +9,8 @@ const Joining = () => {
 
   const [candidateData, setCandidateData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deptFilter, setDeptFilter] = useState("");
+  const [desigFilter, setDesigFilter] = useState("");
   const [tableLoading, setTableLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
@@ -99,16 +101,22 @@ const Joining = () => {
     }
   };
 
-  // Filter by search term only
   const filteredData = candidateData.filter((item) => {
     const term = searchTerm.toLowerCase();
-
-    return (
+    const matchesSearch =
       (item.candidateName || "").toLowerCase().includes(term) ||
       (item.id || "").toLowerCase().includes(term) ||
-      (item.designation || "").toLowerCase().includes(term)
-    );
+      (item.designation || "").toLowerCase().includes(term) ||
+      (item.department || "").toLowerCase().includes(term);
+
+    const matchesDept = !deptFilter || item.department === deptFilter;
+    const matchesDesig = !desigFilter || item.designation === desigFilter;
+
+    return matchesSearch && matchesDept && matchesDesig;
   });
+
+  const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
+  const designations = [...new Set(candidateData.map(item => item.designation))].filter(Boolean).sort();
 
   const handleOpenModal = (candidate) => {
     setSelectedCandidate(candidate);
@@ -324,17 +332,58 @@ const Joining = () => {
         <h1 className="text-2xl font-bold text-gray-800 uppercase">Joining Management</h1>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex-1 max-w-md">
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Search by name, ID or designation..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex-1"></div>
+          <div className="flex flex-col md:flex-row items-end gap-3 flex-1 justify-end">
+            <div className="relative flex-1 max-w-xs">
+              <input
+                type="text"
+                placeholder="Search..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="w-40">
+                <select
+                  value={deptFilter}
+                  onChange={(e) => setDeptFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                >
+                  <option value="">All Departments</option>
+                  {departments.map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-40">
+                <select
+                  value={desigFilter}
+                  onChange={(e) => setDesigFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                >
+                  <option value="">All Posts</option>
+                  {designations.map(desig => (
+                    <option key={desig} value={desig}>{desig}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setDeptFilter("");
+                  setDesigFilter("");
+                }}
+                className="p-2 text-gray-400 hover:text-navy transition-colors"
+                title="Clear Filters"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
         </div>
       </div>

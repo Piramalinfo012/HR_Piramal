@@ -14,8 +14,7 @@ const Indent = () => {
     numberOfPost: "",
     experience: "",
     salary: "",
-    officeTimingFrom: "",
-    officeTimingTo: "",
+    officeTiming: "",
     typeOfWeek: "",
     residence: "",
     indenterName: "",
@@ -32,6 +31,11 @@ const Indent = () => {
   const [deptFilter, setDeptFilter] = useState("");
   const [desigFilter, setDesigFilter] = useState("");
 
+  // Dropdown options from Master sheet
+  const [departments, setDepartments] = useState([]);
+  const [indenterNames, setIndenterNames] = useState([]);
+  const [timings, setTimings] = useState([]);
+
   // Social site options
   const socialSiteOptions = [
     "Instagram",
@@ -44,6 +48,7 @@ const Indent = () => {
   useEffect(() => {
     const loadData = async () => {
       setTableLoading(true);
+      await fetchMasterData();
       const result = await fetchIndentDataFromRow7();
       if (result.success) {
         console.log("Data from row 7:", result.data);
@@ -54,6 +59,47 @@ const Indent = () => {
     };
     loadData();
   }, []);
+
+  const fetchMasterData = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Master&action=fetch`
+      );
+      const result = await response.json();
+
+      if (result.success && result.data && result.data.length > 0) {
+        const data = result.data;
+
+        // Extract unique values from columns (skip header row and filter empty values)
+        // Column A: Person Name (Indenter)
+        const indenterNamesList = [...new Set(
+          data.slice(1).map(row => row[0]).filter(val => val && val.trim())
+        )];
+        setIndenterNames(indenterNamesList);
+
+        // Column B: Department
+        const departmentsList = [...new Set(
+          data.slice(1).map(row => row[1]).filter(val => val && val.trim())
+        )];
+        setDepartments(departmentsList);
+
+        // Column C: Time
+        const timingsList = [...new Set(
+          data.slice(1).map(row => row[2]).filter(val => val && val.trim())
+        )];
+        setTimings(timingsList);
+
+        console.log('Master data loaded:', {
+          indenterNames: indenterNamesList,
+          departments: departmentsList,
+          timings: timingsList
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching master data:', error);
+      toast.error('Failed to load dropdown options from Master sheet');
+    }
+  };
 
   const generateIndentNumber = async () => {
     try {
@@ -294,8 +340,7 @@ const Indent = () => {
       numberOfPost: "",
       experience: "",
       salary: "",
-      officeTimingFrom: "",
-      officeTimingTo: "",
+      officeTiming: "",
       typeOfWeek: "",
       residence: "",
       indenterName: "",
@@ -407,7 +452,7 @@ const Indent = () => {
           p.indenterName || "",       // C (2): Person Name (Indenter)
           p.post || "",               // D (3): Post
           p.salary || "",             // E (4): Salary
-          p.officeTimingFrom ? `${p.officeTimingFrom} to ${p.officeTimingTo}` : "", // F (5): Timing
+          p.officeTiming || "",       // F (5): Office Timing
           p.typeOfWeek || "",         // G (6): Types of Weekly Off
           p.residence || "",          // H (7): Residence
           p.gender || "",             // I (8): Gender
@@ -452,8 +497,7 @@ const Indent = () => {
           numberOfPost: "",
           experience: "",
           salary: "",
-          officeTimingFrom: "",
-          officeTimingTo: "",
+          officeTiming: "",
           typeOfWeek: "",
           residence: "",
           indenterName: "",
@@ -495,8 +539,7 @@ const Indent = () => {
       numberOfPost: "",
       experience: "",
       salary: "",
-      officeTimingFrom: "",
-      officeTimingTo: "",
+      officeTiming: "",
       typeOfWeek: "",
       residence: "",
       qualifications: "",
@@ -691,10 +734,9 @@ const Indent = () => {
                           className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-navy text-sm"
                         >
                           <option value="">Select</option>
-                          <option value="Production">Production</option>
-                          <option value="Management">Management</option>
-                          <option value="Sales">Sales</option>
-                          <option value="HR">HR</option>
+                          {departments.map((dept, idx) => (
+                            <option key={idx} value={dept}>{dept}</option>
+                          ))}
                         </select>
                       </div>
                       <div>
@@ -797,42 +839,36 @@ const Indent = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Timing (From)
+                          Office Timing
                         </label>
-                        <input
-                          type="time"
-                          name="officeTimingFrom"
-                          value={postField.officeTimingFrom}
+                        <select
+                          name="officeTiming"
+                          value={postField.officeTiming}
                           onChange={(e) => handlePostInputChange(index, e)}
                           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                        />
+                        >
+                          <option value="">Select</option>
+                          {timings.map((timing, idx) => (
+                            <option key={idx} value={timing}>{timing}</option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Timing (To)
+                          Person Name (Indenter)
                         </label>
-                        <input
-                          type="time"
-                          name="officeTimingTo"
-                          value={postField.officeTimingTo}
+                        <select
+                          name="indenterName"
+                          value={postField.indenterName}
                           onChange={(e) => handlePostInputChange(index, e)}
                           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                        />
+                        >
+                          <option value="">Select</option>
+                          {indenterNames.map((name, idx) => (
+                            <option key={idx} value={name}>{name}</option>
+                          ))}
+                        </select>
                       </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Person Name (Indenter)
-                      </label>
-                      <input
-                        type="text"
-                        name="indenterName"
-                        value={postField.indenterName}
-                        onChange={(e) => handlePostInputChange(index, e)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                        placeholder="Enter name"
-                      />
                     </div>
                   </div>
                 </div>

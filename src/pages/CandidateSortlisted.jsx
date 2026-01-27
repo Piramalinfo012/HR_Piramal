@@ -65,7 +65,7 @@ const CandidateSortlisted = () => {
         setSelectedCandidate(candidate);
         setActionFormData({
             indentNumber: candidate.indentId || "",
-            status: "",
+            status: "Yes",
         });
         setShowActionModal(true);
     };
@@ -174,9 +174,9 @@ const CandidateSortlisted = () => {
                 <h1 className="text-2xl font-bold text-gray-800 uppercase">CANDIDATE SORTLISTED</h1>
             </div>
 
-            <div className="bg-white p-4 rounded-lg shadow space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-                    <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
+            <div className="bg-white p-4 rounded-lg shadow">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg w-fit">
                         <button
                             onClick={() => setActiveTab("pending")}
                             className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
@@ -193,58 +193,55 @@ const CandidateSortlisted = () => {
                         </button>
                     </div>
 
-                    <div className="flex flex-1 max-w-md">
-                        <div className="relative w-full">
+                    <div className="flex flex-col md:flex-row items-end gap-3 flex-1 justify-end">
+                        <div className="relative flex-1 max-w-xs">
                             <input
                                 type="text"
-                                placeholder="Search by name, ID or designation..."
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                                placeholder="Search..."
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
-                            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         </div>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Department</label>
-                        <select
-                            value={deptFilter}
-                            onChange={(e) => setDeptFilter(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-                        >
-                            <option value="">All Departments</option>
-                            {departments.map(dept => (
-                                <option key={dept} value={dept}>{dept}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Designation</label>
-                        <select
-                            value={desigFilter}
-                            onChange={(e) => setDesigFilter(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-                        >
-                            <option value="">All Designations</option>
-                            {designations.map(desig => (
-                                <option key={desig} value={desig}>{desig}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="flex items-end">
-                        <button
-                            onClick={() => {
-                                setSearchTerm("");
-                                setDeptFilter("");
-                                setDesigFilter("");
-                            }}
-                            className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
-                        >
-                            <X size={14} /> Clear All Filters
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <div className="w-40">
+                                <select
+                                    value={deptFilter}
+                                    onChange={(e) => setDeptFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                                >
+                                    <option value="">All Departments</option>
+                                    {departments.map(dept => (
+                                        <option key={dept} value={dept}>{dept}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="w-40">
+                                <select
+                                    value={desigFilter}
+                                    onChange={(e) => setDesigFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                                >
+                                    <option value="">All Posts</option>
+                                    {designations.map(desig => (
+                                        <option key={desig} value={desig}>{desig}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setSearchTerm("");
+                                    setDeptFilter("");
+                                    setDesigFilter("");
+                                }}
+                                className="p-2 text-gray-400 hover:text-navy transition-colors"
+                                title="Clear Filters"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -337,10 +334,9 @@ const CandidateSortlisted = () => {
                                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                                             required
                                         >
-                                            <option value="">Select Status</option>
-                                            <option value="Selected">Selected</option>
-                                            <option value="Rejected">Rejected</option>
-                                            <option value="Shortlisted">Shortlisted</option>
+                                            <option value="Yes">Yes</option>
+                                            <option value="No">No</option>
+                                            <option value="Hold">Hold</option>
                                         </select>
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">

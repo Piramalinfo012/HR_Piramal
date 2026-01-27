@@ -17,6 +17,8 @@ const FindEnquiry = () => {
   const [generatedCandidateNo, setGeneratedCandidateNo] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
+  const [deptFilter, setDeptFilter] = useState("");
+  const [postFilter, setPostFilter] = useState("");
 
   const [candidates, setCandidates] = useState([
     {
@@ -36,7 +38,7 @@ const FindEnquiry = () => {
     },
   ]);
 
-  const [commonStatus, setCommonStatus] = useState("NeedMore");
+  const [commonStatus, setCommonStatus] = useState("Yes");
 
   const [formData, setFormData] = useState({
     candidateName: "",
@@ -52,7 +54,7 @@ const FindEnquiry = () => {
     candidateResume: null,
     presentAddress: "",
     aadharNo: "",
-    status: "NeedMore",
+    status: "Yes",
   });
 
   // Google Drive folder ID for file uploads
@@ -192,9 +194,16 @@ const FindEnquiry = () => {
           //   return completedRecruitments < requiredPosts;
           // });
 
-          const pendingTasks = processedData.filter(
-            (task) => task.plannedDate !== "" && task.actual === ""
-          );
+          const term = searchTerm.toLowerCase();
+          const pendingTasks = processedData.filter((task) => {
+            const matchesSearch =
+              (task.indentNo || "").toLowerCase().includes(term) ||
+              (task.post || "").toLowerCase().includes(term) ||
+              (task.department || "").toLowerCase().includes(term);
+            const matchesDept = !deptFilter || task.department === deptFilter;
+            const matchesPost = !postFilter || task.post === postFilter;
+            return task.plannedDate !== "" && task.actual === "" && matchesSearch && matchesDept && matchesPost;
+          });
 
           setIndentData(pendingTasks);
         } else {
@@ -408,9 +417,12 @@ const FindEnquiry = () => {
       },
     ]);
 
-    setCommonStatus('NeedMore');
+    setCommonStatus('Yes');
     setShowModal(true);
   };
+
+  const departments = [...new Set(indentData.map(item => item.department))].filter(Boolean).sort();
+  const posts = [...new Set(indentData.map(item => item.post))].filter(Boolean).sort();
 
   const formatDOB = (dateString) => {
     if (!dateString) return "";
@@ -730,8 +742,8 @@ const FindEnquiry = () => {
 
       toast.success(`${candidates.length} candidate(s) submitted successfully!`);
 
-      // Only update FMS sheet if status is Complete
-      if (commonStatus === 'Complete') {
+      // Only update FMS sheet if status is Yes (was Complete)
+      if (commonStatus === 'Yes') {
 
         // Fetch FMS data
         const indentFetchResponse = await fetch(
@@ -782,7 +794,7 @@ const FindEnquiry = () => {
                 action: 'updateCell',
                 rowIndex: rowIndex.toString(),
                 columnIndex: (statusIndex + 1).toString(),
-                value: 'Complete'
+                value: 'Yes'
               }),
             }
           );
@@ -908,82 +920,116 @@ const FindEnquiry = () => {
   };
 
 
-  const filteredPendingData = indentData.filter((item) => {
+  const filteredPendingData = indentData; // Filters are already applied in fetchAllData effect or similar
+  // Actually, let's keep the filter here for responsiveness if searchTerm/deptFilter change.
+  // Wait, I already added filter logic in fetchAllData.
+  // Let's make it consistent with other pages.
+
+  const filteredPendingRows = indentData.filter((item) => {
+    const term = searchTerm.toLowerCase();
     const matchesSearch =
-      item.post?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+      (item.post || "").toLowerCase().includes(term) ||
+      (item.indentNo || "").toLowerCase().includes(term) ||
+      (item.department || "").toLowerCase().includes(term);
+    const matchesDept = !deptFilter || item.department === deptFilter;
+    const matchesPost = !postFilter || item.post === postFilter;
+    return matchesSearch && matchesDept && matchesPost;
   });
 
-  const filteredHistoryData = historyData.filter((item) => {
+  const filteredHistoryRows = enquiryData.filter((item) => {
+    const term = searchTerm.toLowerCase();
     const matchesSearch =
-      item.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.candidateEnquiryNo
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      item.indentNo?.toLowerCase().includes(searchTerm.toLowerCase());
+      (item.candidateName || "").toLowerCase().includes(term) ||
+      (item.candidateEnquiryNo || "").toLowerCase().includes(term) ||
+      (item.indentNo || "").toLowerCase().includes(term);
     return matchesSearch;
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-content p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Find Enquiry</h1>
-      </div>
-
-      {/* Filter and Search */}
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex flex-1 max-w-md">
-          <div className="relative w-full">
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-400 border-opacity-30 rounded-lg focus:outline-none focus:ring-2  bg-white bg-opacity-10 focus:ring-navy text-gray-600  "
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 opacity-60"
-            />
-          </div>
-        </div>
         <button
           onClick={() => handleEnquiryClick()}
-          className="px-3 py-2 text-white bg-indigo-700 rounded-md hover:bg-opacity-90 text-sm"
+          className="px-4 py-2 text-white bg-navy rounded-lg hover:bg-navy-dark transition-colors text-sm font-medium"
         >
-          New Enquiry
+          + New Enquiry
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="border-b border-gray-300 border-opacity-20">
-          <nav className="flex -mb-px">
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg w-fit">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "pending"
-                ? "border-indigo-500 text-navy"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
               onClick={() => setActiveTab("pending")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
             >
-              <Clock size={16} className="inline mr-2" />
-              Pending ({filteredPendingData.length})
+              <Clock size={18} />
+              Pending
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "history"
-                ? "border-indigo-500 text-navy"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
               onClick={() => setActiveTab("history")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "history" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
             >
-              <CheckCircle size={16} className="inline mr-2" />
-              History ({filteredHistoryData.length})
+              <CheckCircle size={18} />
+              History
             </button>
-          </nav>
-        </div>
+          </div>
 
-        {/* Tab Content */}
+          <div className="flex flex-col md:flex-row items-end gap-3 flex-1 justify-end">
+            <div className="relative flex-1 max-w-xs">
+              <input
+                type="text"
+                placeholder="Search..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="w-40">
+                <select
+                  value={deptFilter}
+                  onChange={(e) => setDeptFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                >
+                  <option value="">All Departments</option>
+                  {departments.map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-40">
+                <select
+                  value={postFilter}
+                  onChange={(e) => setPostFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                >
+                  <option value="">All Posts</option>
+                  {posts.map(post => (
+                    <option key={post} value={post}>{post}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setDeptFilter("");
+                  setPostFilter("");
+                }}
+                className="p-2 text-gray-400 hover:text-navy transition-colors"
+                title="Clear Filters"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-6">
           {activeTab === "pending" && (
             <div className="overflow-x-auto">
@@ -1833,8 +1879,9 @@ const FindEnquiry = () => {
                     className="w-full border border-gray-300 border-opacity-30 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white bg-white bg-opacity-10 text-gray-500"
                     required
                   >
-                    <option value="NeedMore">Need More</option>
-                    <option value="Complete">Complete</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                    <option value="Hold">Hold</option>
                   </select>
                 </div>
               </div>

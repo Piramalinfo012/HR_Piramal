@@ -34,7 +34,7 @@ const Whatsapp = () => {
         indenterName: "",
         closedBy: "",
         screenshotUrl: "",
-        status: "Done",
+        status: "Yes",
     });
     const [indentData, setIndentData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -254,7 +254,7 @@ const Whatsapp = () => {
             ...formData,
             indentNumber: "",
             screenshotUrl: "",
-            status: "Done",
+            status: "Yes",
         });
         setShowModal(false);
     };
@@ -264,7 +264,7 @@ const Whatsapp = () => {
             ...prev,
             indentNumber: item.indentNumber,
             screenshotUrl: "",
-            status: "Done",
+            status: "Yes",
         }));
         setShowModal(true);
     };
@@ -301,8 +301,54 @@ const Whatsapp = () => {
 
     return (
         <div className="space-y-6 page-content p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Whatsapp</h1>
+                <div className="flex flex-col md:flex-row items-center gap-3">
+                    <div className="relative w-full md:w-64">
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <select
+                            value={deptFilter}
+                            onChange={(e) => setDeptFilter(e.target.value)}
+                            className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Departments</option>
+                            {departments.map(dept => (
+                                <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={desigFilter}
+                            onChange={(e) => setDesigFilter(e.target.value)}
+                            className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                        >
+                            <option value="">All Posts</option>
+                            {posts.map(post => (
+                                <option key={post} value={post}>{post}</option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={() => {
+                                setSearchTerm("");
+                                setDeptFilter("");
+                                setDesigFilter("");
+                            }}
+                            className="p-2 text-gray-400 hover:text-navy transition-colors"
+                            title="Clear Filters"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {showModal && (
@@ -333,8 +379,9 @@ const Whatsapp = () => {
                                     onChange={handleInputChange}
                                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-navy focus:border-navy"
                                 >
-                                    <option value="Done">Done</option>
-                                    <option value="Not Done">Not Done</option>
+                                    <option value="Yes">Yes</option>
+                                    <option value="No">No</option>
+                                    <option value="Hold">Hold</option>
                                 </select>
                             </div>
 
@@ -375,64 +422,7 @@ const Whatsapp = () => {
                 </div>
             )}
 
-            {/* Filter and Search */}
-            <div className="bg-white p-4 rounded-lg shadow space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-                    <div className="flex flex-1 max-w-md">
-                        <div className="relative w-full">
-                            <input
-                                type="text"
-                                placeholder="Search by post, indent, etc..."
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        </div>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Department</label>
-                        <select
-                            value={deptFilter}
-                            onChange={(e) => setDeptFilter(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-                        >
-                            <option value="">All Departments</option>
-                            {departments.map(dept => (
-                                <option key={dept} value={dept}>{dept}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Post</label>
-                        <select
-                            value={desigFilter}
-                            onChange={(e) => setDesigFilter(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-                        >
-                            <option value="">All Posts</option>
-                            {posts.map(post => (
-                                <option key={post} value={post}>{post}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="flex items-end">
-                        <button
-                            onClick={() => {
-                                setSearchTerm("");
-                                setDeptFilter("");
-                                setDesigFilter("");
-                            }}
-                            className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
-                        >
-                            <X size={14} /> Clear All Filters
-                        </button>
-                    </div>
-                </div>
-            </div>
 
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <div className="border-b border-gray-200">
