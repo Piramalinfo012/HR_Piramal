@@ -14,6 +14,11 @@ const Attendance = () => {
   const [error, setError] = useState(null);
   const [downloading, setDownloading] = useState({}); // Track individual download states
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const fetchAttendanceData = async () => {
     setLoading(true);
     setTableLoading(true);
@@ -63,6 +68,7 @@ const Attendance = () => {
         name: row[getIndex('Name')] || '',
         designation: row[getIndex('Designation')] || '',
         company: row[getIndex('Company Name')] || '',
+        department: row[getIndex('Department')] || '',
         punchDays: row[getIndex('Punch Days')] || '',
         totalOnTime: row[getIndex('Total On Time (>=8)')] || '',
         lateDays: row[getIndex('Late Days(4-8)')] || '',
@@ -91,7 +97,18 @@ const Attendance = () => {
   };
 
   useEffect(() => {
+    // Small delay to ensure page settles before any potential scroll adjustments
+    const timer = setTimeout(() => {
+      // Ensure the page stays at the current position to prevent unwanted scrolling
+      const currentScrollY = window.scrollY;
+      window.scrollTo({ top: currentScrollY, behavior: 'auto' });
+    }, 10);
+
+    // Fetch data
     fetchAttendanceData();
+
+    // Cleanup timeout if component unmounts quickly
+    return () => clearTimeout(timer);
   }, []);
 
   // Download data as Excel
@@ -219,7 +236,7 @@ const Attendance = () => {
   );
 
   return (
-    <div className="space-y-6 ml-50 p-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Attendance Records Monthly</h1>
         <button
@@ -250,14 +267,14 @@ const Attendance = () => {
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-6">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto table-container">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Punch Days</th>
@@ -300,7 +317,7 @@ const Attendance = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.year}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.empId}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.month}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.punchDays}</td>

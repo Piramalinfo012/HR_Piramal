@@ -68,12 +68,13 @@ const Report = () => {
                 <p className="text-2xl font-bold mt-2">15</p>
               </div>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden table-container">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-Out</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -83,6 +84,7 @@ const Report = () => {
                   <tr>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">EMP001</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">John Doe</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Engineering</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">09:05 AM</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">06:15 PM</td>
                     <td className="px-6 py-4 whitespace-nowrap"><span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Present</span></td>
@@ -165,11 +167,12 @@ const Report = () => {
         return (
           <div className="p-6">
             <h3 className="text-lg font-semibold mb-4">Monthly Attendance Summary</h3>
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6">
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6 table-container">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Days</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Present</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Absent</th>
@@ -180,6 +183,7 @@ const Report = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   <tr>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">John Doe</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Engineering</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">22</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">20</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1</td>
@@ -203,11 +207,12 @@ const Report = () => {
         return (
           <div className="p-6">
             <h3 className="text-lg font-semibold mb-4">WhatsApp Day End Report</h3>
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6">
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6 table-container">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent Time</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Response</th>
@@ -216,6 +221,7 @@ const Report = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   <tr>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">John Doe</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Engineering</td>
                     <td className="px-6 py-4 whitespace-nowrap"><span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Delivered</span></td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">06:15 PM</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Acknowledged</td>
@@ -281,11 +287,12 @@ const Report = () => {
                 <p className="text-2xl font-bold mt-2">3</p>
               </div>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden table-container">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
@@ -296,6 +303,7 @@ const Report = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   <tr>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">John Doe</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Engineering</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Sick Leave</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">15/09/2023</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">16/09/2023</td>
@@ -407,11 +415,12 @@ const Report = () => {
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden table-container">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Regular Hours</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overtime Hours</th>
@@ -421,6 +430,7 @@ const Report = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   <tr>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">John Doe</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Engineering</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">15/09/2023</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">8.0</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2.5</td>
@@ -466,7 +476,7 @@ const Report = () => {
             <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
         </div>
-        
+
         <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
           <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2">
             <Calendar size={18} className="text-gray-400 mr-2" />
@@ -486,7 +496,7 @@ const Report = () => {
               className="border-none focus:outline-none text-sm"
             />
           </div>
-          
+
           <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2">
             <Filter size={18} className="text-gray-400 mr-2" />
             <select
@@ -509,71 +519,64 @@ const Report = () => {
           <nav className="flex flex-wrap -mb-px">
             <button
               onClick={() => setActiveReport('attendanceDayEnd')}
-              className={`py-4 px-4 text-center font-medium text-sm ${
-                activeReport === 'attendanceDayEnd' 
-                  ? 'border-b-2 border-indigo-500 text-navy' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`py-4 px-4 text-center font-medium text-sm ${activeReport === 'attendanceDayEnd'
+                ? 'border-b-2 border-indigo-500 text-navy'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               Attendance Day End
             </button>
             <button
               onClick={() => setActiveReport('attendanceAnalysis')}
-              className={`py-4 px-4 text-center font-medium text-sm ${
-                activeReport === 'attendanceAnalysis' 
-                  ? 'border-b-2 border-indigo-500 text-navy' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`py-4 px-4 text-center font-medium text-sm ${activeReport === 'attendanceAnalysis'
+                ? 'border-b-2 border-indigo-500 text-navy'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               Attendance Analysis
             </button>
             <button
               onClick={() => setActiveReport('monthlyAttendance')}
-              className={`py-4 px-4 text-center font-medium text-sm ${
-                activeReport === 'monthlyAttendance' 
-                  ? 'border-b-2 border-indigo-500 text-navy' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`py-4 px-4 text-center font-medium text-sm ${activeReport === 'monthlyAttendance'
+                ? 'border-b-2 border-indigo-500 text-navy'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               Monthly Attendance
             </button>
             <button
               onClick={() => setActiveReport('whatsappDayEnd')}
-              className={`py-4 px-4 text-center font-medium text-sm ${
-                activeReport === 'whatsappDayEnd' 
-                  ? 'border-b-2 border-indigo-500 text-navy' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`py-4 px-4 text-center font-medium text-sm ${activeReport === 'whatsappDayEnd'
+                ? 'border-b-2 border-indigo-500 text-navy'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               WhatsApp Day End
             </button>
             <button
               onClick={() => setActiveReport('leaveReport')}
-              className={`py-4 px-4 text-center font-medium text-sm ${
-                activeReport === 'leaveReport' 
-                  ? 'border-b-2 border-indigo-500 text-navy' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`py-4 px-4 text-center font-medium text-sm ${activeReport === 'leaveReport'
+                ? 'border-b-2 border-indigo-500 text-navy'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               Leave Report
             </button>
             <button
               onClick={() => setActiveReport('lateCutoff')}
-              className={`py-4 px-4 text-center font-medium text-sm ${
-                activeReport === 'lateCutoff' 
-                  ? 'border-b-2 border-indigo-500 text-navy' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`py-4 px-4 text-center font-medium text-sm ${activeReport === 'lateCutoff'
+                ? 'border-b-2 border-indigo-500 text-navy'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               Late/Early Cutoff
             </button>
             <button
               onClick={() => setActiveReport('overtimeReport')}
-              className={`py-4 px-4 text-center font-medium text-sm ${
-                activeReport === 'overtimeReport' 
-                  ? 'border-b-2 border-indigo-500 text-navy' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
+              className={`py-4 px-4 text-center font-medium text-sm ${activeReport === 'overtimeReport'
+                ? 'border-b-2 border-indigo-500 text-navy'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
             >
               Overtime Report
             </button>

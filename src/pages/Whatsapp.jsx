@@ -52,14 +52,14 @@ const Whatsapp = () => {
 
     const getCurrentTimestamp = () => {
         const now = new Date();
-        const day = String(now.getDate()).padStart(2, "0");
+        const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, "0");
-        const year = String(now.getFullYear()).slice(-2);
+        const day = String(now.getDate()).padStart(2, "0");
         const hours = String(now.getHours()).padStart(2, "0");
         const minutes = String(now.getMinutes()).padStart(2, "0");
         const seconds = String(now.getSeconds()).padStart(2, "0");
-
-        return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+        const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        return timestamp;
     };
 
     const fetchIndentData = async () => {
@@ -452,7 +452,7 @@ const Whatsapp = () => {
 
                 <div className="p-6">
                     <div className="overflow-x-auto">
-                        <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
+                        <div className="overflow-x-auto table-container">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50 sticky top-0 z-10">
                                     <tr>

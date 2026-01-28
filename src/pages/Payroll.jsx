@@ -41,6 +41,7 @@ const Payroll = () => {
             employeeCode: row[1] || "",
             employeeName: row[2] || "",
             designation: row[3] || "",
+            department: row[getIndex ? getIndex('Department') : (headers ? headers.indexOf('Department') : -1)] !== -1 ? row[headers.indexOf('Department')] : (row[17] || ""),
             daysPresent: row[4] || 0,
             totalActual: parseFloat(row[5]) || 0,
             basic: parseFloat(row[6]) || 0,
@@ -207,7 +208,7 @@ const Payroll = () => {
                 </button>
               </div>
             ) : (
-              <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 250px)", minHeight: "400px" }}>
+              <div className="overflow-auto table-container">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
@@ -222,6 +223,9 @@ const Payroll = () => {
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider bg-blue-100">
                         Designation
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider bg-blue-100">
+                        Department
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-blue-900 uppercase tracking-wider bg-blue-100">
                         Days Present
@@ -279,6 +283,9 @@ const Payroll = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {item.designation}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {item.department}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {item.daysPresent}

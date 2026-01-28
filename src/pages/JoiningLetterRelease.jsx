@@ -58,44 +58,45 @@ const JoiningLetterRelease = () => {
             }
 
             const rawData = data.data || [];
-            console.log("Raw sheet data:", rawData);
-            console.log("Total rows fetched:", rawData.length);
+            const headers = rawData[6] || [];
+            const dataRows = rawData.length > 7 ? rawData.slice(7) : [];
 
-            // Skip first 7 rows (index 0-6), start from index 7
-            const dataRows = rawData.slice(7);
-            console.log("Data rows after skipping first 7:", dataRows.length);
+            // Helper to find column index by header name
+            const getIndex = (headerName) => {
+                const index = headers.findIndex(
+                    (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
+                );
+                return index;
+            };
 
-            const processedData = dataRows
-                .map((row, index) => {
-                    if (!row || row.length === 0) return null;
+            const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
+            const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
+            const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
+            const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
+            const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+            const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
 
-                    // Column AQ is index 42 (0-based)
-                    // Column AR is index 43 (0-based)
-                    const columnAQ = row[42];
-                    const columnAR = row[43];
+            const processedData = dataRows.map((row) => {
+                if (!row || row.length === 0) return null;
 
-                    if (index < 3) {
-                        console.log(`Row ${index} - AQ:`, columnAQ, "AR:", columnAR);
-                    }
+                const columnAQ = row[42];
+                const columnAR = row[43];
 
-                    return {
-                        indentNumber: row[5] || "",
-                        candidateName: row[10] || "",
-                        department: row[2] || "",
-                        designation: row[14] || "",
-                        contactNo: row[23] || "",
-                        email: row[31] || "",
-                        columnAQ: columnAQ,
-                        columnAR: columnAR,
-                        // Pending: Column AQ not null AND Column AR null
-                        isPending: (columnAQ != null && columnAQ !== "") && (columnAR == null || columnAR === ""),
-                        // History: Both Column AQ and AR not null
-                        isHistory: (columnAQ != null && columnAQ !== "") && (columnAR != null && columnAR !== "")
-                    };
-                })
-                .filter(item => item !== null);
+                return {
+                    indentNumber: row[idxIndent] || "",
+                    candidateName: row[idxName] || "",
+                    department: row[idxDept] || "",
+                    designation: row[idxDesig] || "",
+                    contactNo: row[idxMobile] || "",
+                    email: row[idxEmail] || "",
+                    columnAQ: columnAQ,
+                    columnAR: columnAR,
+                    isPending: (columnAQ != null && columnAQ !== "") && (columnAR == null || columnAR === ""),
+                    isHistory: (columnAQ != null && columnAQ !== "") && (columnAR != null && columnAR !== "")
+                };
+            }).filter(item => item !== null);
 
-            console.log("Processed data for UI:", processedData);
+            console.log("Processed JLR Candidates:", processedData);
             setCandidateData(processedData);
 
             if (processedData.length === 0) {
@@ -103,20 +104,10 @@ const JoiningLetterRelease = () => {
             } else {
                 toast.success(`Successfully loaded ${processedData.length} candidates`);
             }
-
         } catch (error) {
             console.error("Error fetching data:", error);
-
-            if (error.message.includes("HTML instead of JSON")) {
-                toast.error("Please redeploy Google Apps Script as Web App");
-            } else if (error.message.includes("CORS") || error.message.includes("Failed to fetch")) {
-                toast.error("Network error. Check if Google Apps Script is accessible");
-            } else {
-                toast.error(`Error: ${error.message}`);
-            }
-
+            toast.error(`Error loading data: ${error.message}`);
             setCandidateData([]);
-
         } finally {
             setTableLoading(false);
         }
@@ -229,15 +220,16 @@ const JoiningLetterRelease = () => {
         setSubmitting(true);
 
         try {
-            // Format timestamp as YYYY-MM-DD HH:MM:SS
+            // Create a new Date object
             const now = new Date();
-            const day = String(now.getDate()).padStart(2, '0');
+            // Format timestamp as YYYY-MM-DD HH:MM:SS
+            const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = String(now.getFullYear()).slice(-2);
+            const day = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             // Prepare data for submission
             const dataArray = [
@@ -359,7 +351,7 @@ const JoiningLetterRelease = () => {
             {/* Table */}
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <div className="p-6">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto table-container">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>

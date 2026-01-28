@@ -434,17 +434,13 @@ const AfterJoiningWork = () => {
   const saveAssetsData = async (employeeId, employeeName, assetsData) => {
     try {
       const now = new Date();
-      const timestamp = `${now.getDate().toString().padStart(2, "0")}/${(
-        now.getMonth() + 1
-      )
-        .toString()
-        .padStart(2, "0")}/${now.getFullYear()} ${now
-          .getHours()
-          .toString()
-          .padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now
-            .getSeconds()
-            .toString()
-            .padStart(2, "0")}`;
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
       const phoneNumbers = [
         assetsData.phone1,
@@ -612,16 +608,13 @@ const AfterJoiningWork = () => {
         throw new Error(`Employee ${selectedItem.joiningNo} not found`);
 
       const now = new Date();
-      // Format for display: DD/MM/YYYY
-      const formattedTimestamp = `${now.getDate()}/${now.getMonth() + 1
-        }/${now.getFullYear()}`;
-
-      // Format for Google Sheets as a proper date object (YYYY-MM-DD format)
-      const formattedDateForSheets = `${now.getFullYear()}-${(
-        now.getMonth() + 1
-      )
-        .toString()
-        .padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")}`;
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const formattedDateForSheets = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
       const allFieldsYes =
         formData.checkSalarySlipResume &&

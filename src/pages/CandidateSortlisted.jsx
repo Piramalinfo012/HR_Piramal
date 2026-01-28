@@ -80,18 +80,17 @@ const CandidateSortlisted = () => {
             return;
         }
 
-        if (!window.confirm(`Are you sure you want to mark as ${status}?`)) return;
 
         setActionSubmitting(true);
         try {
             const now = new Date();
-            const day = String(now.getDate()).padStart(2, '0');
+            const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = String(now.getFullYear()).slice(-2);
+            const day = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             // 1. Submit to DATA RESPONSE
             const responseData = [];
@@ -248,7 +247,7 @@ const CandidateSortlisted = () => {
 
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <div className="p-6">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto table-container">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>

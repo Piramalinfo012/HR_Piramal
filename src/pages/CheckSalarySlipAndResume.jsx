@@ -74,42 +74,54 @@ const CheckSalarySlipAndResume = () => {
             console.log("Data rows after skipping first 7:", dataRows.length);
 
             // Transform sheet data to match component structure
-            const processedData = dataRows
-                .map((row, index) => {
-                    // Skip empty rows
-                    if (!row || row.length === 0) return null;
+            const headers = rawData[6] || [];
+            // dataRows is already defined above, so we don't redefine it here.
+            // const dataRows = rawData.length > 7 ? rawData.slice(7) : []; // This line was causing a redeclaration error.
 
-                    // Column AM is index 38 (0-based)
-                    // Column AN is index 39 (0-based)
-                    const columnAM = row[38];
-                    const columnAN = row[39];
+            // Helper to find column index by header name
+            const getIndex = (headerName) => {
+                const index = headers.findIndex(
+                    (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
+                );
+                return index;
+            };
 
-                    // Log for debugging
-                    if (index < 3) {
-                        console.log(`Row ${index} - AM:`, columnAM, "AN:", columnAN);
-                    }
+            const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
+            const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
+            const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
+            const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
+            const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+            const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
 
-                    // Map columns based on sheet structure
-                    return {
-                        indentNumber: row[5] || "",
-                        candidateName: row[10] || "",
-                        department: row[2] || "",
-                        designation: row[14] || "",
-                        contactNo: row[23] || "",
-                        email: row[31] || "",
-                        columnAM: columnAM,
-                        columnAN: columnAN,
-                        // Pending: Column AM not null AND Column AN null
-                        isPending: (columnAM != null && columnAM !== "") && (columnAN == null || columnAN === ""),
-                        // History: Both Column AM and AN not null
-                        isHistory: (columnAM != null && columnAM !== "") && (columnAN != null && columnAN !== "")
-                    };
-                })
-                .filter(item => item !== null); // Remove null items
+            const processedData = dataRows.map((row, index) => {
+                // Skip empty rows
+                if (!row || row.length === 0) return null;
+
+                const columnAM = row[38];
+                const columnAN = row[39];
+
+                // Assuming salary slip is in column AC (index 28) and resume is in column AD (index 29)
+                // based on typical JOINING ENTRY FORM structure
+                const salarySlip = row[36]; // Column AC
+                const resume = row[37];     // Column AD
+
+                return {
+                    indentNumber: row[idxIndent] || "",
+                    candidateName: row[idxName] || "",
+                    department: row[idxDept] || "",
+                    designation: row[idxDesig] || "",
+                    contactNo: row[idxMobile] || "",
+                    email: row[idxEmail] || "",
+                    salarySlip: salarySlip || "",
+                    resume: resume || "",
+                    columnAM: columnAM,
+                    columnAN: columnAN,
+                    isPending: (columnAM != null && columnAM !== "") && (columnAN == null || columnAN === ""),
+                    isHistory: (columnAM != null && columnAM !== "") && (columnAN != null && columnAN !== "")
+                };
+            }).filter(item => item !== null);
 
             console.log("Processed data for UI:", processedData);
-
-            // Update state with fetched data
             setCandidateData(processedData);
 
             if (processedData.length === 0) {
@@ -117,11 +129,8 @@ const CheckSalarySlipAndResume = () => {
             } else {
                 toast.success(`Successfully loaded ${processedData.length} candidates`);
             }
-
         } catch (error) {
             console.error("Error fetching data:", error);
-
-            // Show specific error message
             if (error.message.includes("HTML instead of JSON")) {
                 toast.error("Please redeploy Google Apps Script as Web App");
             } else if (error.message.includes("CORS") || error.message.includes("Failed to fetch")) {
@@ -129,10 +138,7 @@ const CheckSalarySlipAndResume = () => {
             } else {
                 toast.error(`Error: ${error.message}`);
             }
-
-            // Set empty array on error
             setCandidateData([]);
-
         } finally {
             setTableLoading(false);
         }
@@ -201,15 +207,14 @@ const CheckSalarySlipAndResume = () => {
         setSubmitting(true);
 
         try {
-            // Format timestamp as DD/MM/YY HH:MM:SS
             const now = new Date();
-            const day = String(now.getDate()).padStart(2, '0');
+            const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = String(now.getFullYear()).slice(-2);
+            const day = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             // Prepare data for submission
             const dataArray = [
@@ -332,7 +337,7 @@ const CheckSalarySlipAndResume = () => {
             {/* Table */}
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <div className="p-6">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto table-container">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -345,9 +350,9 @@ const CheckSalarySlipAndResume = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Candidate Name
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Department
-                                    </th>
+                                    </th> */}
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Designation
                                     </th>
@@ -357,18 +362,24 @@ const CheckSalarySlipAndResume = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Email
                                     </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Salary Slip
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Resume
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {tableLoading ? (
                                     <tr>
-                                        <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                                        <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
                                             Loading...
                                         </td>
                                     </tr>
                                 ) : filteredData.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                                        <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
                                             No candidates found.
                                         </td>
                                     </tr>
@@ -389,9 +400,9 @@ const CheckSalarySlipAndResume = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                 {item.candidateName}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {item.department}
-                                            </td>
+                                            </td> */}
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {item.designation}
                                             </td>
@@ -400,6 +411,24 @@ const CheckSalarySlipAndResume = () => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {item.email}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {item.salarySlip ? (
+                                                    <a href={item.salarySlip} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                                        View
+                                                    </a>
+                                                ) : (
+                                                    "Not Available"
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {item.resume ? (
+                                                    <a href={item.resume} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                                        View
+                                                    </a>
+                                                ) : (
+                                                    "Not Available"
+                                                )}
                                             </td>
                                         </tr>
                                     ))

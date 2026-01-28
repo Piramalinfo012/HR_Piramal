@@ -87,19 +87,20 @@ const CandidateShortlisted = () => {
             const result = await response.json();
 
             if (result.success && result.data) {
-                const dataRows = result.data.slice(8);
+                const dataRows = result.data.slice(8); // Start from row 2 (after headers)
                 const processedData = dataRows
-                    .filter((row) => row[1] && row[1].toString().trim() !== "")
+                    .filter((row) => row.length > 0 && (row[0] || row[1])) // At least one of the first two columns has data
                     .map((row) => ({
-                        id: row[1], // Column B
-                        department: row[2], // Column C
-                        designation: row[3], // Column D
-                        candidateName: row[4], // Column E
-                        contactNo: row[5], // Column F
-                        mail: row[6], // Column G
-                        // Assuming indentId and statusMarker are in specific columns, e.g., A and H
-                        indentId: row[0], // Column A (Timestamp/Indent Number from handleSubmit)
-                        statusMarker: row[7], // Column H (Placeholder for status)
+                        id: row[0] || "", // Column A
+                        department: row[1] || "", // Column B
+                        designation: row[2] || "", // Column C
+                        candidateName: row[3] || "", // Column D
+                        contactNo: row[4] || "", // Column E
+                        mail: row[5] || "", // Column F
+                        experience: row[6] || "", // Column G
+                        status: row[7] || "", // Column H
+                        remarks: row[8] || "", // Column I
+                        // Add more columns as needed based on your sheet structure
                     }));
                 setCandidateData(processedData);
             }
@@ -122,6 +123,18 @@ const CandidateShortlisted = () => {
                 [name]: value,
             }));
         }
+    };
+
+    const handleOpenModal = (candidate) => {
+        // Set form data with candidate info when opening modal
+        setFormData({
+            ...formData,
+            nameOfCandidate: candidate.candidateName || "",
+            contactNo: candidate.contactNo || "",
+            mailID: candidate.mail || "",
+            // Add other fields as needed
+        });
+        setShowModal(true);
     };
 
     const handleFileUpload = async (e) => {
@@ -171,13 +184,13 @@ const CandidateShortlisted = () => {
         try {
             const newID = `${formData.indentNumber}_${formData.designation}`;
             const now = new Date();
-            const day = String(now.getDate()).padStart(2, '0');
+            const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = String(now.getFullYear()).slice(-2);
+            const day = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             const rowData = [];
             // rowData[0] = formData.indentNumber; // Column A (Indent Number)
@@ -254,14 +267,6 @@ const CandidateShortlisted = () => {
     const filteredData = candidateData.filter((item) => {
         const term = searchTerm.toLowerCase();
 
-        // Filtering by Tab Logic
-        const hasIndent = !!(item.indentId && item.indentId.toString().trim());
-        const hasStatus = !!(item.statusMarker && item.statusMarker.toString().trim());
-
-        const matchesTab = activeTab === "pending"
-            ? (hasIndent && !hasStatus)
-            : (hasIndent && hasStatus);
-
         const matchesDept = !deptFilter || item.department === deptFilter;
         const matchesDesig = !desigFilter || item.designation === desigFilter;
 
@@ -272,7 +277,7 @@ const CandidateShortlisted = () => {
             (item.department || "").toLowerCase().includes(term)
         );
 
-        return matchesTab && matchesSearch && matchesDept && matchesDesig;
+        return matchesSearch && matchesDept && matchesDesig;
     });
 
     const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
@@ -293,22 +298,7 @@ const CandidateShortlisted = () => {
 
             <div className="bg-white p-4 rounded-lg shadow">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg w-fit">
-                        <button
-                            onClick={() => setActiveTab("pending")}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "pending" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
-                        >
-                            <Clock size={18} />
-                            Pending
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("history")}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "history" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
-                        >
-                            <HistoryIcon size={18} />
-                            History
-                        </button>
-                    </div>
+                    <div className="text-lg font-semibold text-gray-700">All Candidates</div>
 
                     <div className="flex flex-col md:flex-row items-end gap-3 flex-1 justify-end">
                         <div className="relative flex-1 max-w-xs">
@@ -365,34 +355,51 @@ const CandidateShortlisted = () => {
 
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <div className="p-6">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto table-container">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
+                                    {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th> */}
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {tableLoading ? (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-500">Loading...</td>
+                                        <td colSpan="10" className="px-6 py-12 text-center text-gray-500">Loading...</td>
                                     </tr>
                                 ) : filteredData.length === 0 ? (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-500">No candidates found.</td>
+                                        <td colSpan="10" className="px-6 py-12 text-center text-gray-500">No candidates found.</td>
                                     </tr>
                                 ) : (
                                     filteredData.map((item, index) => (
                                         <tr key={index} className="hover:bg-gray-50">
+                                            {/* <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <button
+                                                    onClick={() => handleOpenModal(item)}
+                                                    className="bg-navy text-white px-3 py-1 rounded hover:bg-navy-dark transition-colors text-sm"
+                                                >
+                                                    View
+                                                </button>
+                                            </td> */}
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.department}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.candidateName}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.contactNo}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.mail}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.experience}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.status}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.remarks}</td>
                                         </tr>
                                     ))
                                 )}

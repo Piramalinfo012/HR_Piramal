@@ -46,3 +46,19 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Sticky Table Header */
+thead,
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: #f9fafb !important;
+  /* Matches bg-gray-50 */
+}
+
+.table-container {
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+  position: relative;
+}

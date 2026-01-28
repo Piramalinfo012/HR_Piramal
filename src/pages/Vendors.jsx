@@ -131,7 +131,13 @@ const Vendors = () => {
     try {
       // Generate timestamp in MM/DD/YYYY HH:MM:SS format
       const now = new Date();
-      const timestamp = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
       const vendorId = generateVendorId();
 
@@ -233,9 +239,9 @@ const Vendors = () => {
               <Loader className="animate-spin text-blue-600" size={40} />
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto table-container">
               <div className="max-h-[600px] overflow-y-auto">
-                <table className="w-full">
+                <table className="min-w-full divide-y divide-gray-200 shadow">
                   <thead className="bg-gray-100 sticky top-0 z-10">
                     <tr>
                       <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Time Stamp</th>

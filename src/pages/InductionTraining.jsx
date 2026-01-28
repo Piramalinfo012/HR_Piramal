@@ -53,18 +53,35 @@ const InductionTraining = () => {
             }
             if (!data.success) throw new Error(data.error || "Failed to fetch data");
             const rawData = data.data || [];
-            const dataRows = rawData.slice(7);
+            const headers = rawData[6] || [];
+            const dataRows = rawData.length > 7 ? rawData.slice(7) : [];
+
+            // Helper to find column index by header name
+            const getIndex = (headerName) => {
+                const index = headers.findIndex(
+                    (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
+                );
+                return index;
+            };
+
+            const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
+            const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
+            const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
+            const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
+            const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+            const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
+
             const processed = dataRows.map((row, idx) => {
                 if (!row || row.length === 0) return null;
                 const columnAV = row[47]; // AV (0‑based index 47)
                 const columnAW = row[48]; // AW (0‑based index 48)
                 return {
-                    indentNumber: row[5] || "",
-                    candidateName: row[10] || "",
-                    department: row[2] || "",
-                    designation: row[14] || "",
-                    contactNo: row[23] || "",
-                    email: row[31] || "",
+                    indentNumber: row[idxIndent] || "",
+                    candidateName: row[idxName] || "",
+                    department: row[idxDept] || "",
+                    designation: row[idxDesig] || "",
+                    contactNo: row[idxMobile] || "",
+                    email: row[idxEmail] || "",
                     columnAV,
                     columnAW,
                     // Pending: AV not null && AW null
@@ -141,15 +158,14 @@ const InductionTraining = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            // Format timestamp as YYYY-MM-DD HH:MM:SS
             const now = new Date();
-            const day = String(now.getDate()).padStart(2, '0');
+            const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = String(now.getFullYear()).slice(-2);
+            const day = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             const dataArray = [
                 selectedCandidate.indentNumber,
@@ -260,14 +276,14 @@ const InductionTraining = () => {
             {/* Table */}
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <div className="p-6">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto table-container">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Indent Number</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                                    {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th> */}
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
@@ -286,7 +302,7 @@ const InductionTraining = () => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.indentNumber}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
+                                            {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td> */}
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.contactNo}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.email}</td>

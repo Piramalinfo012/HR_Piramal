@@ -54,52 +54,113 @@ const Joining = () => {
   // ============================================
   // EXISTING FETCH LOGIC - NO CHANGE
   // ============================================
-  const fetchCandidateData = async () => {
-    setTableLoading(true);
-    try {
-      const response = await fetch(
-        `${FETCH_URL}?sheet=Canidate_Selection&action=fetch`
-      );
-      const result = await response.json();
+const fetchCandidateData = async () => {
+  setTableLoading(true);
+  try {
+    const response = await fetch(
+      `${JOINING_SUBMIT_URL}?sheet=JOINING_FMS&action=fetch`
+    );
 
-      if (result.success && result.data) {
-        // Data starts from row 8 (index 7)
-        const dataRows = result.data.slice(7);
-
-        // Filter only rows where Column AF (index 31) = "Selected"
-        const processedData = dataRows
-          .filter(row => {
-            const columnAF = (row[31] || "").toString().trim();
-            return columnAF === "Selected";
-          })
-          .map((row, idx) => {
-            // Calculate actual sheet row number (1-based)
-            const actualSheetRow = idx + 8;
-
-            return {
-              rowIndex: actualSheetRow,
-              id: row[1] || "",
-              department: row[2] || "",
-              designation: row[3] || "",
-              candidateName: row[4] || "",
-              contactNo: row[5] || "",
-              mail: row[6] || "",
-              indentId: row[41] || "",
-            };
-          });
-
-        console.log(`Found ${processedData.length} candidates with AF='Selected'`);
-        setCandidateData(processedData);
-      } else {
-        toast.error("Failed to fetch candidate data");
-      }
-    } catch (error) {
-      console.error("Error fetching candidate data:", error);
-      toast.error("Error fetching data");
-    } finally {
-      setTableLoading(false);
+    if (!response.ok) {
+      // Handle HTTP errors
+      console.error(`HTTP error! status: ${response.status}`);
+      setCandidateData([]);
+      return;
     }
-  };
+
+    const result = await response.json();
+
+    // Check if the result contains the specific getDataRange error FIRST
+    if (result && result.error && typeof result.error === 'string' &&
+        result.error.includes("getDataRange")) {
+      console.warn("Sheet JOINING_FMS does not exist or is not accessible:", result.error);
+      setCandidateData([]);
+      return;
+    }
+
+    if (!result || !result.success || !result.data) {
+      console.error("Invalid response format:", result);
+      throw new Error(result?.error || "Invalid response format from server");
+    }
+
+    // Check if there's sufficient data (at least 8 rows to slice from index 7)
+    if (!result.data || result.data.length < 8) {
+      console.warn("Insufficient data in JOINING_FMS sheet, setting empty data");
+      setCandidateData([]);
+      return;
+    }
+
+    // Actual data row 8 se
+    const dataRows = result.data.slice(7);
+
+    // Check if dataRows is empty after slicing
+    if (!dataRows || dataRows.length === 0) {
+      console.warn("No data rows found after slicing, setting empty data");
+      setCandidateData([]);
+      return;
+    }
+
+    const processedData = dataRows
+      .filter(row => {
+        // Check if row is null, undefined, or empty
+        if (!row) {
+          return false; // Skip null/undefined rows
+        }
+
+        // Check if row has enough columns (at least 9 for column I at index 8)
+        if (row.length < 9) {
+          return false; // Skip rows that don't have enough columns
+        }
+
+        // Check if the row is completely empty (all elements are empty/falsy)
+        const isRowEmpty = row.every(cell => !cell || cell.toString().trim() === '');
+        if (isRowEmpty) {
+          return false; // Skip completely empty rows
+        }
+
+        // Column I (index 8)
+        const status = (row[8] || "").toString().trim().toUpperCase();
+
+        // ❌ DONE wale nahi chahiye
+        return status !== "DONE";
+      })
+      .map((row, idx) => ({
+        rowIndex: idx + 8,
+        id: row[5] || "",       // Column A - ID
+        department: row[1] || "", // Column B - Department
+        designation: row[2] || "", // Column C - Designation
+        candidateName: row[6] || "", // Column D - Candidate Name
+        joiningPlace: row[13] || "", // Column E - Joining Place
+        salary: row[14] || "", // Column F - Salary
+        aadharFrontsidephoto: row[15] || "", // Column G - Aadhar Frontside photo
+        aadharBacksidephoto: row[16] || "", // Column H - Aadhar Backside photo
+        panCardphoto: row[17] || "", // Column I - PAN Card photo
+        bankAccountphoto: row[18] || "", // Column J - Bank Account photo
+        contactNo: row[4] || "", // Column E - Contact No
+        mail: row[5] || "",     // Column F - Email
+        indentId: row[6] || "", // Column G - Indent ID
+      }));
+
+    setCandidateData(processedData);
+  } catch (error) {
+    console.error("Fetch error:", error);
+    // Specifically handle the getDataRange error
+    if (error.message && (error.message.includes("getDataRange") ||
+        error.message.includes("Cannot read properties of null"))) {
+      // If it's the specific getDataRange error, set empty data silently
+      setCandidateData([]);
+    } else if (error.message && (error.message.includes("sheet") || error.message.includes("not found"))) {
+      // If it's a sheet not found error, set empty data
+      setCandidateData([]);
+    } else {
+      // For other errors, show toast
+      toast.error("Failed to fetch candidate data: " + error.message);
+    }
+  } finally {
+    setTableLoading(false);
+  }
+};
+
 
   const filteredData = candidateData.filter((item) => {
     const term = searchTerm.toLowerCase();
@@ -261,13 +322,13 @@ const Joining = () => {
       const resumeUrl = await dynamicApiService.uploadFile(formData.resumeUpload, "1wofoM_7jVDj61UV1R5QoxSdQeJhZTOgJMaAOKEqrbvqO-5HUis6qoc3z65K2e2JDIPMZpC7q");
 
       const now = new Date();
-      const day = String(now.getDate()).padStart(2, '0');
+      const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
-      const year = String(now.getFullYear()).slice(-2);
+      const day = String(now.getDate()).padStart(2, '0');
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
-      const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+      const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
       // Prepare data for columns B to AD (29 columns total)
       // Column A will be empty (handled by backend)
@@ -390,17 +451,23 @@ const Joining = () => {
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="p-6">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto table-container">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joining Place</th>
+                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th> */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salary</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aadhar Frontside photo</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aadhar Backside photo</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PAN Card photo</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bank Account photo</th>
+                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th> */}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -421,10 +488,16 @@ const Joining = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.joiningPlace}</td>
+                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td> */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.contactNo}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.mail}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.salary}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.aadharFrontsidephoto}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.aadharBacksidephoto}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.panCardphoto}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.bankAccountphoto}</td>
+                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.contactNo}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.mail}</td> */}
                     </tr>
                   ))
                 )}

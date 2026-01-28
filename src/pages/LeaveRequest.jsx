@@ -367,14 +367,14 @@ const LeaveRequest = () => {
 
       const now = new Date();
 
-      // Format timestamp as DD/MM/YYYY HH:MM:SS
-      const day = String(now.getDate()).padStart(2, '0');
-      const month = String(now.getMonth() + 1).padStart(2, '0');
+      // Format timestamp as YYYY-MM-DD HH:MM:SS
       const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
-      const formattedTimestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+      const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
       const rowData = [
         formattedTimestamp,           // Timestamp
@@ -567,8 +567,8 @@ const LeaveRequest = () => {
           onClick={() => setShowModal(true)}
           disabled={hasSubmittedToday()}
           className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${hasSubmittedToday()
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-navy hover:bg-navy-dark'
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-navy hover:bg-navy-dark'
             }`}
           title={hasSubmittedToday() ? "You have already submitted a leave request today. Please try again tomorrow." : ""}
         >
@@ -718,10 +718,10 @@ const LeaveRequest = () => {
                         <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">{request.reason}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 text-xs rounded-full ${request.status === 'approved'
-                              ? 'bg-green-100 text-green-800'
-                              : request.status === 'rejected'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-yellow-100 text-yellow-800'
+                            ? 'bg-green-100 text-green-800'
+                            : request.status === 'rejected'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
                             }`}>
                             {request.status}
                           </span>

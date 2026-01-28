@@ -244,8 +244,13 @@ const Leaving = () => {
     try {
       setSubmitting(true);
       const now = new Date();
-      // Format timestamp as "9/18/2025 13:56:18"
-      const formattedTimestamp = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
       // Format leaving date as "20/09/2025" (dd/mm/yyyy)
       const leavingDate = new Date(formData.dateOfLeaving);
@@ -395,8 +400,8 @@ const Leaving = () => {
           <nav className="flex -mb-px">
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === 'pending'
-                  ? 'border-indigo-500 text-navy'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-indigo-500 text-navy'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               onClick={() => setActiveTab('pending')}
             >
@@ -405,8 +410,8 @@ const Leaving = () => {
             </button>
             <button
               className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === 'history'
-                  ? 'border-indigo-500 text-navy'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-indigo-500 text-navy'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               onClick={() => setActiveTab('history')}
             >
@@ -419,7 +424,7 @@ const Leaving = () => {
         {/* Tab Content */}
         <div className="p-6">
           {activeTab === 'pending' && (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto table-container">
               <table className="min-w-full divide-y divide-white  ">
                 <thead className="bg-gray-100 ">
                   <tr>
@@ -485,7 +490,7 @@ const Leaving = () => {
           )}
 
           {activeTab === 'history' && (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto table-container">
               <table className="min-w-full divide-y divide-white  ">
                 <thead className="bg-gray-100 ">
                   <tr>

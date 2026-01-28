@@ -736,7 +736,7 @@ const Dashboard = () => {
 
       <div className="overflow-x-auto">
         {/* Add max-height and overflow-y to the table container */}
-        <div className="max-h-[calc(100vh-300px)] overflow-y-auto">
+        <div className="max-h-[calc(100vh-300px)] overflow-y-auto table-container">
           <table className="min-w-full divide-y divide-gray-200 shadow">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>

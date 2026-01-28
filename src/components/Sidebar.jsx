@@ -488,7 +488,7 @@ const Sidebar = ({ onClose }) => {
     //   ],
     // },
     // { path: "/payroll", icon: BadgeDollarSign, label: "Payroll" },
-    { path: "/misreport", icon: AlarmClockCheck, label: "MIS Report" },
+    // { path: "/misreport", icon: AlarmClockCheck, label: "MIS Report" },
 
     // { path: "/documents", icon: File, label: "Documents" },
     // { path: "/vendor", icon: PersonStandingIcon, label: "Vendors" },
@@ -640,7 +640,12 @@ const Sidebar = ({ onClose }) => {
       </div>
 
       {/* Menu */}
-      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide">
+      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide" ref={(el) => {
+        // Prevent automatic scrolling to active elements
+        if (el) {
+          el.style.scrollBehavior = 'auto';
+        }
+      }}>
         {menuItems.map((item) => {
           if (item.type === "dropdown") {
             return (
@@ -681,7 +686,12 @@ const Sidebar = ({ onClose }) => {
                         }
                         onClick={() => {
                           onClose?.();
-                          setIsOpen(false);
+                          // Prevent any scrolling behavior when clicking
+                          setTimeout(() => {
+                            if (document.activeElement instanceof HTMLElement) {
+                              document.activeElement.blur();
+                            }
+                          }, 10);
                         }}
                       >
                         <span>{subItem.label}</span>
@@ -705,7 +715,12 @@ const Sidebar = ({ onClose }) => {
               }
               onClick={() => {
                 onClose?.();
-                setIsOpen(false);
+                // Prevent any scrolling behavior when clicking
+                setTimeout(() => {
+                  if (document.activeElement instanceof HTMLElement) {
+                    document.activeElement.blur();
+                  }
+                }, 10);
               }}
             >
               <item.icon

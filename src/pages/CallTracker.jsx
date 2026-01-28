@@ -12,6 +12,7 @@ const CallTracker = () => {
   const [candidateData, setCandidateData] = useState([]);
   const [historyData, setHistoryData] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
+  const [uniqueStages, setUniqueStages] = useState([]);
 
   const [showModal, setShowModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -20,7 +21,11 @@ const CallTracker = () => {
   const [formData, setFormData] = useState({
     customerSale: "",
     status: "",
-    nextFollowUp: ""
+    nextFollowUp: "",
+    candidateName: "",
+    contactNumber: "",
+    notes: "",
+    stage: ""
   });
 
   const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
@@ -32,7 +37,26 @@ const CallTracker = () => {
   const loadInitialData = async () => {
     setTableLoading(true);
     await Promise.all([fetchFmsData(), fetchMasterData(), fetchHistoryData()]);
+    setUniqueStages(getUniqueStages());
     setTableLoading(false);
+  };
+
+  const getUniqueStages = () => {
+    // Define the unique stages from the provided list
+    const allStages = [
+      "call back", "intrested", "intrested", "interested", "unavailable", "disconnected", 
+      "send resume", "not connected", "call not received", "wrong no.", "wrong no", 
+      "not receive", "not received", "not intrested", "not intrested", "not interested", 
+      "send resume", "busy", "not answer", "switch off", "disconected call", "disconnect", 
+      "freshers", "no", "not selected", "interview lineup", "bakup", "hold", "selected", 
+      "no exp.", "no experience", "NR", "NOT CONN.", "INT.", "int.", "NC", "in.", 
+      "intrestred", "Call connected", "Call not connected", "Connected", "Connected on call", 
+      "Busy", "Wrong number", "Invalid number", "Cv share kiya hi", "Working hi", 
+      "Apna job", "Chattisgarh", "selected"
+    ];
+    
+    // Return unique values only
+    return [...new Set(allStages)];
   };
 
   const fetchMasterData = async () => {
@@ -107,7 +131,11 @@ const CallTracker = () => {
     setFormData({
       customerSale: "",
       status: statusOptions[0] || "",
-      nextFollowUp: ""
+      nextFollowUp: "",
+      candidateName: item.candidateName || "",
+      contactNumber: "",
+      notes: "",
+      stage: ""
     });
     setShowModal(true);
   };
@@ -122,24 +150,31 @@ const CallTracker = () => {
     setSubmitting(true);
     try {
       const now = new Date();
-      // User requested calendar format for timestamp
-      const timestamp = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const timeString = now.toLocaleTimeString();
-      const fullTimestamp = `${timestamp} ${timeString}`;
+      const month = now.getMonth() + 1; // Month is 0-indexed
+      const day = now.getDate();
+      const year = now.getFullYear();
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const seconds = now.getSeconds();
+      const fullTimestamp = `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
 
-      // 1. Submit to Data Resposnse
+      // 1. Submit to Calling Tracking
       const responseData = [];
-      responseData[0] = selectedItem.indentNumber; // Col A
-      responseData[1] = "CT-1";                   // Col B (Step Code for Call Tracker)
-      responseData[2] = fullTimestamp;             // Col C
-      responseData[3] = formData.status;           // Col D
-      responseData[13] = formData.customerSale;    // Col N (index 13)
-      responseData[14] = formData.nextFollowUp;    // Col O (index 14)
+      responseData[0] = fullTimestamp;             // Col A (Timestamp)
+      responseData[1] = "";                        // Col B (Empty)
+      responseData[2] = formData.candidateName;    // Col C (Candidate Name)
+      responseData[3] = formData.contactNumber;    // Col D (Contact Number)
+      responseData[7] = formData.stage;            // Col H (Stage)
+      responseData[8] = formData.notes;            // Col I (Notes)
+      responseData[10] = selectedItem.indentNumber; // Col K (Indent Number)
+      responseData[11] = formData.status;          // Col L (Status)
+      responseData[13] = formData.customerSale;    // Col N (Customer Sale)
+      responseData[14] = formData.nextFollowUp;    // Col O (Next Follow Up)
 
       const insertResponse = await fetch(FETCH_URL, {
         method: "POST",
         body: new URLSearchParams({
-          sheetName: "Data Resposnse",
+          sheetName: "Calling Tracking",
           action: "bulkInsert",
           rowsData: JSON.stringify([responseData])
         })
@@ -162,6 +197,12 @@ const CallTracker = () => {
 
       if (res1.success && res2.success) {
         toast.success("Call tracked successfully!");
+
+        // If status is "Closed", switch to history tab
+        if (formData.status.toLowerCase() === 'closed') {
+          setActiveTab("history");
+        }
+
         setShowModal(false);
         fetchFmsData();
         fetchHistoryData();
@@ -191,6 +232,14 @@ const CallTracker = () => {
     const hasAL = !!(item.columnAL && item.columnAL.toString().trim());
     const hasAM = !!(item.columnAM && item.columnAM.toString().trim());
     const matchesTab = hasAL && !hasAM;
+
+    // Check if this indent number has any "Closed" status in history
+    const hasClosedStatus = historyData.some(historyItem =>
+      historyItem.indentNumber === item.indentNumber &&
+      historyItem.status &&
+      historyItem.status.trim().toLowerCase() === 'closed'
+    );
+
     const matchesSearch =
       (item.candidateName || "").toLowerCase().includes(term) ||
       (item.indentNumber || "").toLowerCase().includes(term) ||
@@ -198,7 +247,8 @@ const CallTracker = () => {
     const matchesDept = !deptFilter || item.department === deptFilter;
     const matchesPost = !postFilter || item.post === postFilter;
 
-    return matchesTab && matchesSearch && matchesDept && matchesPost;
+    // Item should be in pending if it matches tab conditions AND doesn't have a closed status
+    return matchesTab && matchesSearch && matchesDept && matchesPost && !hasClosedStatus;
   });
 
   const filteredHistoryRows = historyData.filter(item => {
@@ -283,7 +333,7 @@ const CallTracker = () => {
         </div>
 
         <div className="p-6">
-          <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto">
+          <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto table-container">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr className="bg-gray-50">
@@ -361,36 +411,91 @@ const CallTracker = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b">
               <h2 className="text-xl font-bold text-gray-800">Track Call</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700 transition-colors">
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Indent Number</label>
+                  <input
+                    type="text"
+                    value={selectedItem?.indentNumber || ""}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                  <input
+                    name="contactNumber"
+                    value={formData.contactNumber}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                    placeholder="Enter contact..."
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Candidate Name</label>
+                <input
+                  name="candidateName"
+                  value={formData.candidateName}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                  placeholder="Enter candidate name..."
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">What did the Customer Sale</label>
                 <textarea
                   name="customerSale"
                   value={formData.customerSale}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy h-24"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy h-20 sm:h-24"
                   placeholder="Enter details..."
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  name="status"
-                  value={formData.status}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
-                  required
-                >
-                  <option value="">Select Status</option>
-                  {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy h-20 sm:h-24"
+                  placeholder="Enter notes..."
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
+                  <select
+                    name="stage"
+                    value={formData.stage}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                  >
+                    <option value="">Select Stage</option>
+                    {uniqueStages.map(stage => <option key={stage} value={stage}>{stage}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                    required
+                  >
+                    <option value="">Select Status</option>
+                    {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Next Follow-Up Date</label>
@@ -402,7 +507,7 @@ const CallTracker = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

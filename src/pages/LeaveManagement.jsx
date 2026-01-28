@@ -127,6 +127,7 @@ const LeaveManagement = () => {
         id: row[1] || '', // Column B (Joining ID)
         name: row[2] || '', // Column C (Candidate Name)
         designation: row[5] || '', // Column F (Designation)
+        department: row[20] || '', // Column U (Department)
         rowIndex: index + 7 // Actual row number in sheet
       })).filter(emp => emp.name && emp.id); // Filter out empty entries
 
@@ -145,7 +146,8 @@ const LeaveManagement = () => {
       ...prev,
       employeeName: selectedName,
       employeeId: selectedEmployee ? selectedEmployee.id : '',
-      designation: selectedEmployee ? selectedEmployee.designation : ''
+      designation: selectedEmployee ? selectedEmployee.designation : '',
+      department: selectedEmployee ? selectedEmployee.department : ''
     }));
   };
 
@@ -223,14 +225,14 @@ const LeaveManagement = () => {
       setSubmitting(true);
       const now = new Date();
 
-      // Format timestamp as DD/MM/YYYY HH:MM:SS for proper Date object creation in Apps Script
-      const day = String(now.getDate()).padStart(2, '0');
-      const month = String(now.getMonth() + 1).padStart(2, '0');
+      // Format timestamp as YYYY-MM-DD HH:MM:SS for proper Date object creation in Apps Script
       const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
-      const formattedTimestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+      const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
       const rowData = [
         formattedTimestamp,           // Timestamp with time for Date object creation
@@ -243,7 +245,8 @@ const LeaveManagement = () => {
         "Pending",                   // Status
         formData.leaveType,          // Leave Type
         formData.hodName,            // HOD Name (Column J, index 9)
-        formData.designation         // Designation (Column K, index 10)
+        formData.designation,         // Designation (Column K, index 10)
+        formData.department          // Department (Column L, index 11)
       ];
 
       const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
@@ -414,6 +417,7 @@ const LeaveManagement = () => {
         status: row[7],
         leaveType: row[8],
         hodName: row[9] || '',
+        department: row[11] || '',
       }));
 
       // Case-insensitive filtering
@@ -486,6 +490,7 @@ const LeaveManagement = () => {
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HOD Name</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
         </tr>
@@ -536,6 +541,7 @@ const LeaveManagement = () => {
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.remark}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveType}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.hodName}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <div className="flex space-x-2">
@@ -607,6 +613,7 @@ const LeaveManagement = () => {
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HOD Name</th>
         </tr>
       </thead>
@@ -625,6 +632,7 @@ const LeaveManagement = () => {
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.days}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.remark}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveType}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.hodName}</td>
             </tr>
           ))
@@ -650,6 +658,7 @@ const LeaveManagement = () => {
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HOD Name</th>
         </tr>
       </thead>
@@ -668,6 +677,7 @@ const LeaveManagement = () => {
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.days}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.remark}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveType}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.hodName}</td>
             </tr>
           ))

@@ -46,18 +46,34 @@ const AssetAssignment = () => {
             if (!data.success) throw new Error(data.error || "Failed to fetch data");
             const rawData = data.data || [];
             // Skip first 7 rows
-            const dataRows = rawData.slice(7);
+            const headers = rawData[6] || [];
+            const dataRows = rawData.length > 7 ? rawData.slice(7) : [];
+
+            // Helper to find column index by header name
+            const getIndex = (headerName) => {
+                const index = headers.findIndex(
+                    (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
+                );
+                return index;
+            };
+
+            const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
+            const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 6;
+            const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
+            const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
+            const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+            const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
+
             const processed = dataRows.map((row, idx) => {
-                if (!row || row.length === 0) return null;
                 const columnBE = row[56]; // Column BE index 56
                 const columnBF = row[57]; // Column BF index 57
                 return {
-                    indentNumber: row[5] || "",
-                    candidateName: row[10] || "",
-                    department: row[2] || "",
-                    designation: row[14] || "",
-                    contactNo: row[23] || "",
-                    email: row[31] || "",
+                    indentNumber: row[idxIndent] || "",
+                    candidateName: row[idxName] || "",
+                    department: row[idxDept] || "",
+                    designation: row[idxDesig] || "",
+                    contactNo: row[idxMobile] || "",
+                    email: row[idxEmail] || "",
                     columnBE,
                     columnBF,
                     // Pending: BE not null && BF null
@@ -138,14 +154,14 @@ const AssetAssignment = () => {
         e.preventDefault();
         setSubmitting(true);
         try {
-            // Format timestamp as YYYY-MM-DD HH:MM:SS
-            const day = String(now.getDate()).padStart(2, '0');
+            const now = new Date();
+            const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
-            const year = String(now.getFullYear()).slice(-2);
+            const day = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             const dataArray = [
                 selectedCandidate.indentNumber,
@@ -261,15 +277,15 @@ const AssetAssignment = () => {
 
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <div className="p-6">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto table-container">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Indent Number</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                                    {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th> */}
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -280,13 +296,13 @@ const AssetAssignment = () => {
                                 ) : (
                                     filteredData.map((item, idx) => (
                                         <tr key={idx} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.indentNumber}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                                                 <button onClick={() => handleOpenModal(item)} className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors">Assign Assets</button>
                                             </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.indentNumber}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
+                                            {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td> */}
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
                                         </tr>
                                     ))
                                 )}
