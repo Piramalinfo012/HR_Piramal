@@ -643,7 +643,7 @@ const Sidebar = ({ onClose }) => {
       <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide" ref={(el) => {
         // Prevent automatic scrolling to active elements
         if (el) {
-          el.style.scrollBehavior = 'auto';
+          el.style.scrollBehavior = '';
         }
       }}>
         {menuItems.map((item) => {
