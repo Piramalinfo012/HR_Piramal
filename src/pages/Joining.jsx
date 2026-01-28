@@ -322,20 +322,15 @@ const fetchCandidateData = async () => {
       const resumeUrl = await dynamicApiService.uploadFile(formData.resumeUpload, "1wofoM_7jVDj61UV1R5QoxSdQeJhZTOgJMaAOKEqrbvqO-5HUis6qoc3z65K2e2JDIPMZpC7q");
 
       const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      // Format timestamp for calendar (ISO format)
+      const timestamp = now.toISOString().slice(0, 19).replace('T', ' ');
 
       // Prepare data for columns B to AD (29 columns total)
       // Column A will be empty (handled by backend)
       const rowData = [
         timestamp,
-        // Create ID format: IndentID_Designation (e.g., IN-32_Intern)
-        // Remove any name appended to the Enquiry No (e.g., IN-05_pooja -> IN-05)
+        // Create ID format: IndentID_Designation (e.g., IN-32_hr)
+        // Ensure format is like "IN-05_hr"
         `${formData.candidateEnquiryNo.split('_')[0].trim()}_${formData.designation}`, // B
         formData.nameAsPerAadhar,              // C
         formData.fatherName,                   // D
