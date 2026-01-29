@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import toast from "react-hot-toast";
+import useDataStore from "../store/dataStore";
 
 const CheckSalarySlipAndResume = () => {
     const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
@@ -20,129 +21,58 @@ const CheckSalarySlipAndResume = () => {
     });
     const [submitting, setSubmitting] = useState(false);
 
+    const { joiningFmsData, isLoading: storeLoading, refreshData } = useDataStore();
+
     useEffect(() => {
-        fetchCandidateData();
-    }, []);
+        setTableLoading(storeLoading);
+    }, [storeLoading]);
 
-    const fetchCandidateData = async () => {
-        setTableLoading(true);
-
-        try {
-            // Google Apps Script Web App URL
-            const url = `${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS&_=${Date.now()}`;
-
-            console.log("Fetching data from:", url);
-
-            // Fetch data from Google Apps Script
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            // Get response as text first
-            const responseText = await response.text();
-            console.log("Raw response:", responseText.substring(0, 500));
-
-            // Try to parse as JSON
-            let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error("Failed to parse JSON:", parseError);
-
-                // Check if it's HTML response (Google Apps Script default)
-                if (responseText.includes("<!DOCTYPE html>") || responseText.includes("<html")) {
-                    throw new Error("Google Apps Script is returning HTML instead of JSON. Please redeploy as Web App with JSON output.");
-                } else {
-                    throw new Error("Invalid JSON response from server");
-                }
-            }
-
-            // Check if response has success flag
-            if (!data.success) {
-                throw new Error(data.error || "Failed to fetch data from sheet");
-            }
-
-            // Process the data from sheet
-            const rawData = data.data || [];
-            console.log("Raw sheet data:", rawData);
-            console.log("Total rows fetched:", rawData.length);
-
-            // Skip first 7 rows (index 0-6), start from index 7
-            const dataRows = rawData.slice(7);
-            console.log("Data rows after skipping first 7:", dataRows.length);
-
-            // Transform sheet data to match component structure
-            const headers = rawData[6] || [];
-            // dataRows is already defined above, so we don't redefine it here.
-            // const dataRows = rawData.length > 7 ? rawData.slice(7) : []; // This line was causing a redeclaration error.
-
-            // Helper to find column index by header name
-            const getIndex = (headerName) => {
-                const index = headers.findIndex(
-                    (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
-                );
-                return index;
-            };
-
-            const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
-            const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
-            const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
-            const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
-            const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
-            const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
-
-            const processedData = dataRows.map((row, index) => {
-                // Skip empty rows
-                if (!row || row.length === 0) return null;
-
-                const columnAM = row[38];
-                const columnAN = row[39];
-
-                // Assuming salary slip is in column AC (index 28) and resume is in column AD (index 29)
-                // based on typical JOINING ENTRY FORM structure
-                const salarySlip = row[36]; // Column AC
-                const resume = row[37];     // Column AD
-
-                return {
-                    indentNumber: row[idxIndent] || "",
-                    candidateName: row[idxName] || "",
-                    department: row[idxDept] || "",
-                    designation: row[idxDesig] || "",
-                    contactNo: row[idxMobile] || "",
-                    email: row[idxEmail] || "",
-                    salarySlip: salarySlip || "",
-                    resume: resume || "",
-                    columnAM: columnAM,
-                    columnAN: columnAN,
-                    isPending: (columnAM != null && columnAM !== "") && (columnAN == null || columnAN === ""),
-                    isHistory: (columnAM != null && columnAM !== "") && (columnAN != null && columnAN !== "")
-                };
-            }).filter(item => item !== null);
-
-            console.log("Processed data for UI:", processedData);
-            setCandidateData(processedData);
-
-            if (processedData.length === 0) {
-                toast.success("No data found in sheet");
-            } else {
-                toast.success(`Successfully loaded ${processedData.length} candidates`);
-            }
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            if (error.message.includes("HTML instead of JSON")) {
-                toast.error("Please redeploy Google Apps Script as Web App");
-            } else if (error.message.includes("CORS") || error.message.includes("Failed to fetch")) {
-                toast.error("Network error. Check if Google Apps Script is accessible");
-            } else {
-                toast.error(`Error: ${error.message}`);
-            }
+    useEffect(() => {
+        if (!joiningFmsData || joiningFmsData.length === 0) {
             setCandidateData([]);
-        } finally {
-            setTableLoading(false);
+            return;
         }
-    };
+
+        const rawData = joiningFmsData;
+        const dataRows = rawData.slice(7);
+        const headers = rawData[6] || [];
+
+        const getIndex = (headerName) => headers.findIndex(h => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase());
+
+        const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
+        const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
+        const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
+        const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
+        const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+        const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
+
+        const processedData = dataRows.map((row) => {
+            if (!row || row.length === 0) return null;
+            const columnAM = row[38];
+            const columnAN = row[39];
+            const salarySlip = row[36];
+            const resume = row[37];
+
+            return {
+                indentNumber: row[idxIndent] || "",
+                candidateName: row[idxName] || "",
+                department: row[idxDept] || "",
+                designation: row[idxDesig] || "",
+                contactNo: row[idxMobile] || "",
+                email: row[idxEmail] || "",
+                salarySlip: salarySlip || "",
+                resume: resume || "",
+                columnAM: columnAM,
+                columnAN: columnAN,
+                isPending: (columnAM != null && columnAM !== "") && (columnAN == null || columnAN === ""),
+                isHistory: (columnAM != null && columnAM !== "") && (columnAN != null && columnAN !== "")
+            };
+        }).filter(item => item !== null);
+
+        setCandidateData(processedData);
+    }, [joiningFmsData]);
+
+    // fetchCandidateData replaced by useEffect reacting to global store
 
     // Filter data based on active tab
     const getFilteredData = () => {
@@ -243,7 +173,7 @@ const CheckSalarySlipAndResume = () => {
             if (result.success) {
                 toast.success("Status submitted successfully!");
                 handleCloseModal();
-                fetchCandidateData(); // Refresh the table
+                refreshData(); // Refresh the table
             } else {
                 toast.error(result.error || "Failed to submit status");
             }

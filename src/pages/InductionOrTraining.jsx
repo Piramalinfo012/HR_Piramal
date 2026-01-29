@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from "react";
+import useDataStore from "../store/dataStore";
 import { Search, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 const InductionOrTraining = () => {
     const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
+
+    // Global Store
+    const { joiningFmsData: globalData, isLoading: storeLoading, refreshData } = useDataStore();
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -33,72 +37,60 @@ const InductionOrTraining = () => {
     ];
 
     useEffect(() => {
-        fetchCandidateData();
-    }, []);
+        setTableLoading(storeLoading);
+    }, [storeLoading]);
 
-    const fetchCandidateData = async () => {
-        setTableLoading(true);
-        try {
-            const url = `${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS&_=${Date.now()}`;
-            console.log("Fetching data from:", url);
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            const responseText = await response.text();
-            let data;
-            try { data = JSON.parse(responseText); }
-            catch (e) {
-                console.error("Failed to parse JSON", e);
-                if (responseText.includes("<html")) throw new Error("Google Apps Script returned HTML. Redeploy as Web App.");
-                else throw new Error("Invalid JSON response");
-            }
-            if (!data.success) throw new Error(data.error || "Failed to fetch data");
-            const rawData = data.data || [];
-            const headers = rawData[6] || [];
-            const dataRows = rawData.length > 7 ? rawData.slice(7) : [];
-
-            // Helper to find column index by header name
-            const getIndex = (headerName) => {
-                const index = headers.findIndex(
-                    (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
-                );
-                return index;
-            };
-
-            const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
-            const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
-            const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
-            const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
-            const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
-            const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
-
-            const processed = dataRows.map((row, idx) => {
-                if (!row || row.length === 0) return null;
-                const columnAV = row[47]; // AV (0‑based index 47)
-                const columnAW = row[48]; // AW (0‑based index 48)
-                return {
-                    indentNumber: row[idxIndent] || "",
-                    candidateName: row[idxName] || "",
-                    department: row[idxDept] || "",
-                    designation: row[idxDesig] || "",
-                    contactNo: row[idxMobile] || "",
-                    email: row[idxEmail] || "",
-                    columnAV,
-                    columnAW,
-                    // Pending: AV not null && AW null
-                    isPending: (columnAV != null && columnAV !== "") && (columnAW == null || columnAW === ""),
-                    // History: both not null
-                    isHistory: (columnAV != null && columnAV !== "") && (columnAW != null && columnAW !== "")
-                };
-            }).filter(item => item !== null);
-            setCandidateData(processed);
-            toast.success(`Loaded ${processed.length} records`);
-        } catch (err) {
-            console.error("Error fetching data:", err);
-            toast.error(err.message || "Error fetching data");
+    useEffect(() => {
+        if (!globalData || globalData.length < 2) {
             setCandidateData([]);
-        } finally {
-            setTableLoading(false);
+            return;
         }
+
+        const rawData = globalData;
+        const headers = rawData[6] || [];
+        const dataRows = rawData.length > 7 ? rawData.slice(7) : [];
+
+        // Helper to find column index by header name
+        const getIndex = (headerName) => {
+            const index = headers.findIndex(
+                (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
+            );
+            return index;
+        };
+
+        const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
+        const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
+        const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
+        const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
+        const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+        const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
+
+        const processed = dataRows.map((row, idx) => {
+            if (!row || row.length === 0) return null;
+            const columnAV = row[47]; // AV (0‑based index 47)
+            const columnAW = row[48]; // AW (0‑based index 48)
+            return {
+                indentNumber: row[idxIndent] || "",
+                candidateName: row[idxName] || "",
+                department: row[idxDept] || "",
+                designation: row[idxDesig] || "",
+                contactNo: row[idxMobile] || "",
+                email: row[idxEmail] || "",
+                columnAV,
+                columnAW,
+                // Pending: AV not null && AW null
+                isPending: (columnAV != null && columnAV !== "") && (columnAW == null || columnAW === ""),
+                // History: both not null
+                isHistory: (columnAV != null && columnAV !== "") && (columnAW != null && columnAW !== "")
+            };
+        }).filter(item => item !== null);
+        setCandidateData(processed);
+
+    }, [globalData]);
+
+    const fetchCandidateData = () => {
+        // Placeholder to keep logic if needed, but effect handles it now.
+        refreshData();
     };
 
     const getFilteredData = () => {
@@ -187,7 +179,7 @@ const InductionOrTraining = () => {
             if (result.success) {
                 toast.success("Status submitted successfully!");
                 handleCloseModal();
-                fetchCandidateData();
+                refreshData();
             } else {
                 toast.error(result.error || "Failed to submit status");
             }

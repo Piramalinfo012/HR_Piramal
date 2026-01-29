@@ -28,211 +28,97 @@ const Employee = () => {
     return `${day}/${month}/${year}`;
   };
 
-  const fetchJoiningData = async () => {
-    setLoading(true);
-    setTableLoading(true);
-    setError(null);
-
-    try {
-      // Using the specific Google Apps Script URL provided
-      const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
-      const response = await fetch(
-        `${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS&_=${Date.now()}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const responseText = await response.text();
-      let result;
-
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("Failed to parse JSON:", parseError);
-        // Check if it's HTML response (Google Apps Script default)
-        if (responseText.includes("<!DOCTYPE html>") || responseText.includes("<html")) {
-          throw new Error("Google Apps Script is returning HTML instead of JSON. Please redeploy as Web App with JSON output.");
-        } else {
-          throw new Error("Invalid JSON response from server");
-        }
-      }
-
-      // Check if the result contains the specific getDataRange error
-      if (result && result.error && typeof result.error === 'string' &&
-          result.error.includes("getDataRange")) {
-        console.warn("Sheet JOINING_FMS does not exist or is not accessible:", result.error);
-        setJoiningData([]);
-        return;
-      }
-
-      if (!result.success) {
-        throw new Error(
-          result.error || "Failed to fetch data from JOINING_FMS sheet"
-        );
-      }
-
-      const rawData = result.data || result;
-
-      if (!Array.isArray(rawData)) {
-        throw new Error("Expected array data not received");
-      }
-
-      const headers = rawData[6] || [];
-      const dataRows = rawData.length > 7 ? rawData.slice(7) : [];
-
-      const getIndex = (headerName) => {
-        const index = headers.findIndex(
-          (h) =>
-            h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
-        );
-        return index;
-      };
-
-      const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
-      const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
-      const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
-      const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
-      const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
-      const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
-      const idxBF = 57;
-
-      const processedData = dataRows.map((row) => ({
-        employeeId: row[idxIndent] || "",
-        candidateName: row[idxName] || "",
-        department: row[idxDept] || "",
-        designation: row[idxDesig] || "",
-        mobileNo: row[idxMobile] || "",
-        emailId: row[idxEmail] || "",
-        columnBF: row[idxBF] || "",
-        fatherName: row[11] || "",
-        dateOfJoining: row[12] || "",
-        aadharPhoto: row[getIndex("Aadhar Photo") !== -1 ? getIndex("Aadhar Photo") : (idxName + 18)] || "",
-        candidatePhoto: row[getIndex("Candidate Photo") !== -1 ? getIndex("Candidate Photo") : (idxName + 19)] || "",
-        status: row[8] || "", // Column I (index 8) - Status column
-      }));
-
-      // Filter to only show records where Column I has "DONE"
-      const doneEmployees = processedData.filter(
-        (employee) => employee.status && employee.status.toString().trim().toUpperCase() === "DONE"
-      );
-
-      setJoiningData(doneEmployees);
-    } catch (error) {
-      console.error("Error fetching joining data:", error);
-      // Check if it's the specific getDataRange error
-      if (error.message && (error.message.includes("getDataRange") ||
-          error.message.includes("Cannot read properties of null"))) {
-        // If it's the specific getDataRange error, set empty data silently
-        setJoiningData([]);
-      } else {
-        setError(error.message);
-        toast.error(`Failed to load joining data: ${error.message}`);
-      }
-    } finally {
-      setLoading(false);
-      setTableLoading(false);
-    }
-  };
-
-  const fetchLeavingData = async () => {
-    setLoading(true);
-    setTableLoading(true);
-    setError(null);
-
-    try {
-      // Using the same Google Apps Script URL for consistency
-      const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
-      const response = await fetch(
-        `${JOINING_SUBMIT_URL}?action=read&sheet=LEAVING&_=${Date.now()}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const responseText = await response.text();
-      let result;
-
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("Failed to parse JSON:", parseError);
-        // Check if it's HTML response (Google Apps Script default)
-        if (responseText.includes("<!DOCTYPE html>") || responseText.includes("<html")) {
-          throw new Error("Google Apps Script is returning HTML instead of JSON. Please redeploy as Web App with JSON output.");
-        } else {
-          throw new Error("Invalid JSON response from server");
-        }
-      }
-
-      // Check if the result contains the specific getDataRange error
-      if (result && result.error && typeof result.error === 'string' &&
-          result.error.includes("getDataRange")) {
-        console.warn("Sheet LEAVING does not exist or is not accessible:", result.error);
-        setLeavingData([]);
-        return;
-      }
-
-      if (!result.success) {
-        throw new Error(
-          result.error || "Failed to fetch data from LEAVING sheet"
-        );
-      }
-
-      const rawData = result.data || result;
-
-      if (!Array.isArray(rawData)) {
-        throw new Error("Expected array data not received");
-      }
-
-      const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
-
-      const processedData = dataRows.map((row) => ({
-        timestamp: row[0] || "",
-        employeeId: row[1] || "",
-        name: row[2] || "",
-        dateOfLeaving: row[3] || "",
-        mobileNo: row[4] || "",
-        reasonOfLeaving: row[5] || "",
-        firmName: row[6] || "",
-        fatherName: row[7] || "",
-        dateOfJoining: row[8] || "",
-        workingLocation: row[9] || "",
-        designation: row[10] || "",
-        department: row[11] || "",
-        salary: row[12] || "",
-        plannedDate: row[13] || "",
-        actual: row[14] || "",
-      }));
-
-      const leavingEmployees = processedData.filter(
-        (employee) => employee.plannedDate
-      );
-
-      setLeavingData(leavingEmployees);
-    } catch (error) {
-      console.error("Error fetching leaving data:", error);
-      // Check if it's the specific getDataRange error
-      if (error.message && (error.message.includes("getDataRange") ||
-          error.message.includes("Cannot read properties of null"))) {
-        // If it's the specific getDataRange error, set empty data silently
-        setLeavingData([]);
-      } else {
-        setError(error.message);
-        toast.error(`Failed to load leaving data: ${error.message}`);
-      }
-    } finally {
-      setLoading(false);
-      setTableLoading(false);
-    }
-  };
+  // Fetch global data from store
+  const { joiningFmsData, leavingData: globalLeavingData, isLoading: storeLoading, fetchGlobalData } = useDataStore();
 
   useEffect(() => {
-    fetchJoiningData();
-    fetchLeavingData();
-  }, []);
+    setLoading(storeLoading);
+    setTableLoading(storeLoading);
+  }, [storeLoading]);
+
+  // Process Joining Data
+  useEffect(() => {
+    if (!joiningFmsData || joiningFmsData.length < 8) {
+      setJoiningData([]);
+      return;
+    }
+
+    const rawData = joiningFmsData;
+    const headers = rawData[6] || [];
+    const dataRows = rawData.slice(7);
+
+    const getIndex = (headerName) => {
+      const index = headers.findIndex(
+        (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
+      );
+      return index;
+    };
+
+    // Dynamic indices
+    const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
+    const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
+    const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
+    const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
+    const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+    const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
+    const idxBF = 57;
+
+    const processedData = dataRows.map((row) => ({
+      employeeId: row[idxIndent] || "",
+      candidateName: row[idxName] || "",
+      department: row[idxDept] || "",
+      designation: row[idxDesig] || "",
+      mobileNo: row[idxMobile] || "",
+      emailId: row[idxEmail] || "",
+      columnBF: row[idxBF] || "",
+      fatherName: row[11] || "",
+      dateOfJoining: row[12] || "",
+      aadharPhoto: row[getIndex("Aadhar Photo") !== -1 ? getIndex("Aadhar Photo") : (idxName + 18)] || "",
+      candidatePhoto: row[getIndex("Candidate Photo") !== -1 ? getIndex("Candidate Photo") : (idxName + 19)] || "",
+      status: row[8] || "", // Column I (index 8) - Status column
+    }));
+
+    // Filter to only show records where Column I has "DONE"
+    const doneEmployees = processedData.filter(
+      (employee) => employee.status && employee.status.toString().trim().toUpperCase() === "DONE"
+    );
+
+    setJoiningData(doneEmployees);
+  }, [joiningFmsData]);
+
+  // Process Leaving Data
+  useEffect(() => {
+    if (!globalLeavingData || globalLeavingData.length < 7) {
+      setLeavingData([]);
+      return;
+    }
+    const rawData = globalLeavingData;
+    const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
+
+    const processedData = dataRows.map((row) => ({
+      timestamp: row[0] || "",
+      employeeId: row[1] || "",
+      name: row[2] || "",
+      dateOfLeaving: row[3] || "",
+      mobileNo: row[4] || "",
+      reasonOfLeaving: row[5] || "",
+      firmName: row[6] || "",
+      fatherName: row[7] || "",
+      dateOfJoining: row[8] || "",
+      workingLocation: row[9] || "",
+      designation: row[10] || "",
+      department: row[11] || "",
+      salary: row[12] || "",
+      plannedDate: row[13] || "",
+      actual: row[14] || "",
+    }));
+
+    const leavingEmployees = processedData.filter(
+      (employee) => employee.plannedDate
+    );
+
+    setLeavingData(leavingEmployees);
+  }, [globalLeavingData]);
 
   const filteredJoiningData = joiningData.filter((item) => {
     const matchesSearch =
@@ -392,7 +278,7 @@ const Employee = () => {
                       <td colSpan="21" className="px-6 py-12 text-center">
                         <p className="text-red-500">Error: {error}</p>
                         <button
-                          onClick={fetchJoiningData}
+                          onClick={fetchGlobalData}
                           className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                         >
                           Retry
@@ -569,7 +455,7 @@ const Employee = () => {
                       <td colSpan="9" className="px-6 py-12 text-center">
                         <p className="text-red-500">Error: {error}</p>
                         <button
-                          onClick={fetchLeavingData}
+                          onClick={fetchGlobalData}
                           className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                         >
                           Retry

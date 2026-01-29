@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, Clock, History as HistoryIcon, CheckCircle, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
+import useDataStore from "../store/dataStore";
 
 const CandidateSortlisted = () => {
     const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
@@ -20,46 +21,39 @@ const CandidateSortlisted = () => {
         status: "",
     });
 
+    const { candidateSelectionData, isLoading: storeLoading, refreshData } = useDataStore();
+
     useEffect(() => {
-        fetchCandidateData();
-    }, []);
+        setTableLoading(storeLoading);
+    }, [storeLoading]);
 
-    const fetchCandidateData = async () => {
-        setTableLoading(true);
-        try {
-            const response = await fetch(
-                `${FETCH_URL}?sheet=Canidate_Selection&action=fetch`
-            );
-            const result = await response.json();
-
-            if (result.success && result.data) {
-                console.log("Raw Data from appsheet db:", result.data);
-                const dataRows = result.data.slice(7);
-
-                const processedData = dataRows.map((row, idx) => {
-                    const item = {
-                        rowIndex: idx + 8,
-                        id: row[1], // Column B
-                        department: row[2], // Column C
-                        designation: row[3], // Column D
-                        candidateName: row[4], // Column E
-                        contactNo: row[5], // Column F
-                        mail: row[6], // Column G
-                        indentId: row[41], // Column A (Indent Number as per user)
-                        statusMarker: row[22], // Column W
-                    };
-                    return item;
-                }).filter(item => item.id || item.candidateName);
-
-                console.log("Processed & Cleaned Candidate Data Count:", processedData.length);
-                setCandidateData(processedData);
-            }
-        } catch (error) {
-            console.error("Error fetching candidate data:", error);
-        } finally {
-            setTableLoading(false);
+    useEffect(() => {
+        if (!candidateSelectionData || candidateSelectionData.length === 0) {
+            setCandidateData([]);
+            return;
         }
-    };
+
+        const dataRows = candidateSelectionData.slice(7);
+
+        const processedData = dataRows.map((row, idx) => {
+            const item = {
+                rowIndex: idx + 8,
+                id: row[1], // Column B
+                department: row[2], // Column C
+                designation: row[3], // Column D
+                candidateName: row[4], // Column E
+                contactNo: row[5], // Column F
+                mail: row[6], // Column G
+                indentId: row[41], // Column AP (index 41)
+                statusMarker: row[22], // Column W
+            };
+            return item;
+        }).filter(item => item.id || item.candidateName);
+
+        setCandidateData(processedData);
+    }, [candidateSelectionData]);
+
+    // fetchCandidateData replaced by useEffect reacting to global store
 
     const handleActionClick = (candidate) => {
         setSelectedCandidate(candidate);
@@ -128,7 +122,7 @@ const CandidateSortlisted = () => {
             if (res1.success && res2.success) {
                 toast.success(`Candidate ${status} successfully!`);
                 setShowActionModal(false);
-                await fetchCandidateData();
+                refreshData();
             } else {
                 toast.error("Action submission failed");
             }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import useDataStore from "../store/dataStore";
 import { Search, Plus, X, CheckCircle, Clock } from "lucide-react";
 import toast from "react-hot-toast";
 import { History as HistoryIcon } from "lucide-react";
@@ -16,6 +17,74 @@ const CandidateShortlisted = () => {
     const [fileUploading, setFileUploading] = useState(false);
     const [indentOptions, setIndentOptions] = useState([]);
     const [fmsDataMap, setFmsDataMap] = useState({});
+
+    // Use Store
+    const { candidateSelectionData, fmsData: globalFmsData, isLoading: storeLoading } = useDataStore();
+
+    useEffect(() => {
+        if (!candidateSelectionData || candidateSelectionData.length < 2) {
+            setCandidateData([]);
+            return;
+        }
+
+        const rawData = candidateSelectionData;
+        const dataRows = rawData.slice(8); // Start from row 9 (index 8) based on original logic in diff which said slice(8)
+
+        // Wait, original logic said:
+        // const dataRows = result.data.slice(8);
+        // .map((row) => ({ id: row[0], department: row[1]... }))
+
+        const processedData = dataRows
+            .filter((row) => row && row.length > 0 && (row[0] || row[1]))
+            .map((row) => ({
+                id: row[0] || "", // Column A
+                department: row[1] || "", // Column B
+                designation: row[2] || "", // Column C
+                candidateName: row[3] || "", // Column D
+                contactNo: row[4] || "", // Column E
+                mail: row[5] || "", // Column F
+                experience: row[6] || "", // Column G
+                status: row[7] || "", // Column H
+                remarks: row[8] || "", // Column I
+            }));
+
+        setCandidateData(processedData);
+    }, [candidateSelectionData]);
+
+    useEffect(() => {
+        if (!globalFmsData || globalFmsData.length < 2) { // minimal check
+            setIndentOptions([]);
+            setFmsDataMap({});
+            return;
+        }
+
+        // Original logic for FMS:
+        // const dataRows = result.data.slice(1);
+        // const openRows = dataRows.filter(row => row[1] === "OPEN");
+        // mapping options
+
+        const dataRows = globalFmsData.slice(1);
+        const openRows = dataRows.filter(row => {
+            if (!row) return false;
+            const status = (row[1] || "").toString().toUpperCase();
+            return status === "OPEN";
+        });
+
+        const options = openRows.map(row => (row[4] || "").toString()).filter(val => val);
+        const mapping = {};
+        openRows.forEach(row => {
+            const id = (row[4] || "").toString();
+            if (id) mapping[id] = (row[6] || "").toString();
+        });
+
+        setIndentOptions([...new Set(options)]);
+        setFmsDataMap(mapping);
+    }, [globalFmsData]);
+
+    // Sync loading
+    useEffect(() => {
+        setTableLoading(storeLoading);
+    }, [storeLoading]);
 
     const [formData, setFormData] = useState({
         openPositionDepartment: "",
@@ -40,74 +109,7 @@ const CandidateShortlisted = () => {
         indentNumber: "",
     });
 
-    useEffect(() => {
-        loadData();
-    }, []);
 
-    const loadData = async () => {
-        setTableLoading(true);
-        await Promise.all([fetchCandidateData(), fetchFmsData()]);
-        setTableLoading(false);
-    };
-
-    const fetchFmsData = async () => {
-        try {
-            const response = await fetch(
-                `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
-            );
-            const result = await response.json();
-
-            if (result.success && result.data) {
-                const dataRows = result.data.slice(1);
-                const openRows = dataRows.filter(row => {
-                    const status = (row[1] || "").toString().toUpperCase();
-                    return status === "OPEN";
-                });
-
-                const options = openRows.map(row => (row[4] || "").toString()).filter(val => val);
-                const mapping = {};
-                openRows.forEach(row => {
-                    const id = (row[4] || "").toString();
-                    if (id) mapping[id] = (row[6] || "").toString();
-                });
-
-                setIndentOptions([...new Set(options)]);
-                setFmsDataMap(mapping);
-            }
-        } catch (error) {
-            console.error("Error fetching FMS data:", error);
-        }
-    };
-
-    const fetchCandidateData = async () => {
-        try {
-            const response = await fetch(
-                `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Canidate_Selection&action=fetch`
-            );
-            const result = await response.json();
-
-            if (result.success && result.data) {
-                const dataRows = result.data.slice(8); // Start from row 2 (after headers)
-                const processedData = dataRows
-                    .filter((row) => row.length > 0 && (row[0] || row[1])) // At least one of the first two columns has data
-                    .map((row) => ({
-                        id: row[0] || "", // Column A
-                        department: row[1] || "", // Column B
-                        designation: row[2] || "", // Column C
-                        candidateName: row[3] || "", // Column D
-                        contactNo: row[4] || "", // Column E
-                        mail: row[5] || "", // Column F
-                        experience: row[6] || "", // Column G
-                        status: row[7] || "", // Column H
-                        remarks: row[8] || "", // Column I
-                        // Add more columns as needed based on your sheet structure
-                    }));
-                setCandidateData(processedData);
-            }
-        } catch (error) {
-            console.error("Error fetching candidate data:", error);
-        }
-    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;

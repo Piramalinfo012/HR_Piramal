@@ -1,255 +1,142 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// API Constants
+const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
+const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
+
 const useDataStore = create(
   persist(
     (set, get) => ({
-      // Indent Data
-      indentData: [],
-      addIndent: (data) => set((state) => ({
-        indentData: [...state.indentData, { 
-          ...data, 
-          id: Date.now(), 
-          indentNo: `IND-${String(state.indentData.length + 1).padStart(3, '0')}`,
-          createdAt: new Date().toISOString() 
-        }]
-      })),
-
-      // Social Site Data
-      socialSiteData: [],
-      moveSocialSiteToHistory: (id) => set((state) => ({
-        socialSiteData: state.socialSiteData.map(item => 
-          item.id === id ? { ...item, status: 'completed' } : item
-        )
-      })),
-
-      // Find Enquiry Data
-      findEnquiryData: [],
-      addEnquiry: (data) => set((state) => ({
-        findEnquiryData: [...state.findEnquiryData, { 
-          ...data, 
-          id: Date.now(),
-          candidateEnquiryNo: `EN-${String(state.findEnquiryData.length + 1).padStart(3, '0')}`,
-          createdAt: new Date().toISOString() 
-        }]
-      })),
-
-      // Call Tracker Data
-      callTrackerData: [],
-      updateCallTracker: (id, data) => set((state) => ({
-        callTrackerData: state.callTrackerData.map(item => 
-          item.id === id ? { ...item, ...data, lastUpdated: new Date().toISOString() } : item
-        )
-      })),
-
-      // Employee Data
-      employeeData: [],
-      addEmployee: (data) => set((state) => ({
-        employeeData: [...state.employeeData, { 
-          ...data, 
-          id: Date.now(),
-          employeeId: `EMP-${String(state.employeeData.length + 1).padStart(4, '0')}`,
-          status: 'active',
-          createdAt: new Date().toISOString() 
-        }]
-      })),
-
-      // After Joining Work Data
-      afterJoiningData: [],
-      updateAfterJoining: (id, data) => set((state) => ({
-        afterJoiningData: state.afterJoiningData.map(item => 
-          item.id === id ? { ...item, ...data, completed: true } : item
-        )
-      })),
-
-      // Leaving Data
+      // Global Data State
+      joiningFmsData: [],
+      candidateSelectionData: [],
+      fmsData: [],
+      masterData: [],
+      dataResponseData: [],
       leavingData: [],
-      addLeaving: (data) => set((state) => ({
-        leavingData: [...state.leavingData, { 
-          ...data, 
-          id: Date.now(),
-          status: 'pending',
-          createdAt: new Date().toISOString() 
-        }]
-      })),
+      joiningEntryData: [],
+      joiningEntryData: [],
+      leaveManagementData: [],
+      userData: [], // For Consultancy Names
 
-      // After Leaving Work Data
-      afterLeavingData: [],
-      updateAfterLeaving: (id, data) => set((state) => ({
-        afterLeavingData: state.afterLeavingData.map(item => 
-          item.id === id ? { ...item, ...data, completed: true } : item
-        )
-      })),
+      // Metadata
+      isLoading: false,
+      lastFetched: null,
+      error: null,
 
-      // Employee Attendance Data
-      attendanceData: [
-        {
-          id: 1,
-          employeeId: 'EMP-0001',
-          date: '2024-01-15',
-          checkIn: '09:00',
-          checkOut: '18:00',
-          status: 'Present',
-          workingHours: 9,
-          overtime: 0
-        },
-        {
-          id: 2,
-          employeeId: 'EMP-0001',
-          date: '2024-01-16',
-          checkIn: '09:15',
-          checkOut: '18:30',
-          status: 'Present',
-          workingHours: 9.25,
-          overtime: 0.25
-        },
-        {
-          id: 3,
-          employeeId: 'EMP-0001',
-          date: '2024-01-17',
-          checkIn: null,
-          checkOut: null,
-          status: 'Absent',
-          workingHours: 0,
-          overtime: 0
+      // Actions
+      fetchGlobalData: async (force = false) => {
+        const state = get();
+        // If data was fetched less than 1 minute ago and force is false, don't refetch
+        // (Removing this check to align with user request for "one time load" but ensuring
+        // we can call this on mount without loop. Actually calling it on mount should be idempotent enough
+        // if we check state.joiningFmsData.length > 0, but user said "only one time load".
+        // A better approach: fetch if empty.
+
+        if (!force && state.joiningFmsData.length > 0 && state.lastFetched) {
+          // We have data, assuming it's fine. 
+          // If user specifically requested "one time load", we can arguably never refetch automatically
+          // unless explicitly requested (e.g. after a form submit).
+          return;
         }
-      ],
-      addAttendance: (data) => set((state) => ({
-        attendanceData: [...state.attendanceData, { 
-          ...data, 
-          id: Date.now(),
-          createdAt: new Date().toISOString() 
-        }]
-      })),
 
-      // Leave Requests Data
-      leaveRequestsData: [
-        {
-          id: 1,
-          employeeId: 'EMP-0001',
-          leaveType: 'Sick Leave',
-          fromDate: '2024-01-20',
-          toDate: '2024-01-22',
-          days: 3,
-          reason: 'Medical treatment',
-          status: 'Approved',
-          appliedDate: '2024-01-18',
-          approvedBy: 'HR Manager'
-        },
-        {
-          id: 2,
-          employeeId: 'EMP-0001',
-          leaveType: 'Annual Leave',
-          fromDate: '2024-02-10',
-          toDate: '2024-02-12',
-          days: 3,
-          reason: 'Personal work',
-          status: 'Pending',
-          appliedDate: '2024-01-25',
-          approvedBy: null
-        }
-      ],
-      addLeaveRequest: (data) => set((state) => ({
-        leaveRequestsData: [...state.leaveRequestsData, { 
-          ...data, 
-          id: Date.now(),
-          appliedDate: new Date().toISOString().split('T')[0],
-          status: 'Pending'
-        }]
-      })),
+        set({ isLoading: true, error: null });
 
-      // Salary Data
-      salaryData: [
-        {
-          id: 1,
-          employeeId: 'EMP-0001',
-          month: 'January 2024',
-          basicSalary: 50000,
-          allowances: 10000,
-          overtime: 2000,
-          deductions: 5000,
-          netSalary: 57000,
-          status: 'Paid',
-          payDate: '2024-01-31'
-        },
-        {
-          id: 2,
-          employeeId: 'EMP-0001',
-          month: 'December 2023',
-          basicSalary: 50000,
-          allowances: 8000,
-          overtime: 1500,
-          deductions: 4500,
-          netSalary: 55000,
-          status: 'Paid',
-          payDate: '2023-12-31'
-        }
-      ],
+        try {
+          const fetchOptions = { method: 'GET' };
 
-      // Employee Profile Data
-      employeeProfileData: {
-        'EMP-0001': {
-          employeeId: 'EMP-0001',
-          name: 'John Doe',
-          email: 'john.doe@company.com',
-          phone: '+1234567890',
-          department: 'IT',
-          designation: 'Software Developer',
-          joiningDate: '2023-06-01',
-          salary: 50000,
-          manager: 'Jane Smith',
-          workLocation: 'Head Office',
-          employeeType: 'Full Time',
-          bloodGroup: 'O+',
-          emergencyContact: '+1234567891',
-          address: '123 Main St, City, State 12345'
+          // Helper for robust fetching
+          const fetchJson = async (url, name) => {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
+            const text = await res.text();
+            try {
+              const json = JSON.parse(text);
+              // Handle various error formats
+              if (json.error && typeof json.error === 'string' && json.error.includes("getDataRange")) {
+                console.warn(`${name}: Sheet not found/accessible`);
+                return { success: true, data: [] }; // Return empty data instead of breaking
+              }
+              return json;
+            } catch (e) {
+              if (text.includes("<html")) throw new Error(`${name}: Returned HTML (Redeploy Web App)`);
+              throw new Error(`${name}: Invalid JSON`);
+            }
+          };
+
+          // Execute all fetches in parallel
+          const [
+            joiningRes,
+            leavingRes,
+            candidateRes,
+            fmsRes,
+            masterRes,
+            historyRes,
+            joiningEntryRes,
+            leaveManagementRes,
+            userRes
+          ] = await Promise.all([
+            // 1. JOINING_FMS
+            fetchJson(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS&_=${Date.now()}`, 'Joining FMS'),
+            // 2. LEAVING
+            fetchJson(`${JOINING_SUBMIT_URL}?action=read&sheet=LEAVING&_=${Date.now()}`, 'Leaving'),
+            // 3. Candidate Selection
+            fetchJson(`${FETCH_URL}?sheet=Canidate_Selection&action=fetch`, 'Candidate Selection'),
+            // 4. FMS
+            fetchJson(`${FETCH_URL}?sheet=FMS&action=fetch`, 'FMS'),
+            // 5. Master
+            fetchJson(`${FETCH_URL}?sheet=Master&action=fetch`, 'Master'),
+            // 6. Data Response
+            fetchJson(`${FETCH_URL}?sheet=Data Resposnse&action=fetch`, 'Data Response'),
+            // 7. Joining Entry Form
+            fetchJson(`${FETCH_URL}?sheet=JOINING%20ENTRY%20FORM&action=fetch`, 'Joining Entry Form'),
+            // 8. Leave Management
+            fetchJson(`${FETCH_URL}?sheet=Leave%20Management&action=fetch`, 'Leave Management'),
+            // 9. USER (for Consultancy Names)
+            fetchJson(`${FETCH_URL}?sheet=USER&action=fetch`, 'User Data')
+          ]);
+
+          set({
+            joiningFmsData: joiningRes.success ? (joiningRes.data || []) : [],
+            leavingData: leavingRes.success ? (leavingRes.data || []) : [],
+            candidateSelectionData: candidateRes.success ? (candidateRes.data || []) : [],
+            fmsData: fmsRes.success ? (fmsRes.data || []) : [],
+            masterData: masterRes.success ? (masterRes.data || []) : [],
+            dataResponseData: historyRes.success ? (historyRes.data || []) : [],
+            joiningEntryData: joiningEntryRes.success ? (joiningEntryRes.data || []) : [],
+            leaveManagementData: leaveManagementRes.success ? (leaveManagementRes.data || []) : [],
+            userData: userRes.success ? (userRes.data || []) : [],
+            lastFetched: Date.now(),
+            isLoading: false
+          });
+
+        } catch (error) {
+          console.error("Global Data Fetch Error:", error);
+          set({ error: error.message, isLoading: false });
         }
       },
 
-      // Helper function to get filtered data based on user role
-      getFilteredData: (dataType, user) => {
-        const state = get();
-        if (user?.role === 'admin') {
-          return state[dataType] || [];
-        } else if (user?.role === 'employee') {
-          // Filter data for specific employee
-          const data = state[dataType] || [];
-          if (dataType === 'attendanceData' || dataType === 'leaveRequestsData' || dataType === 'salaryData') {
-            return data.filter(item => item.employeeId === user.employeeId);
-          }
-          return data;
-        }
-        return [];
-      },
-
-      // Initialize data from other stores
-      initializeFromIndent: () => {
-        const state = get();
-        state.indentData.forEach(indent => {
-          const existsInSocial = state.socialSiteData.find(item => item.indentId === indent.id);
-          if (!existsInSocial) {
-            state.socialSiteData.push({
-              ...indent,
-              indentId: indent.id,
-              status: 'pending'
-            });
-          }
-        });
-      },
-
-      initializeFromSocial: () => {
-        const state = get();
-        const completedSocial = state.socialSiteData.filter(item => item.status === 'completed');
-        completedSocial.forEach(social => {
-          const existsInEnquiry = state.findEnquiryData.find(item => item.indentId === social.indentId);
-          if (!existsInEnquiry) {
-            // This will be handled when enquiry is created
-          }
-        });
+      // Targeted refresh (useful for after form submissions)
+      refreshData: async () => {
+        await get().fetchGlobalData(true);
       }
     }),
     {
-      name: 'hr-fms-data-storage',
+      name: 'hr-piramal-global-store', // New cache name
+      partialize: (state) => ({
+        // Persist data but not loading/error states
+        joiningFmsData: state.joiningFmsData,
+        candidateSelectionData: state.candidateSelectionData,
+        fmsData: state.fmsData,
+        masterData: state.masterData,
+        dataResponseData: state.dataResponseData,
+        leavingData: state.leavingData,
+        joiningEntryData: state.joiningEntryData,
+        leaveManagementData: state.leaveManagementData,
+        userData: state.userData,
+        lastFetched: state.lastFetched
+      }),
     }
   )
 );

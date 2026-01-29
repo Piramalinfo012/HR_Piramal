@@ -45,75 +45,153 @@ const Indent = () => {
     "Job Consultancy",
   ];
 
+  const { fmsData: globalFmsData, masterData: globalMasterData, isLoading: storeLoading, refreshData } = useDataStore();
+
   useEffect(() => {
-    const loadData = async () => {
-      setTableLoading(true);
-      await fetchMasterData();
-      const result = await fetchIndentDataFromRow7();
-      if (result.success) {
-        console.log("Data from row 7:", result.data);
-      } else {
-        console.error("Error:", result.error);
-      }
-      setTableLoading(false);
-    };
-    loadData();
-  }, []);
+    setTableLoading(storeLoading);
+  }, [storeLoading]);
 
-  const fetchMasterData = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Master&action=fetch`
-      );
-      const result = await response.json();
+  // Master Data Effect
+  useEffect(() => {
+    if (!globalMasterData || globalMasterData.length < 2) return;
+    const data = globalMasterData;
 
-      if (result.success && result.data && result.data.length > 0) {
-        const data = result.data;
+    // Column A: Person Name (Indenter)
+    const indenterNamesList = [...new Set(
+      data.slice(1).map(row => row[0]).filter(val => val && val.trim())
+    )];
+    setIndenterNames(indenterNamesList);
 
-        // Extract unique values from columns (skip header row and filter empty values)
-        // Column A: Person Name (Indenter)
-        const indenterNamesList = [...new Set(
-          data.slice(1).map(row => row[0]).filter(val => val && val.trim())
-        )];
-        setIndenterNames(indenterNamesList);
+    // Column B: Department
+    const departmentsList = [...new Set(
+      data.slice(1).map(row => row[1]).filter(val => val && val.trim())
+    )];
+    setDepartments(departmentsList);
 
-        // Column B: Department
-        const departmentsList = [...new Set(
-          data.slice(1).map(row => row[1]).filter(val => val && val.trim())
-        )];
-        setDepartments(departmentsList);
+    // Column C: Time
+    const timingsList = [...new Set(
+      data.slice(1).map(row => row[2]).filter(val => val && val.trim())
+    )];
+    setTimings(timingsList);
 
-        // Column C: Time
-        const timingsList = [...new Set(
-          data.slice(1).map(row => row[2]).filter(val => val && val.trim())
-        )];
-        setTimings(timingsList);
+  }, [globalMasterData]);
 
-        console.log('Master data loaded:', {
-          indenterNames: indenterNamesList,
-          departments: departmentsList,
-          timings: timingsList
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching master data:', error);
-      toast.error('Failed to load dropdown options from Master sheet');
+  // FMS Data Effect (Indent Table)
+  useEffect(() => {
+    if (!globalFmsData || globalFmsData.length < 2) {
+      setIndentData([]);
+      return;
     }
-  };
 
-  const generateIndentNumber = async () => {
-    try {
-      const result = await fetchLastIndentNumber();
+    const resultData = globalFmsData;
 
-      if (result.success) {
-        const nextNumber = result.lastIndentNumber + 1;
-        return `REC-${String(nextNumber).padStart(2, "0")}`;
+    // Dynamically find header row
+    let headerRowIndex = -1;
+    for (let i = 0; i < resultData.length; i++) {
+      const row = resultData[i];
+      if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
+        headerRowIndex = i;
+        break;
       }
-      // Fallback if fetch fails
-      return "REC-01";
+    }
+
+    if (headerRowIndex === -1) headerRowIndex = 6;
+
+    const headers = resultData[headerRowIndex].map((h) => (h ? h.trim() : ""));
+    const dataRows = resultData.slice(headerRowIndex + 1);
+
+    const getIndex = (name) => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+
+    const statusIdx = getIndex("Position Status");
+    const indentIdx = getIndex("Indent No");
+    const nameIdx = getIndex("Person Name");
+    const postIdx = getIndex("Post");
+    const salaryIdx = getIndex("Salary");
+    const timingIdx = getIndex("Office Timing");
+    const weekOffIdx = getIndex("Weekly Off");
+    const residenceIdx = getIndex("Residence");
+    const genderIdx = getIndex("Gender");
+    const deptIdx = getIndex("Department");
+    const preferIdx = getIndex("Prefer");
+    const noOfPostIdx = getIndex("Number Of Post");
+    const dateIdx = getIndex("Completion Date");
+    const qualIdx = getIndex("Qualifications");
+
+    const processedData = dataRows
+      .filter((row) => row && (row[statusIdx] || row[indentIdx]))
+      .map((row) => ({
+        status: (row[statusIdx] || "OPEN").toString(),
+        indentNumber: (row[indentIdx] || "").toString(),
+        indenterName: (row[nameIdx] || "").toString(),
+        post: (row[postIdx] || "").toString(),
+        salary: (row[salaryIdx] || "").toString(),
+        officeTiming: (row[timingIdx] || "").toString(),
+        typeOfWeek: (row[weekOffIdx] || "").toString(),
+        residence: (row[residenceIdx] || "").toString(),
+        gender: (row[genderIdx] || "").toString(),
+        department: (row[deptIdx] || "").toString(),
+        prefer: (row[preferIdx] || "").toString(),
+        noOfPost: (row[noOfPostIdx] || "").toString(),
+        completionDate: (row[dateIdx] || "").toString(),
+        qualifications: (row[qualIdx] || "").toString(),
+      }))
+      .reverse();
+
+    setIndentData(processedData);
+
+  }, [globalFmsData]);
+
+  // fetchMasterData and fetchIndentDataFromRow7 replaced by effects
+
+  // Replaced fetchLastIndentNumber to use globalFmsData
+  const fetchLastIndentNumber = async () => {
+    try {
+      if (!globalFmsData || globalFmsData.length < 2) return { success: true, lastIndentNumber: 0 };
+      const data = globalFmsData;
+
+      let headerRowIndex = -1;
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+      if (headerRowIndex === -1) headerRowIndex = 6;
+
+      const headers = data[headerRowIndex].map((h) => h ? h.trim().toLowerCase() : "");
+      const possibleNames = ["indent number", "indentnumber", "indent_no", "indentno", "indent"];
+      let indentNumberIndex = -1;
+      for (const name of possibleNames) {
+        indentNumberIndex = headers.indexOf(name);
+        if (indentNumberIndex !== -1) break;
+      }
+      if (indentNumberIndex === -1) indentNumberIndex = 2;
+
+      let lastDataRowIndex = data.length - 1;
+      while (
+        lastDataRowIndex > headerRowIndex &&
+        (!data[lastDataRowIndex][indentNumberIndex] ||
+          data[lastDataRowIndex][indentNumberIndex].toString().trim() === "")
+      ) {
+        lastDataRowIndex--;
+      }
+
+      if (lastDataRowIndex <= headerRowIndex) return { success: true, lastIndentNumber: 0 };
+
+      const lastIndentNumber = data[lastDataRowIndex][indentNumberIndex];
+      let numericValue = 0;
+      if (typeof lastIndentNumber === "string") {
+        const match = lastIndentNumber.match(/\d+/);
+        numericValue = match ? parseInt(match[0]) : 0;
+      } else {
+        numericValue = parseInt(lastIndentNumber) || 0;
+      }
+
+      return { success: true, lastIndentNumber: numericValue };
     } catch (error) {
-      console.error("Error generating indent number:", error);
-      return "REC-01";
+      console.error("error in fetchLastIndentNumber", error);
+      return { success: false, lastIndentNumber: 0 };
     }
   };
 
@@ -125,195 +203,7 @@ const Indent = () => {
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
     const seconds = String(now.getSeconds()).padStart(2, "0");
-
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-  };
-
-  const fetchIndentDataFromRow7 = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
-      );
-
-      const result = await response.json();
-
-      if (result && result.success && result.data && result.data.length > 0) {
-        // Dynamically find header row
-        let headerRowIndex = -1;
-        for (let i = 0; i < result.data.length; i++) {
-          const row = result.data[i];
-          if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
-            headerRowIndex = i;
-            break;
-          }
-        }
-
-        if (headerRowIndex === -1) {
-          console.warn("Could not find dynamic header row, falling back to Row 7");
-          headerRowIndex = 6;
-        }
-
-        const headers = result.data[headerRowIndex].map((h) => (h ? h.trim() : ""));
-        const dataRows = result.data.slice(headerRowIndex + 1);
-
-        const getIndex = (name) => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
-
-        const statusIdx = getIndex("Position Status");
-        const indentIdx = getIndex("Indent No");
-        const nameIdx = getIndex("Person Name");
-        const postIdx = getIndex("Post");
-        const salaryIdx = getIndex("Salary");
-        const timingIdx = getIndex("Office Timing");
-        const weekOffIdx = getIndex("Weekly Off");
-        const residenceIdx = getIndex("Residence");
-        const genderIdx = getIndex("Gender");
-        const deptIdx = getIndex("Department");
-        const preferIdx = getIndex("Prefer");
-        const noOfPostIdx = getIndex("Number Of Post");
-        const dateIdx = getIndex("Completion Date");
-        const qualIdx = getIndex("Qualifications");
-
-        const processedData = dataRows
-          .filter((row) => row && (row[statusIdx] || row[indentIdx]))
-          .map((row) => ({
-            status: (row[statusIdx] || "OPEN").toString(),
-            indentNumber: (row[indentIdx] || "").toString(),
-            indenterName: (row[nameIdx] || "").toString(),
-            post: (row[postIdx] || "").toString(),
-            salary: (row[salaryIdx] || "").toString(),
-            officeTiming: (row[timingIdx] || "").toString(),
-            typeOfWeek: (row[weekOffIdx] || "").toString(),
-            residence: (row[residenceIdx] || "").toString(),
-            gender: (row[genderIdx] || "").toString(),
-            department: (row[deptIdx] || "").toString(),
-            prefer: (row[preferIdx] || "").toString(),
-            noOfPost: (row[noOfPostIdx] || "").toString(),
-            completionDate: (row[dateIdx] || "").toString(),
-            qualifications: (row[qualIdx] || "").toString(),
-          }))
-          .reverse();
-
-        setIndentData(processedData);
-        return {
-          success: true,
-          data: processedData,
-          headers: headers,
-        };
-      } else {
-        return {
-          success: false,
-          error: "Not enough rows in sheet data",
-        };
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-  };
-
-  const fetchLastIndentNumber = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
-      );
-
-      const result = await response.json();
-
-      if (result.success && result.data && result.data.length > 1) {
-        // Find the first row with actual headers
-        let headerRowIndex = -1;
-        for (let i = 0; i < result.data.length; i++) {
-          const row = result.data[i];
-          if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
-            headerRowIndex = i;
-            break;
-          }
-        }
-
-        if (headerRowIndex === -1) {
-          console.warn("Could not find dynamic header row in FMS for last indent, falling back to Row 7");
-          headerRowIndex = 6;
-        }
-
-        const headers = result.data[headerRowIndex].map((h) =>
-          h ? h.trim().toLowerCase() : ""
-        );
-        console.log("Headers found:", headers);
-
-        // Try to find the indent number column by common names
-        const possibleNames = [
-          "indent number",
-          "indentnumber",
-          "indent_no",
-          "indentno",
-          "indent",
-        ];
-        let indentNumberIndex = -1;
-
-        for (const name of possibleNames) {
-          indentNumberIndex = headers.indexOf(name);
-          if (indentNumberIndex !== -1) break;
-        }
-
-        if (indentNumberIndex === -1) {
-          // If still not found, try to find by position (Column C is index 2)
-          indentNumberIndex = 2;
-          console.warn("Using fallback column index 2 for indent number");
-        }
-
-        // Find the last non-empty row with data
-        let lastDataRowIndex = result.data.length - 1;
-        while (
-          lastDataRowIndex > headerRowIndex &&
-          (!result.data[lastDataRowIndex][indentNumberIndex] ||
-            result.data[lastDataRowIndex][indentNumberIndex].trim() === "")
-        ) {
-          lastDataRowIndex--;
-        }
-
-        if (lastDataRowIndex <= headerRowIndex) {
-          return {
-            success: true,
-            lastIndentNumber: 0,
-            message: "No data rows found",
-          };
-        }
-
-        const lastIndentNumber =
-          result.data[lastDataRowIndex][indentNumberIndex];
-
-        // Extract numeric part from "REC-01" format
-        let numericValue = 0;
-        if (typeof lastIndentNumber === "string") {
-          const match = lastIndentNumber.match(/\d+/);
-          numericValue = match ? parseInt(match[0]) : 0;
-        } else {
-          numericValue = parseInt(lastIndentNumber) || 0;
-        }
-
-        return {
-          success: true,
-          lastIndentNumber: numericValue,
-          fullLastIndent: lastIndentNumber,
-        };
-      } else {
-        return {
-          success: true,
-          lastIndentNumber: 0,
-          message: "Sheet is empty or has no data rows",
-        };
-      }
-    } catch (error) {
-      console.error("Error in fetchLastIndentNumber:", error);
-      return {
-        success: false,
-        error: error.message,
-        lastIndentNumber: 0,
-      };
-    }
   };
 
   const handlePostInputChange = (index, e) => {
@@ -506,7 +396,7 @@ const Indent = () => {
         setFormData({ competitionDate: "" });
         setShowModal(false);
         setTableLoading(true);
-        await fetchIndentDataFromRow7();
+        refreshData();
         setTableLoading(false);
       } else {
         toast.error("Failed to insert: " + (result.error || "Unknown error"));

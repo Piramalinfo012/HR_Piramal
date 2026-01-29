@@ -4,7 +4,6 @@ import useDataStore from "../store/dataStore";
 import toast from "react-hot-toast";
 
 const CallingForJobAgencies = () => {
-  const { addIndent } = useDataStore();
 
   const [activeTab, setActiveTab] = useState("pending");
 
@@ -48,60 +47,121 @@ const CallingForJobAgencies = () => {
   const [tableLoading, setTableLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const {
+    masterData,
+    fmsData: globalFmsData,
+    userData: globalUserData,
+    isLoading: storeLoading,
+    refreshData
+  } = useDataStore();
+
   useEffect(() => {
-    const loadData = async () => {
-      setTableLoading(true);
-      await fetchMasterData();
-      const result = await fetchIndentDataFromRow7();
-      if (result.success) {
-        console.log("Data from row 7:", result.data);
-      } else {
-        console.error("Error:", result.error);
-      }
+    setTableLoading(storeLoading);
+  }, [storeLoading]);
 
-      // Fetch Consultancy Names from USER sheet
-      try {
-        const userRes = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`);
-        const userJson = await userRes.json();
-        if (userJson.success) {
-          // Column J is index 9. Header is row 0.
-          const options = userJson.data.slice(1)
-            .map(row => row[9])
-            .filter(name => name && name.toString().trim() !== "");
-          setConsultancyOptions([...new Set(options)]);
-        }
-      } catch (error) {
-        console.error("Error fetching consultancy names:", error);
-      }
+  // Master Data (Social Sites)
+  useEffect(() => {
+    if (!masterData || masterData.length === 0) return;
+    const data = masterData;
+    const socialSitesList = [...new Set(
+      data.slice(1).map(row => row[3]).filter(val => val && val.trim())
+    )];
+    setSocialSiteOptions(socialSitesList);
+  }, [masterData]);
 
-      setTableLoading(false);
-    };
-    loadData();
-  }, []);
+  // User Data (Consultancy Names)
+  useEffect(() => {
+    if (!globalUserData || globalUserData.length === 0) return;
+    const options = globalUserData.slice(1)
+      .map(row => row[9])
+      .filter(name => name && name.toString().trim() !== "");
+    setConsultancyOptions([...new Set(options)]);
+  }, [globalUserData]);
 
-  const fetchMasterData = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Master&action=fetch`
-      );
-      const result = await response.json();
-
-      if (result.success && result.data && result.data.length > 0) {
-        const data = result.data;
-
-        // Column D: Social Site Types (index 3)
-        const socialSitesList = [...new Set(
-          data.slice(1).map(row => row[3]).filter(val => val && val.trim())
-        )];
-        setSocialSiteOptions(socialSitesList);
-
-        console.log('Master data loaded - Social Sites:', socialSitesList);
-      }
-    } catch (error) {
-      console.error('Error fetching master data:', error);
-      toast.error('Failed to load social site options from Master sheet');
+  // FMS Data (Indent Data)
+  useEffect(() => {
+    if (!globalFmsData || globalFmsData.length < 7) {
+      setIndentData([]);
+      setHistoryIndentData([]);
+      return;
     }
-  };
+
+    const resultData = globalFmsData;
+    // Find headers dynamically
+    let headerRowIndex = 5; // Default fallback
+    for (let i = 0; i < Math.min(resultData.length, 20); i++) {
+      const row = resultData[i];
+      if (row.includes("Indent Number") || row.includes("Post")) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    const headers = resultData[headerRowIndex].map((h) => h?.toString().trim());
+    const dataFromRow7 = resultData.slice(headerRowIndex + 1);
+
+    // Find column indices
+    const timestampIndex = headers.indexOf("Timestamp");
+    const postIndex = headers.indexOf("Post");
+    const genderIndex = headers.indexOf("Gender");
+    const departmentIndex = headers.indexOf("Department");
+    const preferIndex = headers.indexOf("Prefer");
+    const noOFPostIndex = headers.indexOf("Number Of Posts");
+    const completionDateIndex = headers.indexOf("Completion Date");
+    const experienceIndex = headers.indexOf("Experience");
+    const jobConsultancyNameIndex = headers.indexOf("Job Cunsultancy Name");
+    const salaryIndex = headers.indexOf("Salary");
+    const officeTimingIndex = headers.indexOf("Office Timing");
+    const typeOfWeekIndex = headers.indexOf("Type Of Week");
+    const requiredQualificationsIndex = headers.indexOf("Required Qualifications");
+    const residenceIndex = headers.indexOf("Residence");
+    const closeByIndex = headers.indexOf("Close By");
+    const cunsultancyNumberIndex = headers.indexOf("Cunsultancy Number");
+    const cunsultancyScreensortImageIndex = headers.indexOf("Cunsultancy Screensort Image");
+    const siteStatusIndex = headers.indexOf("Site Status");
+    const socialSiteTypesIndex = headers.indexOf("Social Site Types");
+    const CunsultancyScreensortImage = headers.indexOf("Cunsultancy Screensort Image");
+    const CunsultancyNumber = headers.indexOf("Cunsultancy Number");
+    const JobCunsultancyName = headers.indexOf("Job Cunsultancy Name");
+
+    const processedData = dataFromRow7.map((row) => ({
+      timestamp: row[timestampIndex],
+      indentNumber: row[4], // Column E
+      indenterName: row[5], // Column F
+      post: row[postIndex],
+      gender: row[genderIndex],
+      department: row[departmentIndex],
+      prefer: row[preferIndex],
+      noOfPost: row[noOFPostIndex],
+      completionDate: row[completionDateIndex],
+      experience: row[experienceIndex],
+      jobConsultancyName: row[jobConsultancyNameIndex],
+      salary: row[salaryIndex],
+      officeTiming: row[officeTimingIndex],
+      typeOfWeek: row[typeOfWeekIndex],
+      requiredQualifications: row[requiredQualificationsIndex],
+      residence: row[residenceIndex],
+      closeBy: row[closeByIndex],
+      cunsultancyNumber: row[cunsultancyNumberIndex],
+      cunsultancyScreensortImage: row[cunsultancyScreensortImageIndex],
+      siteStatus: row[siteStatusIndex],
+      socialSiteTypes: row[socialSiteTypesIndex],
+      columnX: row[23],
+      columnY: row[24],
+      CunsultancyScreensortImage: row[CunsultancyScreensortImage],
+      CunsultancyNumber: row[CunsultancyNumber],
+      JobCunsultancyName: row[JobCunsultancyName],
+    }));
+
+    const pendingTasks = processedData.filter((item) => item.columnX && !item.columnY);
+    const historyTasks = processedData.filter((item) => item.columnX && item.columnY);
+
+    setHistoryIndentData(historyTasks);
+    setIndentData(pendingTasks);
+
+  }, [globalFmsData]);
+
+  // Data loading handled by effects below
 
   const getCurrentTimestamp = () => {
     const now = new Date();
@@ -115,131 +175,7 @@ const CallingForJobAgencies = () => {
     return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   };
 
-  const fetchIndentDataFromRow7 = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
-      );
-
-      const result = await response.json();
-
-      if (result.success && result.data && result.data.length >= 7) {
-        // Find headers dynamically
-        let headerRowIndex = 5; // Default fallback
-        for (let i = 0; i < Math.min(result.data.length, 20); i++) {
-          const row = result.data[i];
-          if (row.includes("Indent Number") || row.includes("Post")) {
-            headerRowIndex = i;
-            break;
-          }
-        }
-
-        const headers = result.data[headerRowIndex].map((h) => h?.toString().trim());
-
-        // Get data starting from row after headers
-        const dataFromRow7 = result.data.slice(headerRowIndex + 1);
-
-        // Find column indices for important fields
-        const timestampIndex = headers.indexOf("Timestamp");
-        const indentNumberIndex = headers.indexOf("Indent Number");
-        const postIndex = headers.indexOf("Post");
-        const genderIndex = headers.indexOf("Gender");
-        const departmentIndex = headers.indexOf("Department");
-        const preferIndex = headers.indexOf("Prefer");
-        const noOFPostIndex = headers.indexOf("Number Of Posts");
-        const completionDateIndex = headers.indexOf("Completion Date");
-        const experienceIndex = headers.indexOf("Experience");
-
-        const jobConsultancyNameIndex = headers.indexOf("Job Cunsultancy Name");
-        const salaryIndex = headers.indexOf("Salary");
-        const officeTimingIndex = headers.indexOf("Office Timing");
-        const typeOfWeekIndex = headers.indexOf("Type Of Week");
-        const requiredQualificationsIndex = headers.indexOf("Required Qualifications");
-        const residenceIndex = headers.indexOf("Residence");
-        const closeByIndex = headers.indexOf("Close By");
-        const indenterNameIndex = headers.indexOf("Indenter Name");
-        const cunsultancyNumberIndex = headers.indexOf("Cunsultancy Number");
-        const cunsultancyScreensortImageIndex = headers.indexOf(
-          "Cunsultancy Screensort Image"
-        );
-
-        const plaaned4Index = headers.indexOf("Planned 4");
-        const actual4Index = headers.indexOf("Actual 4");
-
-        const siteStatusIndex = headers.indexOf("Site Status");
-        const socialSiteTypesIndex = headers.indexOf("Social Site Types");
-
-        const CunsultancyScreensortImage = headers.indexOf("Cunsultancy Screensort Image");
-        const CunsultancyNumber = headers.indexOf("Cunsultancy Number");
-        const JobCunsultancyName = headers.indexOf("Job Cunsultancy Name");
-        // Process the data
-        const processedData = dataFromRow7.map((row) => ({
-          timestamp: row[timestampIndex],
-          indentNumber: row[4], // Column E
-          indenterName: row[5], // Column F (Person Name)
-          post: row[postIndex],
-          gender: row[genderIndex],
-          department: row[departmentIndex],
-          prefer: row[preferIndex],
-          noOfPost: row[noOFPostIndex],
-          completionDate: row[completionDateIndex],
-          experience: row[experienceIndex],
-
-          jobConsultancyName: row[jobConsultancyNameIndex],
-          salary: row[salaryIndex],
-          officeTiming: row[officeTimingIndex],
-          typeOfWeek: row[typeOfWeekIndex],
-          requiredQualifications: row[requiredQualificationsIndex],
-          residence: row[residenceIndex],
-          closeBy: row[closeByIndex],
-          cunsultancyNumber: row[cunsultancyNumberIndex],
-          cunsultancyScreensortImage: row[cunsultancyScreensortImageIndex],
-          planned4: row[plaaned4Index],
-          actual4: row[actual4Index],
-
-          siteStatus: row[siteStatusIndex],
-          socialSiteTypes: row[socialSiteTypesIndex],
-
-
-          columnX: row[23],
-          columnY: row[24],
-          CunsultancyScreensortImage: row[CunsultancyScreensortImage],
-          CunsultancyNumber: row[CunsultancyNumber],
-          JobCunsultancyName: row[JobCunsultancyName],
-        }));
-
-        // console.log("processedData",processedData);
-
-        const pendingTasks = processedData.filter((item) => {
-          return item.columnX && !item.columnY;
-        });
-
-        const historyTasks = processedData.filter((item) => {
-          return item.columnX && item.columnY;
-        });
-
-        setHistoryIndentData(historyTasks);
-
-        setIndentData(pendingTasks);
-        return {
-          success: true,
-          data: processedData,
-          headers: headers,
-        };
-      } else {
-        return {
-          success: false,
-          error: "Not enough rows in sheet data",
-        };
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-  };
+  // fetchIndentDataFromRow7 replaced by effects
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -417,7 +353,7 @@ const CallingForJobAgencies = () => {
         }));
         setShowModal(false);
 
-        await fetchIndentDataFromRow7();
+        refreshData();
       } else {
         toast.error("Failed to submit: " + (result.error || "Unknown error"));
       }

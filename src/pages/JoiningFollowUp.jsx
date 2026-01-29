@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, Clock, Plus, X, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
+import useDataStore from "../store/dataStore";
 
 const JoiningFollowUp = () => {
     const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
@@ -49,74 +50,64 @@ const JoiningFollowUp = () => {
         indentNumber: "",
     });
 
+    const { candidateSelectionData, isLoading: storeLoading, refreshData } = useDataStore();
+
     useEffect(() => {
-        loadData();
-    }, []);
+        setTableLoading(storeLoading);
+    }, [storeLoading]);
 
-    const loadData = async () => {
-        setTableLoading(true);
-        await Promise.all([fetchCandidateData(), fetchFmsData()]);
-        setTableLoading(false);
-    };
-
-    const fetchFmsData = async () => {
-        try {
-            const response = await fetch(
-                `${FETCH_URL}?sheet=Canidate_Selection&action=fetch`
-            );
-            const result = await response.json();
-
-            if (result.success && result.data) {
-                const dataRows = result.data.slice(1);
-
-                const openRows = dataRows.filter(row => {
-                    const status = (row[1] || "").toString().toUpperCase();
-                    return status === "OPEN";
-                });
-
-                const options = openRows.map(row => (row[4] || "").toString()).filter(val => val);
-                const mapping = {};
-                openRows.forEach(row => {
-                    const id = (row[4] || "").toString();
-                    if (id) mapping[id] = (row[6] || "").toString();
-                });
-
-                setIndentOptions([...new Set(options)]);
-                setFmsDataMap(mapping);
-            }
-        } catch (error) {
-            console.error("Error fetching FMS data:", error);
+    useEffect(() => {
+        if (!candidateSelectionData || candidateSelectionData.length === 0) {
+            setCandidateData([]);
+            setIndentOptions([]);
+            return;
         }
-    };
 
-    const fetchCandidateData = async () => {
-        try {
-            const response = await fetch(
-                `${FETCH_URL}?sheet=Canidate_Selection&action=fetch`
-            );
-            const result = await response.json();
+        // FMS Data Logic (from Candidate Selection sheet in original code)
+        // Original code was fetching Canidate_Selection again and slicing from index 1 for FMS data
+        // This seems to be using the same sheet for dropdowns.
+        const allRows = candidateSelectionData; // Full data including headers if any
 
-            if (result.success && result.data) {
-                const dataRows = result.data.slice(7);
-                const processedData = dataRows.map((row, idx) => ({
-                    rowIndex: idx + 8, // Slice 7, so row 1 is index 8
-                    id: row[1], // Column B
-                    department: row[2], // Column C
-                    designation: row[3], // Column D
-                    candidateName: row[4], // Column E
-                    contactNo: row[5], // Column F
-                    mail: row[6], // Column G
-                    indentId: row[41], // Column A
-                    trigger_AI: row[34], // Column AI
-                    statusMarker_AJ: row[35], // Column AJ
-                }));
-                console.log("Processed Joining Follow Up Candidates:", processedData);
-                setCandidateData(processedData);
-            }
-        } catch (error) {
-            console.error("Error fetching candidate data:", error);
-        }
-    };
+        // Logic for Indent Options (FMS Data)
+        // Original: const dataRows = result.data.slice(1);
+        const fmsRows = allRows.slice(1);
+        const openRows = fmsRows.filter(row => {
+            const status = (row[1] || "").toString().toUpperCase();
+            return status === "OPEN";
+        });
+
+        const options = openRows.map(row => (row[4] || "").toString()).filter(val => val);
+        const mapping = {};
+        openRows.forEach(row => {
+            const id = (row[4] || "").toString();
+            if (id) mapping[id] = (row[6] || "").toString();
+        });
+
+        setIndentOptions([...new Set(options)]);
+        setFmsDataMap(mapping);
+
+
+        // Candidate Data Logic
+        // Original: const dataRows = result.data.slice(7);
+        const candidateRows = allRows.slice(7);
+        const processedData = candidateRows.map((row, idx) => ({
+            rowIndex: idx + 8, // Slice 7, so row 1 is index 8 (assuming 1-based index from sheet)
+            id: row[1], // Column B
+            department: row[2], // Column C
+            designation: row[3], // Column D
+            candidateName: row[4], // Column E
+            contactNo: row[5], // Column F
+            mail: row[6], // Column G
+            indentId: row[41], // Column AP (Index 41)
+            trigger_AI: row[34], // Column AI
+            statusMarker_AJ: row[35], // Column AJ
+        }));
+
+        setCandidateData(processedData);
+
+    }, [candidateSelectionData]);
+
+    // fetchCandidateData and fetchFmsData replaced by useEffect reacting to global store
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -247,7 +238,7 @@ const JoiningFollowUp = () => {
                     resumeUrl: "",
                     indentNumber: "",
                 });
-                await fetchCandidateData();
+                refreshData();
             } else {
                 toast.error("Submission failed: " + result.error);
             }
@@ -326,7 +317,8 @@ const JoiningFollowUp = () => {
             if (res1.success && res2.success) {
                 toast.success(`Submission ${status} successfully!`);
                 setShowActionModal(false);
-                await fetchCandidateData();
+                setShowActionModal(false);
+                refreshData();
             } else {
                 toast.error("Action submission failed");
             }

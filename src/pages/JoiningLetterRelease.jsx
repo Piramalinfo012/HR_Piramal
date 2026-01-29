@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import toast from "react-hot-toast";
+import useDataStore from "../store/dataStore";
 
 const JoiningLetterRelease = () => {
     const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
@@ -20,98 +21,55 @@ const JoiningLetterRelease = () => {
     const [uploading, setUploading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
+    const { joiningFmsData, isLoading: storeLoading, refreshData } = useDataStore();
+
     useEffect(() => {
-        fetchCandidateData();
-    }, []);
+        setTableLoading(storeLoading);
+    }, [storeLoading]);
 
-    const fetchCandidateData = async () => {
-        setTableLoading(true);
-
-        try {
-            const url = `${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS&_=${Date.now()}`;
-            console.log("Fetching data from:", url);
-
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            const responseText = await response.text();
-            console.log("Raw response:", responseText.substring(0, 500));
-
-            let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error("Failed to parse JSON:", parseError);
-
-                if (responseText.includes("<!DOCTYPE html>") || responseText.includes("<html")) {
-                    throw new Error("Google Apps Script is returning HTML instead of JSON. Please redeploy as Web App with JSON output.");
-                } else {
-                    throw new Error("Invalid JSON response from server");
-                }
-            }
-
-            if (!data.success) {
-                throw new Error(data.error || "Failed to fetch data from sheet");
-            }
-
-            const rawData = data.data || [];
-            const headers = rawData[6] || [];
-            const dataRows = rawData.length > 7 ? rawData.slice(7) : [];
-
-            // Helper to find column index by header name
-            const getIndex = (headerName) => {
-                const index = headers.findIndex(
-                    (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
-                );
-                return index;
-            };
-
-            const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
-            const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
-            const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
-            const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
-            const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
-            const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
-
-            const processedData = dataRows.map((row) => {
-                if (!row || row.length === 0) return null;
-
-                const columnAQ = row[42];
-                const columnAR = row[43];
-
-                return {
-                    indentNumber: row[idxIndent] || "",
-                    candidateName: row[idxName] || "",
-                    department: row[idxDept] || "",
-                    designation: row[idxDesig] || "",
-                    contactNo: row[idxMobile] || "",
-                    email: row[idxEmail] || "",
-                    columnAQ: columnAQ,
-                    columnAR: columnAR,
-                    isPending: (columnAQ != null && columnAQ !== "") && (columnAR == null || columnAR === ""),
-                    isHistory: (columnAQ != null && columnAQ !== "") && (columnAR != null && columnAR !== "")
-                };
-            }).filter(item => item !== null);
-
-            console.log("Processed JLR Candidates:", processedData);
-            setCandidateData(processedData);
-
-            if (processedData.length === 0) {
-                toast.success("No data found in sheet");
-            } else {
-                toast.success(`Successfully loaded ${processedData.length} candidates`);
-            }
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            toast.error(`Error loading data: ${error.message}`);
+    useEffect(() => {
+        if (!joiningFmsData || joiningFmsData.length === 0) {
             setCandidateData([]);
-        } finally {
-            setTableLoading(false);
+            return;
         }
-    };
+
+        const rawData = joiningFmsData;
+        const headers = rawData[6] || [];
+        const dataRows = rawData.length > 7 ? rawData.slice(7) : [];
+
+        const getIndex = (headerName) => headers.findIndex(h => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase());
+
+        const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
+        const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
+        const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 2;
+        const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
+        const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+        const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
+
+        const processedData = dataRows.map((row) => {
+            if (!row || row.length === 0) return null;
+
+            const columnAQ = row[42];
+            const columnAR = row[43];
+
+            return {
+                indentNumber: row[idxIndent] || "",
+                candidateName: row[idxName] || "",
+                department: row[idxDept] || "",
+                designation: row[idxDesig] || "",
+                contactNo: row[idxMobile] || "",
+                email: row[idxEmail] || "",
+                columnAQ: columnAQ,
+                columnAR: columnAR,
+                isPending: (columnAQ != null && columnAQ !== "") && (columnAR == null || columnAR === ""),
+                isHistory: (columnAQ != null && columnAQ !== "") && (columnAR != null && columnAR !== "")
+            };
+        }).filter(item => item !== null);
+
+        setCandidateData(processedData);
+    }, [joiningFmsData]);
+
+    // fetchCandidateData replaced by useEffect reacting to global store
 
     const getFilteredData = () => {
         let filtered = candidateData;
@@ -257,7 +215,7 @@ const JoiningLetterRelease = () => {
             if (result.success) {
                 toast.success("Status submitted successfully!");
                 handleCloseModal();
-                fetchCandidateData();
+                refreshData();
             } else {
                 toast.error(result.error || "Failed to submit status");
             }

@@ -4,7 +4,6 @@ import useDataStore from "../store/dataStore";
 import toast from "react-hot-toast";
 
 const OnlinePosting = () => {
-  const { addIndent } = useDataStore();
 
   const [postFormData, setPostFormData] = useState({
     siteStatus: "",
@@ -31,111 +30,79 @@ const OnlinePosting = () => {
   // Social site options from Master sheet
   const [socialSiteOptions, setSocialSiteOptions] = useState([]);
 
+  const {
+    masterData,
+    fmsData: globalFmsData,
+    isLoading: storeLoading,
+    refreshData
+  } = useDataStore();
+
   useEffect(() => {
-    const loadData = async () => {
-      setTableLoading(true);
-      await fetchMasterData();
-      const result = await fetchIndentDataFromRow7();
-      setTableLoading(false);
-    };
-    loadData();
-  }, []);
+    setTableLoading(storeLoading);
+  }, [storeLoading]);
 
-  const fetchMasterData = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Master&action=fetch`
-      );
-      const result = await response.json();
+  // Master Data (Social Sites)
+  useEffect(() => {
+    if (!masterData || masterData.length === 0) return;
+    const data = masterData;
+    const socialSitesList = [...new Set(
+      data.slice(1).map(row => row[3]).filter(val => val && val.trim())
+    )];
+    setSocialSiteOptions(socialSitesList);
+  }, [masterData]);
 
-      if (result.success && result.data && result.data.length > 0) {
-        const data = result.data;
-
-        // Column D: Social Site Types
-        const socialSitesList = [...new Set(
-          data.slice(1).map(row => row[3]).filter(val => val && val.trim())
-        )];
-        setSocialSiteOptions(socialSitesList);
-
-        console.log('Master data loaded - Social Sites:', socialSitesList);
-      }
-    } catch (error) {
-      console.error('Error fetching master data:', error);
-      toast.error('Failed to load social site options from Master sheet');
+  // FMS Data (Indent Data)
+  useEffect(() => {
+    if (!globalFmsData || globalFmsData.length < 8) {
+      setIndentData([]);
+      setHistoryIndentData([]);
+      return;
     }
-  };
 
-  const fetchIndentDataFromRow7 = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
-      );
+    const dataFromRow2 = globalFmsData.slice(8); // Matches previous slice(8) logic
 
-      const result = await response.json();
+    const processedData = dataFromRow2.map((row) => ({
+      status: row[0],              // Col A
+      stepCode: row[1],            // Col B
+      indentNumber: row[4],        // Col E
+      timestamp: row[3],           // Col D
+      indenterName: row[5],        // Col F
+      post: row[6],                // Col G
+      salary: row[7],              // Col H
+      officeTiming: row[8],        // Col I
+      typeOfWeek: row[9],          // Col J
+      residence: row[10],           // Col K
+      gender: row[11],             // Col L
+      department: row[12],         // Col M
+      prefer: row[13],             // Col N
+      noOfPost: row[14],           // Col O
+      completionDate: row[15],     // Col P
+      experience: row[16],         // Col Q
+      siteStatus: row[17],       // Col R
+      socialSiteTypes: row[18],  // Col S
+    }));
 
-      if (result.success && result.data && result.data.length >= 2) {
-        // Data starts from Row 2 (index 1) - headers are on Row 1
-        // Reverting to slice(8) as it was working before
-        const dataFromRow2 = result.data.slice(8);
+    const filteredPending = processedData.filter((item) => {
+      const hasSiteStatus = item.siteStatus && item.siteStatus.toString().trim() !== "";
+      const hasSocialSiteTypes = item.socialSiteTypes && item.socialSiteTypes.toString().trim() !== "";
+      return hasSiteStatus && !hasSocialSiteTypes;
+    });
 
-        const processedData = dataFromRow2.map((row) => ({
-          status: row[0],              // Col A (0)
-          stepCode: row[1],            // Col B (1): Step Code
-          indentNumber: row[4],        // Col E (4)
-          timestamp: row[3],           // Col D (3)
-          indenterName: row[5],        // Col F (5)
-          post: row[6],                // Col G (6)
-          salary: row[7],              // Col H (7)
-          officeTiming: row[8],        // Col I (8)
-          typeOfWeek: row[9],          // Col J (9)
-          residence: row[10],           // Col K (10)
-          gender: row[11],             // Col L (11)
-          department: row[12],         // Col M (12)
-          prefer: row[13],             // Col N (13)
-          noOfPost: row[14],           // Col O (14)
-          completionDate: row[15],     // Col P (14)
-          experience: row[16],         // Col Q (15)
+    const filteredHistory = processedData.filter((item) => {
+      const hasSiteStatus = item.siteStatus && item.siteStatus.toString().trim() !== "";
+      const hasSocialSiteTypes = item.socialSiteTypes && item.socialSiteTypes.toString().trim() !== "";
+      return hasSiteStatus && hasSocialSiteTypes;
+    });
 
-          // Derived columns for Online Posting - Checking R and S based on FMS structure
-          siteStatus: row[17],       // Col R (17)
-          socialSiteTypes: row[18],  // Col S (18)
-        }));
+    setHistoryIndentData(filteredHistory);
+    setIndentData(filteredPending);
 
-        const filteredPending = processedData.filter((item) => {
-          const hasSiteStatus = item.siteStatus && item.siteStatus.toString().trim() !== "";
-          const hasSocialSiteTypes = item.socialSiteTypes && item.socialSiteTypes.toString().trim() !== "";
-          // Pending: Site Status is NOT null (Column R) AND Social Site Types IS null (Column S)
-          return hasSiteStatus && !hasSocialSiteTypes;
-        });
+  }, [globalFmsData]);
 
-        const filteredHistory = processedData.filter((item) => {
-          const hasSiteStatus = item.siteStatus && item.siteStatus.toString().trim() !== "";
-          const hasSocialSiteTypes = item.socialSiteTypes && item.socialSiteTypes.toString().trim() !== "";
-          // History: Site Status is NOT null (Column R) AND Social Site Types is NOT null (Column S)
-          return hasSiteStatus && hasSocialSiteTypes;
-        });
+  // fetchMasterData is replaced by useEffect reacting to global store
 
-        setHistoryIndentData(filteredHistory);
-        setIndentData(filteredPending);
+  // fetchIndentDataFromRow7 is replaced by useEffect reacting to global store
 
-        return {
-          success: true,
-          data: processedData,
-        };
-      } else {
-        return {
-          success: false,
-          error: "Not enough rows in sheet data",
-        };
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-  };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -256,7 +223,7 @@ const OnlinePosting = () => {
 
         // Refresh table data
         setTableLoading(true);
-        await fetchIndentDataFromRow7();
+        await refreshData();
         setTableLoading(false);
       } else {
         toast.error("Failed to submit: " + (result.error || "Unknown error"));

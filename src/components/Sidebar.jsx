@@ -37,6 +37,7 @@ import {
 import useAuthStore from "../store/authStore";
 import logo from "../assets/logo.png";
 
+
 const Sidebar = ({ onClose }) => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -640,12 +641,10 @@ const Sidebar = ({ onClose }) => {
       </div>
 
       {/* Menu */}
-      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide" ref={(el) => {
-        // Prevent automatic scrolling to active elements
-        if (el) {
-          el.style.scrollBehavior = '';
-        }
-      }}>
+     <nav
+  className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide"
+>
+
         {menuItems.map((item) => {
           if (item.type === "dropdown") {
             return (
@@ -684,15 +683,11 @@ const Sidebar = ({ onClose }) => {
                             : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
                           }`
                         }
-                        onClick={() => {
-                          onClose?.();
-                          // Prevent any scrolling behavior when clicking
-                          setTimeout(() => {
-                            if (document.activeElement instanceof HTMLElement) {
-                              document.activeElement.blur();
-                            }
-                          }, 10);
-                        }}
+                      onMouseDown={(e) => e.preventDefault()}
+onClick={() => {
+  onClose?.();
+}}
+
                       >
                         <span>{subItem.label}</span>
                       </NavLink>
@@ -715,12 +710,6 @@ const Sidebar = ({ onClose }) => {
               }
               onClick={() => {
                 onClose?.();
-                // Prevent any scrolling behavior when clicking
-                setTimeout(() => {
-                  if (document.activeElement instanceof HTMLElement) {
-                    document.activeElement.blur();
-                  }
-                }, 10);
               }}
             >
               <item.icon
@@ -826,7 +815,7 @@ const Sidebar = ({ onClose }) => {
       </div>
 
       {/* Add padding to main content when sidebar is open on desktop */}
-      <div className="pt-16 md:pt-16 lg:pt-0 lg:pl-64"></div>
+    <div className="min-h-screen lg:pl-64"></div>
     </>
   );
 };

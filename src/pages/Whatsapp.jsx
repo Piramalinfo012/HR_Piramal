@@ -4,7 +4,6 @@ import useDataStore from "../store/dataStore";
 import toast from "react-hot-toast";
 
 const Whatsapp = () => {
-    const { addIndent } = useDataStore();
 
     const [activeTab, setActiveTab] = useState("pending");
 
@@ -41,14 +40,80 @@ const Whatsapp = () => {
     const [tableLoading, setTableLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
+    const { fmsData: globalFmsData, isLoading: storeLoading, refreshData } = useDataStore();
+
     useEffect(() => {
-        const loadData = async () => {
-            setTableLoading(true);
-            await fetchIndentData();
-            setTableLoading(false);
-        };
-        loadData();
-    }, []);
+        setTableLoading(storeLoading);
+    }, [storeLoading]);
+
+    useEffect(() => {
+        if (!globalFmsData || globalFmsData.length < 7) {
+            setIndentData([]);
+            setHistoryIndentData([]);
+            return;
+        }
+
+        const resultData = globalFmsData;
+        const headerRowIndex = 5;
+        const headers = resultData[headerRowIndex].map((h) => h?.toString().trim());
+        const dataRows = resultData.slice(headerRowIndex + 1);
+
+        const timestampIndex = headers.indexOf("Timestamp");
+        const postIndex = headers.indexOf("Post");
+        const genderIndex = headers.indexOf("Gender");
+        const departmentIndex = headers.indexOf("Department");
+        const preferIndex = headers.indexOf("Prefer");
+        const noOFPostIndex = headers.indexOf("Number Of Posts");
+        const completionDateIndex = headers.indexOf("Completion Date");
+        const experienceIndex = headers.indexOf("Experience");
+        const salaryIndex = headers.indexOf("Salary");
+        const officeTimingIndex = headers.indexOf("Office Timing");
+        const residenceIndex = headers.indexOf("Residence");
+
+        const processedData = dataRows.map((row) => {
+            const getVal = (idx, fallbackIdx) => {
+                const val = row[idx];
+                if (val !== undefined && val !== null && val.toString().trim() !== "") return val;
+                const fallbackVal = row[fallbackIdx];
+                if (fallbackVal !== undefined && fallbackVal !== null && fallbackVal.toString().trim() !== "") return fallbackVal;
+                return "";
+            };
+
+            return {
+                timestamp: row[timestampIndex],
+                indentNumber: row[4] || "",
+                indenterName: row[5] || "",
+                post: getVal(postIndex, 6),
+                gender: getVal(genderIndex, 11),
+                department: getVal(departmentIndex, 12),
+                prefer: row[preferIndex],
+                noOfPost: row[noOFPostIndex],
+                completionDate: row[completionDateIndex],
+                experience: row[experienceIndex],
+                salary: row[salaryIndex],
+                officeTiming: row[officeTimingIndex],
+                residence: row[residenceIndex],
+                columnAE: row[30],
+                columnAF: row[31],
+            };
+        });
+
+        const pendingTasks = processedData.filter((item) => {
+            const hasAE = item.columnAE !== undefined && item.columnAE !== null && item.columnAE.toString().trim() !== "";
+            const hasAF = item.columnAF !== undefined && item.columnAF !== null && item.columnAF.toString().trim() !== "";
+            return hasAE && !hasAF;
+        });
+
+        const historyTasks = processedData.filter((item) => {
+            const hasAE = item.columnAE !== undefined && item.columnAE !== null && item.columnAE.toString().trim() !== "";
+            const hasAF = item.columnAF !== undefined && item.columnAF !== null && item.columnAF.toString().trim() !== "";
+            return hasAE && hasAF;
+        });
+
+        setHistoryIndentData(historyTasks);
+        setIndentData(pendingTasks);
+
+    }, [globalFmsData]);
 
     const getCurrentTimestamp = () => {
         const now = new Date();
@@ -62,95 +127,7 @@ const Whatsapp = () => {
         return timestamp;
     };
 
-    const fetchIndentData = async () => {
-        try {
-            const response = await fetch(
-                `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
-            );
-
-            const result = await response.json();
-
-            if (result.success && result.data && result.data.length >= 7) {
-                // Find headers dynamically or use index 5 (standard for FMS)
-                const headerRowIndex = 5;
-                const headers = result.data[headerRowIndex].map((h) => h?.toString().trim());
-
-                // Get data starting from row after headers
-                const dataRows = result.data.slice(headerRowIndex + 1);
-
-                // Map column indices (standard for FMS sheet)
-                const timestampIndex = headers.indexOf("Timestamp");
-                const postIndex = headers.indexOf("Post");
-                const genderIndex = headers.indexOf("Gender");
-                const departmentIndex = headers.indexOf("Department");
-                const preferIndex = headers.indexOf("Prefer");
-                const noOFPostIndex = headers.indexOf("Number Of Posts");
-                const completionDateIndex = headers.indexOf("Completion Date");
-                const experienceIndex = headers.indexOf("Experience");
-                const salaryIndex = headers.indexOf("Salary");
-                const officeTimingIndex = headers.indexOf("Office Timing");
-                const residenceIndex = headers.indexOf("Residence");
-
-                // Process the data
-                const processedData = dataRows.map((row) => {
-                    const getVal = (idx, fallbackIdx) => {
-                        const val = row[idx];
-                        if (val !== undefined && val !== null && val.toString().trim() !== "") return val;
-                        // Only use fallback if initial index failed
-                        const fallbackVal = row[fallbackIdx];
-                        if (fallbackVal !== undefined && fallbackVal !== null && fallbackVal.toString().trim() !== "") return fallbackVal;
-                        return "";
-                    };
-
-                    return {
-                        timestamp: row[timestampIndex],
-                        indentNumber: row[4] || "", // Column E
-                        indenterName: row[5] || "", // Column F
-                        post: getVal(postIndex, 6), // Column G fallback
-                        gender: getVal(genderIndex, 11), // Column L fallback
-                        department: getVal(departmentIndex, 12), // Column M fallback
-                        prefer: row[preferIndex],
-                        noOfPost: row[noOFPostIndex],
-                        completionDate: row[completionDateIndex],
-                        experience: row[experienceIndex],
-                        salary: row[salaryIndex],
-                        officeTiming: row[officeTimingIndex],
-                        residence: row[residenceIndex],
-
-                        // User requested filtering: AE (index 30) and AF (index 31)
-                        columnAE: row[30],
-                        columnAF: row[31],
-                    };
-                });
-
-                // Pending: AE not null and AF null
-                const pendingTasks = processedData.filter((item) => {
-                    const hasAE = item.columnAE !== undefined && item.columnAE !== null && item.columnAE.toString().trim() !== "";
-                    const hasAF = item.columnAF !== undefined && item.columnAF !== null && item.columnAF.toString().trim() !== "";
-                    return hasAE && !hasAF;
-                });
-
-                // History: AE not null and AF not null
-                const historyTasks = processedData.filter((item) => {
-                    const hasAE = item.columnAE !== undefined && item.columnAE !== null && item.columnAE.toString().trim() !== "";
-                    const hasAF = item.columnAF !== undefined && item.columnAF !== null && item.columnAF.toString().trim() !== "";
-                    return hasAE && hasAF;
-                });
-
-                setHistoryIndentData(historyTasks);
-                setIndentData(pendingTasks);
-
-                return {
-                    success: true,
-                    data: processedData,
-                };
-            }
-            return { success: false, error: "No data found" };
-        } catch (error) {
-            console.error("Error fetching data:", error);
-            return { success: false, error: error.message };
-        }
-    };
+    // fetchIndentData replaced by useEffect reacting to global store
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -237,7 +214,8 @@ const Whatsapp = () => {
                     screenshotUrl: "",
                 }));
                 setShowModal(false);
-                await fetchIndentData();
+                setShowModal(false);
+                refreshData();
             } else {
                 toast.error("Failed to submit: " + (result.error || "Unknown error"));
             }

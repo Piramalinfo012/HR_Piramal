@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import useDataStore from "../store/dataStore";
 import { Search, Clock, Plus, X, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -48,76 +49,65 @@ const VerificationBeforeInterview = () => {
         indentNumber: "",
     });
 
+    const {
+        candidateSelectionData,
+        fmsData: globalFmsData,
+        isLoading: storeLoading,
+        refreshData
+    } = useDataStore();
+
     useEffect(() => {
-        loadData();
-    }, []);
+        setTableLoading(storeLoading);
+    }, [storeLoading]);
 
-    const loadData = async () => {
-        setTableLoading(true);
-        await Promise.all([fetchCandidateData(), fetchFmsData()]);
-        setTableLoading(false);
-    };
+    // FMS Data Effect
+    useEffect(() => {
+        if (!globalFmsData || globalFmsData.length < 2) return;
+        const dataRows = globalFmsData.slice(1);
 
-    const fetchFmsData = async () => {
-        try {
-            const response = await fetch(
-                `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Canidate_Selection&action=fetch`
-            );
-            const result = await response.json();
+        const openRows = dataRows.filter(row => {
+            const status = (row[1] || "").toString().toUpperCase();
+            return status === "OPEN";
+        });
 
-            if (result.success && result.data) {
-                const dataRows = result.data.slice(1);
+        const options = openRows.map(row => (row[4] || "").toString()).filter(val => val);
+        const mapping = {};
+        openRows.forEach(row => {
+            const id = (row[4] || "").toString();
+            if (id) mapping[id] = (row[6] || "").toString();
+        });
 
-                const openRows = dataRows.filter(row => {
-                    const status = (row[1] || "").toString().toUpperCase();
-                    return status === "OPEN";
-                });
+        setIndentOptions([...new Set(options)]);
+        setFmsDataMap(mapping);
 
-                const options = openRows.map(row => (row[4] || "").toString()).filter(val => val);
-                const mapping = {};
-                openRows.forEach(row => {
-                    const id = (row[4] || "").toString();
-                    if (id) mapping[id] = (row[6] || "").toString();
-                });
+    }, [globalFmsData]);
 
-                setIndentOptions([...new Set(options)]);
-                setFmsDataMap(mapping);
-            }
-        } catch (error) {
-            console.error("Error fetching FMS data:", error);
+    // Candidate Data Effect
+    useEffect(() => {
+        if (!candidateSelectionData || candidateSelectionData.length < 8) {
+            setCandidateData([]);
+            return;
         }
-    };
 
-    const fetchCandidateData = async () => {
-        try {
-            const response = await fetch(
-                `${FETCH_URL}?sheet=Canidate_Selection&action=fetch`
-            );
-            const result = await response.json();
+        const dataRows = candidateSelectionData.slice(7);
+        const processedData = dataRows.map((row, idx) => ({
+            rowIndex: idx + 8,
+            id: row[1], // Column B
+            department: row[2], // Column C
+            designation: row[3], // Column D
+            candidateName: row[4], // Column E
+            contactNo: row[5], // Column F
+            mail: row[6], // Column G
+            indentId: row[41], // Column A (Indent Number as per user)
+            trigger_Z: row[25], // Column Z (Previous Step Marker)
+            statusMarker_AA: row[26], // Column AA (This Step Marker)
+        }));
 
-            if (result.success && result.data) {
-                const dataRows = result.data.slice(7);
+        setCandidateData(processedData);
 
-                const processedData = dataRows.map((row, idx) => ({
-                    rowIndex: idx + 8,
-                    id: row[1], // Column B
-                    department: row[2], // Column C
-                    designation: row[3], // Column D
-                    candidateName: row[4], // Column E
-                    contactNo: row[5], // Column F
-                    mail: row[6], // Column G
-                    indentId: row[41], // Column A (Indent Number as per user)
-                    trigger_Z: row[25], // Column Z (Previous Step Marker)
-                    statusMarker_AA: row[26], // Column AA (This Step Marker)
-                }));
+    }, [candidateSelectionData]);
 
-                console.log("Processed Verification Candidates from appsheet db:", processedData);
-                setCandidateData(processedData);
-            }
-        } catch (error) {
-            console.error("Error fetching candidate data from appsheet db:", error);
-        }
-    };
+    // fetchFmsData and fetchCandidateData replaced by effects
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -248,7 +238,7 @@ const VerificationBeforeInterview = () => {
                     resumeUrl: "",
                     indentNumber: "",
                 });
-                await fetchCandidateData();
+                refreshData();
             } else {
                 toast.error("Submission failed: " + result.error);
             }
@@ -279,7 +269,7 @@ const VerificationBeforeInterview = () => {
             return;
         }
 
-        if (!window.confirm(`Are you sure you want to mark as ${status}?`)) return;
+        // if (!window.confirm(`Are you sure you want to mark as ${status}?`)) return;
 
         setActionSubmitting(true);
         try {
@@ -326,7 +316,7 @@ const VerificationBeforeInterview = () => {
             if (res1.success && res2.success) {
                 toast.success(`Action ${status} submitted successfully!`);
                 setShowActionModal(false);
-                await fetchCandidateData();
+                refreshData();
             } else {
                 toast.error("Action submission failed");
             }

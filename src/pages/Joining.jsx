@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import useDataStore from "../store/dataStore";
 import { Search, Clock, CheckCircle, X, Upload } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -7,7 +8,7 @@ const Joining = () => {
   const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL; // For fetching data
   const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec"; // For form submission
 
-  const [candidateData, setCandidateData] = useState([]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
   const [desigFilter, setDesigFilter] = useState("");
@@ -47,119 +48,55 @@ const Joining = () => {
   });
   const [uploading, setUploading] = useState(false);
 
+  const { joiningFmsData, isLoading: storeLoading, refreshData } = useDataStore();
+  const [candidateData, setCandidateData] = useState([]);
+
+  // Process data when store updates
   useEffect(() => {
-    fetchCandidateData();
-  }, []);
-
-  // ============================================
-  // EXISTING FETCH LOGIC - NO CHANGE
-  // ============================================
-const fetchCandidateData = async () => {
-  setTableLoading(true);
-  try {
-    const response = await fetch(
-      `${JOINING_SUBMIT_URL}?sheet=JOINING_FMS&action=fetch`
-    );
-
-    if (!response.ok) {
-      // Handle HTTP errors
-      console.error(`HTTP error! status: ${response.status}`);
+    if (!joiningFmsData || joiningFmsData.length < 8) {
       setCandidateData([]);
       return;
     }
 
-    const result = await response.json();
+    const dataRows = joiningFmsData.slice(7);
 
-    // Check if the result contains the specific getDataRange error FIRST
-    if (result && result.error && typeof result.error === 'string' &&
-        result.error.includes("getDataRange")) {
-      console.warn("Sheet JOINING_FMS does not exist or is not accessible:", result.error);
-      setCandidateData([]);
-      return;
-    }
-
-    if (!result || !result.success || !result.data) {
-      console.error("Invalid response format:", result);
-      throw new Error(result?.error || "Invalid response format from server");
-    }
-
-    // Check if there's sufficient data (at least 8 rows to slice from index 7)
-    if (!result.data || result.data.length < 8) {
-      console.warn("Insufficient data in JOINING_FMS sheet, setting empty data");
-      setCandidateData([]);
-      return;
-    }
-
-    // Actual data row 8 se
-    const dataRows = result.data.slice(7);
-
-    // Check if dataRows is empty after slicing
-    if (!dataRows || dataRows.length === 0) {
-      console.warn("No data rows found after slicing, setting empty data");
-      setCandidateData([]);
-      return;
-    }
-
-    const processedData = dataRows
+    const processed = dataRows
       .filter(row => {
-        // Check if row is null, undefined, or empty
-        if (!row) {
-          return false; // Skip null/undefined rows
-        }
-
-        // Check if row has enough columns (at least 9 for column I at index 8)
-        if (row.length < 9) {
-          return false; // Skip rows that don't have enough columns
-        }
-
-        // Check if the row is completely empty (all elements are empty/falsy)
+        if (!row || row.length < 9) return false;
         const isRowEmpty = row.every(cell => !cell || cell.toString().trim() === '');
-        if (isRowEmpty) {
-          return false; // Skip completely empty rows
-        }
-
-        // Column I (index 8)
+        if (isRowEmpty) return false;
         const status = (row[8] || "").toString().trim().toUpperCase();
-
-        // ❌ DONE wale nahi chahiye
         return status !== "DONE";
       })
       .map((row, idx) => ({
         rowIndex: idx + 8,
-        id: row[5] || "",       // Column A - ID
-        department: row[1] || "", // Column B - Department
-        designation: row[2] || "", // Column C - Designation
-        candidateName: row[6] || "", // Column D - Candidate Name
-        joiningPlace: row[13] || "", // Column E - Joining Place
-        salary: row[14] || "", // Column F - Salary
-        aadharFrontsidephoto: row[15] || "", // Column G - Aadhar Frontside photo
-        aadharBacksidephoto: row[16] || "", // Column H - Aadhar Backside photo
-        panCardphoto: row[17] || "", // Column I - PAN Card photo
-        bankAccountphoto: row[18] || "", // Column J - Bank Account photo
-        contactNo: row[4] || "", // Column E - Contact No
-        mail: row[5] || "",     // Column F - Email
-        indentId: row[6] || "", // Column G - Indent ID
+        id: row[5] || "",
+        department: row[1] || "",
+        designation: row[2] || "",
+        candidateName: row[6] || "",
+        joiningPlace: row[13] || "",
+        salary: row[14] || "",
+        aadharFrontsidephoto: row[15] || "",
+        aadharBacksidephoto: row[16] || "",
+        panCardphoto: row[17] || "",
+        bankAccountphoto: row[18] || "",
+        contactNo: row[4] || "",
+        mail: row[5] || "",
+        indentId: row[6] || "",
       }));
 
-    setCandidateData(processedData);
-  } catch (error) {
-    console.error("Fetch error:", error);
-    // Specifically handle the getDataRange error
-    if (error.message && (error.message.includes("getDataRange") ||
-        error.message.includes("Cannot read properties of null"))) {
-      // If it's the specific getDataRange error, set empty data silently
-      setCandidateData([]);
-    } else if (error.message && (error.message.includes("sheet") || error.message.includes("not found"))) {
-      // If it's a sheet not found error, set empty data
-      setCandidateData([]);
-    } else {
-      // For other errors, show toast
-      toast.error("Failed to fetch candidate data: " + error.message);
-    }
-  } finally {
-    setTableLoading(false);
-  }
-};
+    setCandidateData(processed);
+  }, [joiningFmsData]);
+
+  // Sync local loading state with store loading (optional, but good for UI)
+  useEffect(() => {
+    setTableLoading(storeLoading);
+  }, [storeLoading]);
+
+  // ============================================
+  // EXISTING FETCH LOGIC - NO CHANGE
+  // ============================================
+  // Removed local fetchCandidateData in favor of store logic
 
 
   const filteredData = candidateData.filter((item) => {
@@ -368,7 +305,8 @@ const fetchCandidateData = async () => {
       if (result.success) {
         toast.success("Joining details submitted successfully!");
         handleCloseModal();
-        fetchCandidateData(); // Refresh the table using OLD fetch logic
+        handleCloseModal();
+        refreshData(); // Refresh via store
       } else {
         toast.error(result.error || "Failed to submit joining details");
       }

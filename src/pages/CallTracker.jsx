@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import useDataStore from "../store/dataStore";
 import { Search, Clock, CheckCircle, X, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -28,97 +29,81 @@ const CallTracker = () => {
     stage: ""
   });
 
+
+
   const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+  const { fmsData: globalFmsData, masterData: globalMasterData, dataResponseData: globalHistoryData, isLoading: storeLoading, refreshData } = useDataStore();
 
-  const loadInitialData = async () => {
-    setTableLoading(true);
-    await Promise.all([fetchFmsData(), fetchMasterData(), fetchHistoryData()]);
+  useEffect(() => {
+    setTableLoading(storeLoading);
+  }, [storeLoading]);
+
+  // Master Data Effect
+  useEffect(() => {
+    if (!globalMasterData || globalMasterData.length < 2) {
+      setStatusOptions([]);
+      return;
+    }
+    const options = [...new Set(globalMasterData.slice(1).map(row => row[4]).filter(val => val && val.trim()))];
+    setStatusOptions(options);
+  }, [globalMasterData]);
+
+  // FMS Data Effect
+  useEffect(() => {
+    if (!globalFmsData || globalFmsData.length < 9) {
+      setCandidateData([]);
+      setUniqueStages([]); // Reset if no data?
+      return;
+    }
+    const dataRows = globalFmsData.slice(8); // FMS starts from row 9
+    const processed = dataRows.map((row, idx) => ({
+      rowIndex: idx + 9,
+      indentNumber: row[4],     // Column E
+      candidateName: row[5],    // Column F
+      department: row[12],      // Column M
+      post: row[6],             // Column G
+      columnAL: row[37],        // Index 37 (Trigger)
+      columnAM: row[38],        // Index 38 (Marker)
+      gender: row[11],
+      salary: row[7],
+      experience: row[16]
+    })).filter(item => item.indentNumber);
+
+    setCandidateData(processed);
     setUniqueStages(getUniqueStages());
-    setTableLoading(false);
-  };
+  }, [globalFmsData]);
+
+  // History Data Effect
+  useEffect(() => {
+    if (!globalHistoryData || globalHistoryData.length < 2) {
+      setHistoryData([]);
+      return;
+    }
+    const historyRows = globalHistoryData.slice(1).filter(row => row[1] === "CT-1");
+    const processedHistory = historyRows.map(row => ({
+      indentNumber: row[0],
+      timestamp: row[2],
+      status: row[3],
+      customerSale: row[13], // Column N
+      nextFollowUp: row[14]  // Column O
+    }));
+    setHistoryData(processedHistory);
+  }, [globalHistoryData]);
 
   const getUniqueStages = () => {
-    // Define the unique stages from the provided list
     const allStages = [
-      "call back", "intrested", "intrested", "interested", "unavailable", "disconnected", 
-      "send resume", "not connected", "call not received", "wrong no.", "wrong no", 
-      "not receive", "not received", "not intrested", "not intrested", "not interested", 
-      "send resume", "busy", "not answer", "switch off", "disconected call", "disconnect", 
-      "freshers", "no", "not selected", "interview lineup", "bakup", "hold", "selected", 
-      "no exp.", "no experience", "NR", "NOT CONN.", "INT.", "int.", "NC", "in.", 
-      "intrestred", "Call connected", "Call not connected", "Connected", "Connected on call", 
-      "Busy", "Wrong number", "Invalid number", "Cv share kiya hi", "Working hi", 
+      "call back", "intrested", "intrested", "interested", "unavailable", "disconnected",
+      "send resume", "not connected", "call not received", "wrong no.", "wrong no",
+      "not receive", "not received", "not intrested", "not intrested", "not interested",
+      "send resume", "busy", "not answer", "switch off", "disconected call", "disconnect",
+      "freshers", "no", "not selected", "interview lineup", "bakup", "hold", "selected",
+      "no exp.", "no experience", "NR", "NOT CONN.", "INT.", "int.", "NC", "in.",
+      "intrestred", "Call connected", "Call not connected", "Connected", "Connected on call",
+      "Busy", "Wrong number", "Invalid number", "Cv share kiya hi", "Working hi",
       "Apna job", "Chattisgarh", "selected"
     ];
-    
-    // Return unique values only
     return [...new Set(allStages)];
-  };
-
-  const fetchMasterData = async () => {
-    try {
-      const response = await fetch(`${FETCH_URL}?sheet=Master&action=fetch`);
-      const result = await response.json();
-      if (result.success && result.data) {
-        // Fetch from Column E (index 4)
-        const options = [...new Set(result.data.slice(1).map(row => row[4]).filter(val => val && val.trim()))];
-        setStatusOptions(options);
-      }
-    } catch (error) {
-      console.error("Error fetching master data:", error);
-    }
-  };
-
-  const fetchFmsData = async () => {
-    try {
-      const response = await fetch(`${FETCH_URL}?sheet=FMS&action=fetch`);
-      const result = await response.json();
-      if (result.success && result.data) {
-        const dataRows = result.data.slice(8); // Data starts from row 9
-        const processed = dataRows.map((row, idx) => ({
-          rowIndex: idx + 9,
-          indentNumber: row[4],     // Column E
-          candidateName: row[5],    // Column F
-          department: row[12],      // Column M
-          post: row[6],             // Column G
-          columnAL: row[37],        // Index 37 (Trigger)
-          columnAM: row[38],        // Index 38 (Marker)
-          // Additional fields from your previous standardizations
-          gender: row[11],
-          salary: row[7],
-          experience: row[16]
-        })).filter(item => item.indentNumber);
-        setCandidateData(processed);
-      }
-    } catch (error) {
-      console.error("Error fetching FMS data:", error);
-      toast.error("Failed to fetch data");
-    }
-  };
-
-  const fetchHistoryData = async () => {
-    try {
-      const response = await fetch(`${FETCH_URL}?sheet=Data Resposnse&action=fetch`);
-      const result = await response.json();
-      if (result.success && result.data) {
-        // Filter for CT-1 step code (Column B index 1)
-        const historyRows = result.data.slice(1).filter(row => row[1] === "CT-1");
-        const processedHistory = historyRows.map(row => ({
-          indentNumber: row[0],
-          timestamp: row[2],
-          status: row[3],
-          customerSale: row[13], // Column N
-          nextFollowUp: row[14]  // Column O
-        }));
-        setHistoryData(processedHistory);
-      }
-    } catch (error) {
-      console.error("Error fetching history data:", error);
-    }
   };
 
   const handleInputChange = (e) => {
@@ -187,8 +172,8 @@ const CallTracker = () => {
           sheetName: "FMS",
           action: "updateCell",
           rowIndex: selectedItem.rowIndex,
-          columnIndex: 39, // Column AM is 39th column (1-indexed)
-          value: fullTimestamp
+          // columnIndex: 39, // Column AM is 39th column (1-indexed)
+          // value: fullTimestamp
         })
       });
 
@@ -204,8 +189,7 @@ const CallTracker = () => {
         }
 
         setShowModal(false);
-        fetchFmsData();
-        fetchHistoryData();
+        refreshData();
       } else {
         toast.error("Submission failed");
       }

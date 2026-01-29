@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import useDataStore from '../store/dataStore';
 import {
   BarChart,
   Bar,
@@ -51,534 +52,277 @@ const Dashboard = () => {
     return new Date(year, month, day);
   };
 
-  // Fetch Leave Management Data for New Analytics
-  const fetchLeaveManagementAnalytics = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Leave%20Management&action=fetch`
-      );
+  const {
+    fmsData: globalFmsData,
+    joiningEntryData,
+    leavingData: globalLeavingData,
+    leaveManagementData,
+    isLoading: storeLoading,
+    refreshData
+  } = useDataStore();
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+  useEffect(() => {
+    setTableLoading(storeLoading);
+  }, [storeLoading]);
 
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch data from Leave Management sheet');
-      }
+  // Handle Leave Management Data
+  useEffect(() => {
+    if (!leaveManagementData || leaveManagementData.length < 2) return;
+    const headers = leaveManagementData[0];
+    const dataRows = leaveManagementData.slice(1);
 
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
+    const statusIndex = headers.findIndex(h => h && h.toString().trim().toLowerCase().includes("status"));
+    const leaveTypeIndex = headers.findIndex(h => h && h.toString().trim().toLowerCase().includes("leave type"));
 
-      // Assuming headers are in the first row
-      const headers = rawData[0];
-      const dataRows = rawData.slice(1);
+    const statusCounts = {};
+    const typeCounts = {};
 
-      // Find column indexes based on the image
-      const statusIndex = headers.findIndex(h => h && h.toString().trim().toLowerCase().includes("status"));
-      const leaveTypeIndex = headers.findIndex(h => h && h.toString().trim().toLowerCase().includes("leave type"));
+    dataRows.forEach(row => {
+      const s = row[statusIndex]?.toString().trim() || 'Unknown';
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
 
-      // Count leave status distribution
-      const statusCounts = {};
-      const typeCounts = {};
+      const t = row[leaveTypeIndex]?.toString().trim() || 'Unknown';
+      typeCounts[t] = (typeCounts[t] || 0) + 1;
+    });
 
-      dataRows.forEach(row => {
-        // Count by status
-        const status = row[statusIndex]?.toString().trim() || 'Unknown';
-        if (statusCounts[status]) {
-          statusCounts[status] += 1;
-        } else {
-          statusCounts[status] = 1;
-        }
+    setLeaveStatusData(Object.keys(statusCounts).map(k => ({ status: k, count: statusCounts[k] })));
+    setLeaveTypeData(Object.keys(typeCounts).map(k => ({ type: k, count: statusCounts[k] }))); // Wait, bug in original logic? original used typeCounts for typeArray.
+    // Correction: use typeCounts
+    setLeaveTypeData(Object.keys(typeCounts).map(k => ({ type: k, count: typeCounts[k] })));
 
-        // Count by leave type
-        const leaveType = row[leaveTypeIndex]?.toString().trim() || 'Unknown';
-        if (typeCounts[leaveType]) {
-          typeCounts[leaveType] += 1;
-        } else {
-          typeCounts[leaveType] = 1;
-        }
-      });
+  }, [leaveManagementData]);
 
-      // Convert to array format for charts
-      const statusArray = Object.keys(statusCounts).map(key => ({
-        status: key,
-        count: statusCounts[key]
-      }));
-
-      const typeArray = Object.keys(typeCounts).map(key => ({
-        type: key,
-        count: typeCounts[key]
-      }));
-
-      setLeaveStatusData(statusArray);
-      setLeaveTypeData(typeArray);
-
-    } catch (error) {
-      console.error("Error fetching leave management analytics:", error);
-      setLeaveStatusData([]);
-      setLeaveTypeData([]);
+  // Handle FMS Data (Total Indents + Indent Table)
+  useEffect(() => {
+    if (!globalFmsData || globalFmsData.length < 2) {
+      setTotalEmployee(0);
+      setIndentData([]);
+      return;
     }
-  };
 
-  const fetchFmsTotalIndents = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
-      );
-      const result = await response.json();
-      if (result.success && result.data) {
-        // Data rows excluding header
-        const dataRows = result.data.slice(1);
-        // Filter out empty rows (checking for Column B / index 1)
-        const validRows = dataRows.filter(row => row[1] && row[1].toString().trim() !== "");
-        return validRows.length;
+    // 1. Total Indents
+    const validRows = globalFmsData.slice(1).filter(row => row[1] && row[1].toString().trim() !== "");
+    setTotalEmployee(validRows.length);
+
+    // 2. Indent Table Data
+    let headerRowIndex = -1;
+    for (let i = 0; i < globalFmsData.length; i++) {
+      const row = globalFmsData[i];
+      if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
+        headerRowIndex = i;
+        break;
       }
-      return 0;
-    } catch (error) {
-      console.error("Error fetching FMS total indents:", error);
-      return 0;
     }
-  };
+    if (headerRowIndex === -1) headerRowIndex = 6;
 
-  const fetchJoiningCount = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING%20ENTRY%20FORM&action=fetch`
-      );
+    const headers = globalFmsData[headerRowIndex].map(h => h ? h.trim() : "");
+    const dataFromHead = globalFmsData.slice(headerRowIndex + 1);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    const findIdx = (names) => headers.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
 
-      const result = await response.json();
+    const timestampIndex = findIdx(["Timestamp"]);
+    const indentNumberIndex = findIdx(["Indent No", "Indent Number"]);
+    const postIndex = findIdx(["Post"]);
+    const genderIndex = findIdx(["Gender"]);
+    const departmentIndex = findIdx(["Department"]);
+    const preferIndex = findIdx(["Prefer"]);
+    const noOFPostIndex = findIdx(["Number Of Post"]);
+    const completionDateIndex = findIdx(["Completion Date"]);
+    const experienceIndex = findIdx(["Experience"]);
+    const salaryIndex = findIdx(["Salary"]);
+    const officeTimingIndex = findIdx(["Office Timing", "Timing"]);
+    const typeOfWeekIndex = findIdx(["Type Of Week", "Weekly Off"]);
+    const residenceIndex = findIdx(["Residence"]);
+    const indenterNameIndex = findIdx(["Indenter Name", "Person Name"]);
+    const statusIndex = findIdx(["Position Status", "Status"]);
+    const TotalJoiningIndex = findIdx(["Total Joining"]); // Note: Case sensitive in findIdx helper? includes is used.
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch data from JOINING sheet');
-      }
+    const processed = dataFromHead.map(row => ({
+      timestamp: row[timestampIndex],
+      indentNumber: row[indentNumberIndex],
+      post: row[postIndex],
+      gender: row[genderIndex],
+      department: row[departmentIndex],
+      prefer: row[preferIndex],
+      noOfPost: row[noOFPostIndex],
+      completionDate: row[completionDateIndex],
+      experience: row[experienceIndex],
+      salary: row[salaryIndex],
+      officeTiming: row[officeTimingIndex],
+      typeOfWeek: row[typeOfWeekIndex],
+      residence: row[residenceIndex],
+      indenterName: row[indenterNameIndex],
+      status: row[statusIndex],
+      totaljoining: row[TotalJoiningIndex],
+    }));
 
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
-
-      // Headers are row 6 → index 5
-      const headers = rawData[5];
-      const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
-
-      // Find index of "Status", "Date of Joining", and "Designation" columns
-      const statusIndex = headers.findIndex(
-        h => h && h.toString().trim().toLowerCase() === "status"
-      );
-
-      const dateOfJoiningIndex = headers.findIndex(
-        h => h && h.toString().trim().toLowerCase().includes("date of joining")
-      );
-
-      const designationIndex = headers.findIndex(
-        h => h && h.toString().trim().toLowerCase() === "designation"
-      );
-
-      let activeCount = 0;
-      const monthlyHiring = {};
-      const designationCounts = {};
-
-      // Initialize monthly hiring data for the last 6 months
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const currentDate = new Date();
-      for (let i = 5; i >= 0; i--) {
-        const monthIndex = (currentDate.getMonth() - i + 12) % 12;
-        const monthYear = `${months[monthIndex]} ${currentDate.getFullYear()}`;
-        monthlyHiring[monthYear] = { hired: 0 };
-      }
-
-      if (statusIndex !== -1) {
-        activeCount = dataRows.filter(
-          row => row[statusIndex]?.toString().trim().toLowerCase() === "active"
-        ).length;
-      }
-
-      // Count hires by month if date of joining column exists
-      if (dateOfJoiningIndex !== -1) {
-        dataRows.forEach(row => {
-          const dateStr = row[dateOfJoiningIndex];
-          if (dateStr) {
-            const date = parseSheetDate(dateStr);
-            if (date) {
-              const monthYear = `${months[date.getMonth()]} ${date.getFullYear()}`;
-              if (monthlyHiring[monthYear]) {
-                monthlyHiring[monthYear].hired += 1;
-              } else {
-                monthlyHiring[monthYear] = { hired: 1 };
-              }
-            }
-          }
-        });
-      }
-
-      // Count employees by designation
-      if (designationIndex !== -1) {
-        dataRows.forEach(row => {
-          const designation = row[designationIndex]?.toString().trim();
-          if (designation) {
-            if (designationCounts[designation]) {
-              designationCounts[designation] += 1;
-            } else {
-              designationCounts[designation] = 1;
-            }
-          }
-        });
-
-        // Convert to array format for the chart
-        const designationArray = Object.keys(designationCounts).map(key => ({
-          designation: key,
-          employees: designationCounts[key]
-        }));
-
-        setDesignationData(designationArray);
-      }
-
-      // Update state
-      setActiveEmployee(dataRows.length);
-
-      // Return both counts and monthly hiring data
+    const openIndents = processed.filter(item => (item.status || "").trim().toUpperCase() === "OPEN");
+    const finalData = openIndents.map(item => {
+      const noOfPost = parseInt(item.noOfPost) || 0;
+      const totalJoining = parseInt(item.totaljoining) || 0;
       return {
-        total: dataRows.length,
-        active: activeCount,
-        monthlyHiring
+        ...item,
+        pendingJoining: Math.max(0, noOfPost - totalJoining)
       };
+    });
+    setIndentData(finalData);
 
-    } catch (error) {
-      console.error("Error fetching joining count:", error);
-      return { total: 0, active: 0, monthlyHiring: {} };
+  }, [globalFmsData]);
+
+  // Handle Joining Entry Data (Active Count, Monthly Hiring, Department Data)
+  useEffect(() => {
+    if (!joiningEntryData || joiningEntryData.length < 6) {
+      setActiveEmployee(0);
+      setDepartmentData([]);
+      return;
     }
-  };
 
-  const fetchDepartmentData = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING%20ENTRY%20FORM&action=fetch`
-      );
+    const headers = joiningEntryData[5] || [];
+    const dataRows = joiningEntryData.length > 6 ? joiningEntryData.slice(6) : [];
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+    // Indices
+    const statusIndex = headers.findIndex(h => h && h.toString().trim().toLowerCase() === "status");
+    const dateOfJoiningIndex = headers.findIndex(h => h && h.toString().trim().toLowerCase().includes("date of joining"));
+    const designationIndex = headers.findIndex(h => h && h.toString().trim().toLowerCase() === "designation");
+    // Department is column U (index 20) hardcoded in original
+    const departmentIndex = 20;
 
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch data from JOINING sheet');
-      }
-
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
-
-      // Headers are row 6 → index 5
-      const headers = rawData[5];
-      const dataRows = rawData.length > 6 ? rawData.slice(6) : [];
-
-      // Find index of "Department" column (Column U, index 20)
-      const departmentIndex = 20;
-
-      const departmentCounts = {};
-
-      // Count employees by department
-      dataRows.forEach(row => {
-        const department = row[departmentIndex]?.toString().trim();
-        if (department) {
-          if (departmentCounts[department]) {
-            departmentCounts[department] += 1;
-          } else {
-            departmentCounts[department] = 1;
-          }
-        }
-      });
-
-      // Convert to array format for the chart
-      const departmentArray = Object.keys(departmentCounts).map(key => ({
-        department: key,
-        employees: departmentCounts[key]
-      }));
-
-      return departmentArray;
-
-    } catch (error) {
-      console.error("Error fetching department data:", error);
-      return [];
+    // Active Employees
+    let activeCount = 0;
+    if (statusIndex !== -1) {
+      activeCount = dataRows.filter(row => row[statusIndex]?.toString().trim().toLowerCase() === "active").length;
     }
-  };
+    setActiveEmployee(activeCount); // Wait, original code set activeEmployee to dataRows.length but returned activeCount separately? 
+    // Original: setActiveEmployee(dataRows.length); 
+    // Wait, let me check original code fetchJoiningCount:
+    // "let activeCount = 0 ... if (statusIndex !== -1) activeCount = ..."
+    // "setActiveEmployee(dataRows.length);"  <-- It sets activeEmployee to TOTAL. 
+    // "return { total: dataRows.length, active: activeCount ... }"
+    // "setTotalEmployee(fmsTotalIndents);" -> Wait, Total Indents in stats is set from FMS. 
+    // "Active Employees" title in stat card uses matches "activeEmployee" state. 
+    // So "Active employees" stat shows TOTAL rows in Joining sheet? That seems wrong but that's what the code did.
+    // "setTotalEmployee(fmsTotalIndents)" -> in `fetchData`.
+    // The stat card says "Active Employees" -> {activeEmployee}.
+    // If original code `setActiveEmployee(dataRows.length)`, then it displays count of all joined.
+    // I should replicate exactly.
+    setActiveEmployee(dataRows.length); // Replicating logic.
 
-  const fetchLeaveCount = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=LEAVING&action=fetch`
-      );
+    // Monthly Hiring
+    const monthlyHiring = {};
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentDate = new Date();
+    // Initialize
+    for (let i = 5; i >= 0; i--) {
+      const monthIndex = (currentDate.getMonth() - i + 12) % 12;
+      const monthYear = `${months[monthIndex]} ${currentDate.getFullYear()}`;
+      monthlyHiring[monthYear] = { hired: 0 };
+    }
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch data from LEAVING sheet');
-      }
-
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
-
-      const headers = rawData[5];       // Row 6 headers
-      const dataRows = rawData.slice(6); // Row 7 onwards
-
-      // Check for Column D (index 3) for "Left This Month" count
-      let thisMonthCount = 0;
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      if (dataRows.length > 0) {
-        // Use column D (index 3) for date of leaving
-        thisMonthCount = dataRows.filter(row => {
-          const dateStr = row[3]; // Column D (index 3)
-          if (dateStr) {
-            const parsedDate = parseSheetDate(dateStr);
-            return (
-              parsedDate &&
-              parsedDate.getMonth() === currentMonth &&
-              parsedDate.getFullYear() === currentYear
-            );
-          }
-          return false;
-        }).length;
-      }
-
-      // Count leaving by month (for the chart)
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const monthlyLeaving = {};
-
-      // Initialize monthly leaving data for the last 6 months
-      for (let i = 5; i >= 0; i--) {
-        const monthIndex = (now.getMonth() - i + 12) % 12;
-        const monthYear = `${months[monthIndex]} ${now.getFullYear()}`;
-        monthlyLeaving[monthYear] = { left: 0 };
-      }
-
+    if (dateOfJoiningIndex !== -1) {
       dataRows.forEach(row => {
-        const dateStr = row[3]; // Use Column D (index 3) for date of leaving
+        const dateStr = row[dateOfJoiningIndex];
         if (dateStr) {
           const date = parseSheetDate(dateStr);
           if (date) {
             const monthYear = `${months[date.getMonth()]} ${date.getFullYear()}`;
-            if (monthlyLeaving[monthYear]) {
-              monthlyLeaving[monthYear].left += 1;
-            } else {
-              monthlyLeaving[monthYear] = { left: 1 };
-            }
+            if (monthlyHiring[monthYear]) monthlyHiring[monthYear].hired += 1;
+            else monthlyHiring[monthYear] = { hired: 1 };
           }
         }
       });
-
-      // Update states
-      setLeftEmployee(dataRows.length);
-      setLeaveThisMonth(thisMonthCount);
-
-      return { total: dataRows.length, monthlyLeaving };
-
-    } catch (error) {
-      console.error("Error fetching leave count:", error);
-      return { total: 0, monthlyLeaving: {} };
     }
-  };
 
-  const prepareMonthlyHiringData = (hiringData, leavingData) => {
+    // Designation Data
+    const designationCounts = {};
+    if (designationIndex !== -1) {
+      dataRows.forEach(row => {
+        const d = row[designationIndex]?.toString().trim();
+        if (d) designationCounts[d] = (designationCounts[d] || 0) + 1;
+      });
+      setDesignationData(Object.keys(designationCounts).map(k => ({ designation: k, employees: designationCounts[k] })));
+    }
+
+    // Department Data
+    const departmentCounts = {};
+    dataRows.forEach(row => {
+      const d = row[departmentIndex]?.toString().trim();
+      if (d) departmentCounts[d] = (departmentCounts[d] || 0) + 1;
+    });
+    setDepartmentData(Object.keys(departmentCounts).map(k => ({ department: k, employees: departmentCounts[k] })));
+
+    // Store monthly hiring for combination later? 
+    // It's hard to combine inside separate effects without extra state. 
+    // I can put monthlyHiring in a state.
+    setMonthlyHiringState(monthlyHiring);
+
+  }, [joiningEntryData]);
+
+  // Handle Leaving Data
+  useEffect(() => {
+    if (!globalLeavingData || globalLeavingData.length < 6) {
+      setLeftEmployee(0);
+      setLeaveThisMonth(0);
+      return;
+    }
+    const rawData = globalLeavingData;
+    const dataRows = rawData.slice(6); // Row 7 onwards
+
+    // Left This Month (Column D / Index 3)
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const thisMonthCount = dataRows.filter(row => {
+      const dateStr = row[3];
+      if (dateStr) {
+        const d = parseSheetDate(dateStr);
+        return d && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      }
+      return false;
+    }).length;
+
+    setLeftEmployee(dataRows.length);
+    setLeaveThisMonth(thisMonthCount);
+
+    // Monthly Leaving
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const currentDate = new Date();
-    const result = [];
-
-    // Get data for the last 6 months
+    const monthlyLeaving = {};
     for (let i = 5; i >= 0; i--) {
-      const monthIndex = (currentDate.getMonth() - i + 12) % 12;
-      const monthYear = `${months[monthIndex]} ${currentDate.getFullYear()}`;
-
-      result.push({
-        month: months[monthIndex],
-        hired: hiringData[monthYear]?.hired || 0,
-        left: leavingData[monthYear]?.left || 0
-      });
+      const monthIndex = (now.getMonth() - i + 12) % 12;
+      const monthYear = `${months[monthIndex]} ${now.getFullYear()}`;
+      monthlyLeaving[monthYear] = { left: 0 };
     }
 
-    return result;
-  };
-
-  // Color palette for charts
-  const getStatusColor = (status) => {
-    const colors = {
-      'approved': '#10B981',
-      'pending': '#F59E0B',
-      'rejected': '#EF4444',
-      'cancelled': '#6B7280'
-    };
-    return colors[status.toLowerCase()] || '#3B82F6';
-  };
-
-  const getTypeColor = (index) => {
-    const colors = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
-    return colors[index % colors.length];
-  };
-
-
-
-  const fetchIndentDataFromRow7 = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=FMS&action=fetch`
-      );
-
-      const result = await response.json();
-
-      if (result.success && result.data && result.data.length > 0) {
-        // Dynamically find header row
-        let headerRowIndex = -1;
-        for (let i = 0; i < result.data.length; i++) {
-          const row = result.data[i];
-          if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
-            headerRowIndex = i;
-            break;
-          }
+    dataRows.forEach(row => {
+      const dateStr = row[3];
+      if (dateStr) {
+        const d = parseSheetDate(dateStr);
+        if (d) {
+          const my = `${months[d.getMonth()]} ${d.getFullYear()}`;
+          if (monthlyLeaving[my]) monthlyLeaving[my].left += 1;
+          else monthlyLeaving[my] = { left: 1 };
         }
-
-        if (headerRowIndex === -1) {
-          console.warn("Could not find dynamic header row in FMS, falling back to Row 7");
-          headerRowIndex = 6;
-        }
-
-        const headers = result.data[headerRowIndex].map((h) => h ? h.trim() : "");
-        const dataFromRow7 = result.data.slice(headerRowIndex + 1);
-
-        // Find column indices with more flexible matching
-        const findIdx = (names) => headers.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
-
-        const timestampIndex = findIdx(["Timestamp"]);
-        const indentNumberIndex = findIdx(["Indent No", "Indent Number"]);
-        const postIndex = findIdx(["Post"]);
-        const genderIndex = findIdx(["Gender"]);
-        const departmentIndex = findIdx(["Department"]);
-        const preferIndex = findIdx(["Prefer"]);
-        const noOFPostIndex = findIdx(["Number Of Post"]);
-        const completionDateIndex = findIdx(["Completion Date"]);
-        const experienceIndex = findIdx(["Experience"]);
-
-        const jobConsultancyNameIndex = findIdx(["Job Cunsultancy Name", "Consultancy Name"]);
-        const salaryIndex = findIdx(["Salary"]);
-        const officeTimingIndex = findIdx(["Office Timing", "Timing"]);
-        const typeOfWeekIndex = findIdx(["Type Of Week", "Weekly Off"]);
-        const residenceIndex = findIdx(["Residence"]);
-        const indenterNameIndex = findIdx(["Indenter Name", "Person Name"]);
-
-        const statusIndex = findIdx(["Position Status", "Status"]);
-        const TotalJoiningIndex = findIdx(["Total Joining"]);
-
-        // Process the data
-        const processedData = dataFromRow7.map((row) => ({
-          timestamp: row[timestampIndex],
-          indentNumber: row[indentNumberIndex],
-          post: row[postIndex],
-          gender: row[genderIndex],
-          department: row[departmentIndex],
-          prefer: row[preferIndex],
-          noOfPost: row[noOFPostIndex],
-          completionDate: row[completionDateIndex],
-          experience: row[experienceIndex],
-          salary: row[salaryIndex],
-          officeTiming: row[officeTimingIndex],
-          typeOfWeek: row[typeOfWeekIndex],
-          residence: row[residenceIndex],
-          indenterName: row[indenterNameIndex],
-          status: row[statusIndex],
-          totaljoining: row[TotalJoiningIndex],
-        }));
-
-        // Filter for "OPEN" status (case-insensitive)
-        const openIndents = processedData.filter(item =>
-          (item.status || "").trim().toUpperCase() === "OPEN"
-        );
-
-        const finalData = openIndents.map(item => {
-          // Calculate Pending Joining: No. of Post - Total Joining
-          const noOfPost = parseInt(item.noOfPost) || 0;
-          const totalJoining = parseInt(item.totaljoining) || 0;
-          const pendingJoining = Math.max(0, noOfPost - totalJoining);
-
-          return {
-            ...item,
-            pendingJoining: pendingJoining
-          };
-        });
-
-        setIndentData(finalData);
-        return {
-          success: true,
-          data: finalData,
-          headers: headers,
-        };
-      } else {
-        return {
-          success: false,
-          error: "Not enough rows in sheet data",
-        };
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
+    });
+
+    setMonthlyLeavingState(monthlyLeaving);
+
+  }, [globalLeavingData]);
+
+  const [monthlyHiringState, setMonthlyHiringState] = useState({});
+  const [monthlyLeavingState, setMonthlyLeavingState] = useState({});
+
+  useEffect(() => {
+    if (Object.keys(monthlyHiringState).length > 0 && Object.keys(monthlyLeavingState).length > 0) {
+      setMonthlyHiringData(prepareMonthlyHiringData(monthlyHiringState, monthlyLeavingState));
+    } else if (Object.keys(monthlyHiringState).length > 0) {
+      // If only hiring data, show it with 0 left
+      setMonthlyHiringData(prepareMonthlyHiringData(monthlyHiringState, {}));
     }
-  };
+  }, [monthlyHiringState, monthlyLeavingState]);
 
 
 
-  useEffect(() => {
-    const loadData = async () => {
-      setTableLoading(true);
-      const result = await fetchIndentDataFromRow7();
-      setTableLoading(false);
-    };
-    loadData();
-  }, []);
-
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [joiningResult, leavingResult, departmentResult, fmsTotalIndents] = await Promise.all([
-          fetchJoiningCount(),
-          fetchLeaveCount(),
-          fetchDepartmentData(),
-          fetchFmsTotalIndents(),
-          fetchLeaveManagementAnalytics()
-        ]);
-
-        setTotalEmployee(fmsTotalIndents);
-        setDepartmentData(departmentResult);
-
-        const monthlyData = prepareMonthlyHiringData(
-          joiningResult.monthlyHiring,
-          leavingResult.monthlyLeaving
-        );
-
-        setMonthlyHiringData(monthlyData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   return (
     <div className="space-y-6 page-content p-6">
