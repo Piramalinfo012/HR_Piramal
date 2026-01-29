@@ -73,8 +73,8 @@ const Employee = () => {
       columnBF: row[idxBF] || "",
       fatherName: row[11] || "",
       dateOfJoining: row[12] || "",
-      aadharPhoto: row[getIndex("Aadhar Photo") !== -1 ? getIndex("Aadhar Photo") : (idxName + 18)] || "",
-      candidatePhoto: row[getIndex("Candidate Photo") !== -1 ? getIndex("Candidate Photo") : (idxName + 19)] || "",
+      aadharPhoto: row[16] || "",
+      candidatePhoto: row[18] || "",
       status: row[8] || "", // Column I (index 8) - Status column
     }));
 
