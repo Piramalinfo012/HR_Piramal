@@ -422,7 +422,7 @@ const CallTracker = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">What did the Customer Sale</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">What did the Customer Says</label>
                 <textarea
                   name="customerSale"
                   value={formData.customerSale}

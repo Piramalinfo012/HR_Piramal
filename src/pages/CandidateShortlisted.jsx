@@ -19,7 +19,7 @@ const CandidateShortlisted = () => {
     const [fmsDataMap, setFmsDataMap] = useState({});
 
     // Use Store
-    const { candidateSelectionData, fmsData: globalFmsData, isLoading: storeLoading } = useDataStore();
+    const { candidateSelectionData, fmsData: globalFmsData, isLoading: storeLoading, refreshData } = useDataStore();
 
     useEffect(() => {
         if (!candidateSelectionData || candidateSelectionData.length < 2) {
@@ -254,7 +254,7 @@ const CandidateShortlisted = () => {
                     interviewDate: "",
                     resumeUrl: "",
                 });
-                await fetchCandidateData();
+                await refreshData();
             } else {
                 toast.error("Submission failed: " + result.error);
             }
@@ -370,7 +370,7 @@ const CandidateShortlisted = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
+                                    {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th> */}
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -393,7 +393,7 @@ const CandidateShortlisted = () => {
                                                     View
                                                 </button>
                                             </td> */}
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
+                                            {/* <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td> */}
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.department}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.candidateName}</td>
