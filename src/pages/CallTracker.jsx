@@ -117,7 +117,7 @@ const CallTracker = () => {
       customerSale: "",
       status: statusOptions[0] || "",
       nextFollowUp: "",
-      candidateName: item.candidateName || "",
+      candidateName: "",
       contactNumber: "",
       notes: "",
       stage: ""
@@ -165,22 +165,9 @@ const CallTracker = () => {
         })
       });
 
-      // 2. Update Column AM (index 38) in FMS
-      const updateResponse = await fetch(FETCH_URL, {
-        method: "POST",
-        body: new URLSearchParams({
-          sheetName: "FMS",
-          action: "updateCell",
-          rowIndex: selectedItem.rowIndex,
-          // columnIndex: 39, // Column AM is 39th column (1-indexed)
-          // value: fullTimestamp
-        })
-      });
-
       const res1 = await insertResponse.json();
-      const res2 = await updateResponse.json();
 
-      if (res1.success && res2.success) {
+      if (res1.success) {
         toast.success("Call tracked successfully!");
 
         // If status is "Closed", switch to history tab
