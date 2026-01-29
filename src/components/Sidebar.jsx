@@ -38,6 +38,205 @@ import useAuthStore from "../store/authStore";
 import logo from "../assets/logo.png";
 
 
+// ... imports remain the same
+
+// Extracted SidebarContent component
+const SidebarContent = ({
+  onClose,
+  isCollapsed = false,
+  currentLang,
+  user,
+  menuItems,
+  toggleLanguage,
+  showLanguageHint,
+  handleLogout,
+  setIsOpen
+}) => {
+  // We can use navigate inside here if needed, or pass it. 
+  // NavLink uses context so it's fine.
+
+  return (
+    <div
+      className={`flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"
+        } bg-opacity-95 backdrop-blur-md shadow-2xl border-r border-white border-opacity-10`}
+      style={{ background: 'var(--sidebar-gradient)' }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-5 border-b border-white border-opacity-10">
+        {!isCollapsed && (
+          <h1 className="text-xl font-extrabold flex items-center gap-2 text-white tracking-tight">
+            <div className="w-10 h-10 overflow-hidden rounded-lg shadow-sm border border-white border-opacity-10 flex items-center justify-center bg-white">
+              <img src={logo} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200">
+              {currentLang === "en" ? "HR FMS" : "एचआर एफएमएस"}
+            </span>
+            <div className="relative">
+              <button
+                onClick={toggleLanguage}
+                className="p-2 rounded-md hover:bg-indigo-800 transition relative"
+                aria-label="Toggle language"
+                title={
+                  currentLang === "en"
+                    ? "Switch to Hindi (हिंदी में बदलें)"
+                    : "Switch to English (अंग्रेजी में बदलें)"
+                }
+              >
+                <Globe size={20} />
+                <span className="sr-only">
+                  {currentLang === "en" ? "EN" : "हिं"}
+                </span>
+              </button>
+
+              {/* Language indicator */}
+              <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {currentLang === "en" ? "EN" : "हिं"}
+              </div>
+
+              {/* Language hint tooltip */}
+              {showLanguageHint && currentLang === "en" && (
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50">
+                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                    <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-orange-500"></div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div id="google_translate_element" style={{ display: "none" }} />
+            {user?.role === "employee" && (
+              <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
+                {currentLang === "en" ? "Employee" : "कर्मचारी"}
+              </span>
+            )}
+          </h1>
+        )}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
+          >
+            <span className="sr-only">Close sidebar</span>
+            <X className="h-6 w-6" />
+          </button>
+        )}
+      </div>
+
+      {/* Menu */}
+      <nav
+        className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide"
+      >
+
+        {menuItems.map((item) => {
+          if (item.type === "dropdown") {
+            return (
+              <div key={item.label}>
+                <button
+                  onClick={item.toggle}
+                  className={`flex items-center justify-between w-full py-2.5 px-4 rounded-xl transition-all duration-300 border border-transparent ${item.isOpen
+                    ? "bg-white bg-opacity-10 text-white border-white border-opacity-20 shadow-lg"
+                    : "text-indigo-100 hover:bg-white hover:bg-opacity-5 hover:text-white"
+                    }`}
+                >
+                  <div className="flex items-center">
+                    <item.icon
+                      className={isCollapsed ? "mx-auto" : "mr-3"}
+                      size={20}
+                    />
+                    {!isCollapsed && <span>{item.label}</span>}
+                  </div>
+                  {!isCollapsed &&
+                    (item.isOpen ? (
+                      <ChevronUp size={16} />
+                    ) : (
+                      <ChevronDown size={16} />
+                    ))}
+                </button>
+
+                {item.isOpen && !isCollapsed && (
+                  <div className="ml-6 mt-1 space-y-1">
+                    {item.items.map((subItem) => (
+                      <NavLink
+                        key={subItem.path}
+                        to={subItem.path}
+                        className={({ isActive }) =>
+                          `flex items-center py-2 px-4 rounded-lg transition-colors ${isActive
+                            ? "bg-indigo-700 text-white"
+                            : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
+                          }`
+                        }
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          onClose?.();
+                        }}
+
+                      >
+                        <span>{subItem.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `flex items-center py-2.5 px-4 rounded-xl transition-all duration-300 border border-transparent mb-1 group ${isActive
+                  ? "bg-white bg-opacity-20 text-white border-white border-opacity-30 shadow-lg scale-[1.02]"
+                  : "text-indigo-100 hover:bg-white hover:bg-opacity-10 hover:text-white hover:translate-x-1"
+                }`
+              }
+              onClick={() => {
+                onClose?.();
+              }}
+            >
+              <item.icon
+                className={isCollapsed ? "mx-auto" : "mr-3"}
+                size={20}
+              />
+              {!isCollapsed && <span>{item.label}</span>}
+            </NavLink>
+          );
+        })}
+      </nav>
+
+      {/* Footer - Always visible */}
+      <div className="p-4 border-t border-white border-opacity-10 bg-black bg-opacity-10">
+        <div className="flex items-center space-x-3 mb-4 px-2">
+          <div className="flex items-center space-x-3 cursor-pointer group">
+            <div className="w-10 h-10 rounded-full bg-white bg-opacity-20 flex items-center justify-center border border-white border-opacity-20 transition-transform group-hover:scale-110">
+              <User size={20} className="text-white" />
+            </div>
+            <div className={`${isCollapsed ? "hidden" : "block"}`}>
+              <p className="text-sm font-semibold text-white leading-tight">
+                {user?.Name || user?.Username || "Guest"}
+              </p>
+              <p className="text-[10px] text-indigo-200 uppercase tracking-widest font-bold">
+                {user?.Admin === "Yes" ? "Administrator" : "Employee"}
+              </p>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            handleLogout();
+            onClose?.();
+            setIsOpen && setIsOpen(false);
+          }}
+          className="flex items-center py-2.5 px-4 rounded-xl text-white opacity-80 hover:bg-red-500 hover:bg-opacity-20 hover:text-red-300 hover:opacity-100 cursor-pointer transition-all duration-300 w-full group"
+        >
+          <LogOutIcon className={`${isCollapsed ? "mx-auto" : "mr-3"} group-hover:-translate-x-1 transition-transform`} size={20} />
+          {!isCollapsed && <span className="font-medium">Logout</span>}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
 const Sidebar = ({ onClose }) => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -45,6 +244,8 @@ const Sidebar = ({ onClose }) => {
   const [currentLang, setCurrentLang] = useState("en");
   const [showLanguageHint, setShowLanguageHint] = useState(false);
   const [isTranslateReady, setIsTranslateReady] = useState(false);
+
+  // ... (rest of the state and effects in Sidebar)
 
   const userString = localStorage.getItem("user");
   const user = userString ? JSON.parse(userString) : null;
@@ -57,6 +258,135 @@ const Sidebar = ({ onClose }) => {
     localStorage.removeItem("user");
     navigate("/login", { replace: true });
   };
+
+  // ... (language effects)
+  // Re-paste logic if needed, but since we are modifying lines 577-756 we assume the top part is intact. 
+  // Wait, I need to verify I am not overwriting the top part.
+  // The replace_file_content tool will replace the TARGET block.
+  // I need to provide the block that contains SidebarContent definition and usage.
+
+  // I will structure the replacement to replace the Definition of SidebarContent and its usage
+  // However, `SidebarContent` definition uses variables from `Sidebar` scope.
+  // I need to be careful. The variables like `menuItems`, `user`, etc are defined in Sidebar.
+
+  // So I cannot just move the definition out without passing props.
+  // The block I am replacing MUST include the usage inside Sidebar OR I need to redefine Sidebar as well to pass props.
+
+  // The tool works by replacing a block.
+  // I will replace the `const SidebarContent = ...` block with the extracted component, AND then update the `Sidebar` return statement to pass the props.
+  // BUT `Sidebar` return statement is AFTER `SidebarContent` definition.
+
+  // Actually, `SidebarContent` is defined inside `Sidebar` body. 
+  // So I need to replace the entire `Sidebar` component body? Or just the parts I can match.
+
+  // Let's look at the file stricture again.
+  // Lines 1-40: imports
+  // Line 41: const Sidebar = ... {
+  // ... variables ...
+  // Line 577: const SidebarContent = ...
+  // Line 756: return ...
+
+  // I should probably replace from `const Sidebar =` down to the end of `return`, effectively rewriting the component structure.
+  // OR, I can define `SidebarContent` BEFORE `Sidebar` (replacing the file content significantly).
+
+  // Strategy:
+  // 1. Rename `const Sidebar` to something else or just start writing the new `SidebarContent` before it? No, `Sidebar` depends on items inside.
+  // Wait, `menuItems` calculation depends on `user`.
+
+  // Correct refactoring:
+  // 1. Move `SidebarContent` component OUTSIDE and ABOVE `Sidebar`.
+  // 2. Modify `Sidebar` to accept props and pass them.
+
+  // Since `replace_file_content` replaces a contiguous block, I can:
+  // 1. Replace the inner definition of `SidebarContent` with nothing (or comments).
+  // 2. Add `SidebarContent` definition before `Sidebar`? No, I can't insert before `Sidebar` if I haven't selected that range.
+
+  // Better: I will use `replace_file_content` to replace the WHOLE content of `const Sidebar = ...` until the end?
+  // That's 800 lines. The tool limits might be an issue? "You can view at most 800 lines".
+  // The file is 824 lines.
+
+  // I can try to replace from line 41 (Start of Sidebar) to 824.
+  // But wait, `Sidebar` has a lot of logic for language at the top (lines 61-405).
+  // I don't want to touch that if possible.
+
+  // How about this:
+  // 1. I cut `SidebarContent` definition (lines 577-755) and `return (...)` (757-824).
+  // 2. I replace it with:
+  //    - The `return` statement engaging the `SidebarContent` with props.
+  //    - Close `Sidebar` component.
+  //    - Define `SidebarContent` component AFTER `Sidebar`.
+
+  // Is it valid to define a component after export?
+  // `export default Sidebar;` is at end? No, usually `export default Sidebar` is at the end.
+  // But React components can be defined after usage due to hoisting? No, `const` is not hoisted.
+  // Functions are.
+
+  // So `SidebarContent` must be defined BEFORE `Sidebar` OR `SidebarContent` defined as `function` and hoisted?
+  // Or I can define it at the bottom and use it? `const` will throw ReferenceError.
+
+  // So I SHOULD define it before.
+  // But `Sidebar` starts at line 41.
+
+  // Alternative:
+  // Use `multi_replace_file_content`.
+  // Chunk 1: Insert `SidebarContent` definition BEFORE `const Sidebar`.
+  // Chunk 2: Remove `SidebarContent` definition inside `Sidebar` and update the `return` statement.
+
+  // Let's do that.
+
+  // Chunk 1:
+  // Target: `const Sidebar = ({ onClose }) => {`
+  // Replace with: 
+  // `const SidebarContent = ({...}) => { ... }`
+  // `const Sidebar = ({ onClose }) => {`
+
+  // Chunk 2:
+  // Target: Range covering the inner `SidebarContent` definition and the `return` block.
+  // Replace with: just the `return` block passing props.
+
+  // NOTE: `SidebarContent` is huge (lines 577-755).
+  // I need to be careful with `multi_replace_file_content` 800 line limit? No, the limit is for view.
+
+  // Let's verify imports. `Sidebar` uses imports. `SidebarContent` needs them too. They are at file level, so it's fine.
+
+  // So:
+  // 1. Prepare `SidebarContent` code.
+  // 2. Prepare `Sidebar` return code with props passed.
+
+  /*
+  <SidebarContent 
+     onClose={onClose} // Passed from Sidebar props or closed within?
+     // usage in Sidebar: <SidebarContent onClose={() => setIsOpen(false)} />
+     isCollapsed={false}
+     currentLang={currentLang}
+     user={user}
+     menuItems={menuItems}
+     toggleLanguage={toggleLanguage}
+     showLanguageHint={showLanguageHint}
+     handleLogout={handleLogout}
+     setIsOpen={setIsOpen}
+  />
+  */
+
+  // Let's check `SidebarContent` signature in my previous thought.
+  // `const SidebarContent = ({ onClose, isCollapsed = false })`
+
+  // I will update it to:
+  // `const SidebarContent = ({ onClose, isCollapsed = false, currentLang, user, menuItems, toggleLanguage, showLanguageHint, handleLogout })`
+  // `setIsOpen` was used in the footer logout.
+  // `handleLogout` calls `setIsOpen(false)`? No.
+  // inside SidebarContent footer:
+  /*
+        <button
+          onClick={() => {
+            handleLogout();
+            onClose?.(); // This onClose is the prop passed to SidebarContent
+            setIsOpen(false); // This setIsOpen is interactively available in scope? No.
+          }}
+  */
+  // Wait, `setIsOpen(false)` is called in the inner component.
+  // `setIsOpen` is state of `Sidebar`.
+  // So I must pass `setIsOpen` OR handle the closing logic in a handler passed to `SidebarContent`.
 
   // Get current language from Google Translate
   const getCurrentLanguage = () => {
@@ -574,189 +904,8 @@ const Sidebar = ({ onClose }) => {
   // console.log("userPageAccess",userPageAccess);
   // console.log("menuItems",menuItems);
 
-  const SidebarContent = ({ onClose, isCollapsed = false }) => (
-    <div
-      className={`flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"
-        } bg-opacity-95 backdrop-blur-md shadow-2xl border-r border-white border-opacity-10`}
-      style={{ background: 'var(--sidebar-gradient)' }}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-5 border-b border-white border-opacity-10">
-        {!isCollapsed && (
-          <h1 className="text-xl font-extrabold flex items-center gap-2 text-white tracking-tight">
-            <div className="w-10 h-10 overflow-hidden rounded-lg shadow-sm border border-white border-opacity-10 flex items-center justify-center bg-white">
-              <img src={logo} alt="Logo" className="w-full h-full object-contain" />
-            </div>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200">
-              {currentLang === "en" ? "HR FMS" : "एचआर एफएमएस"}
-            </span>
-            <div className="relative">
-              <button
-                onClick={toggleLanguage}
-                className="p-2 rounded-md hover:bg-indigo-800 transition relative"
-                aria-label="Toggle language"
-                title={
-                  currentLang === "en"
-                    ? "Switch to Hindi (हिंदी में बदलें)"
-                    : "Switch to English (अंग्रेजी में बदलें)"
-                }
-              >
-                <Globe size={20} />
-                <span className="sr-only">
-                  {currentLang === "en" ? "EN" : "हिं"}
-                </span>
-              </button>
-
-              {/* Language indicator */}
-              <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {currentLang === "en" ? "EN" : "हिं"}
-              </div>
-
-              {/* Language hint tooltip */}
-              {showLanguageHint && currentLang === "en" && (
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50">
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                    <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-orange-500"></div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div id="google_translate_element" style={{ display: "none" }} />
-            {user?.role === "employee" && (
-              <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
-                {currentLang === "en" ? "Employee" : "कर्मचारी"}
-              </span>
-            )}
-          </h1>
-        )}
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-          >
-            <span className="sr-only">Close sidebar</span>
-            <X className="h-6 w-6" />
-          </button>
-        )}
-      </div>
-
-      {/* Menu */}
-     <nav
-  className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide"
->
-
-        {menuItems.map((item) => {
-          if (item.type === "dropdown") {
-            return (
-              <div key={item.label}>
-                <button
-                  onClick={item.toggle}
-                  className={`flex items-center justify-between w-full py-2.5 px-4 rounded-xl transition-all duration-300 border border-transparent ${item.isOpen
-                    ? "bg-white bg-opacity-10 text-white border-white border-opacity-20 shadow-lg"
-                    : "text-indigo-100 hover:bg-white hover:bg-opacity-5 hover:text-white"
-                    }`}
-                >
-                  <div className="flex items-center">
-                    <item.icon
-                      className={isCollapsed ? "mx-auto" : "mr-3"}
-                      size={20}
-                    />
-                    {!isCollapsed && <span>{item.label}</span>}
-                  </div>
-                  {!isCollapsed &&
-                    (item.isOpen ? (
-                      <ChevronUp size={16} />
-                    ) : (
-                      <ChevronDown size={16} />
-                    ))}
-                </button>
-
-                {item.isOpen && !isCollapsed && (
-                  <div className="ml-6 mt-1 space-y-1">
-                    {item.items.map((subItem) => (
-                      <NavLink
-                        key={subItem.path}
-                        to={subItem.path}
-                        className={({ isActive }) =>
-                          `flex items-center py-2 px-4 rounded-lg transition-colors ${isActive
-                            ? "bg-indigo-700 text-white"
-                            : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
-                          }`
-                        }
-                      onMouseDown={(e) => e.preventDefault()}
-onClick={() => {
-  onClose?.();
-}}
-
-                      >
-                        <span>{subItem.label}</span>
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          }
-
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center py-2.5 px-4 rounded-xl transition-all duration-300 border border-transparent mb-1 group ${isActive
-                  ? "bg-white bg-opacity-20 text-white border-white border-opacity-30 shadow-lg scale-[1.02]"
-                  : "text-indigo-100 hover:bg-white hover:bg-opacity-10 hover:text-white hover:translate-x-1"
-                }`
-              }
-              onClick={() => {
-                onClose?.();
-              }}
-            >
-              <item.icon
-                className={isCollapsed ? "mx-auto" : "mr-3"}
-                size={20}
-              />
-              {!isCollapsed && <span>{item.label}</span>}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      {/* Footer - Always visible */}
-      <div className="p-4 border-t border-white border-opacity-10 bg-black bg-opacity-10">
-        <div className="flex items-center space-x-3 mb-4 px-2">
-          <div className="flex items-center space-x-3 cursor-pointer group">
-            <div className="w-10 h-10 rounded-full bg-white bg-opacity-20 flex items-center justify-center border border-white border-opacity-20 transition-transform group-hover:scale-110">
-              <User size={20} className="text-white" />
-            </div>
-            <div className={`${isCollapsed ? "hidden" : "block"}`}>
-              <p className="text-sm font-semibold text-white leading-tight">
-                {user?.Name || user?.Username || "Guest"}
-              </p>
-              <p className="text-[10px] text-indigo-200 uppercase tracking-widest font-bold">
-                {user?.Admin === "Yes" ? "Administrator" : "Employee"}
-              </p>
-            </div>
-          </div>
-        </div>
-        <button
-          onClick={() => {
-            handleLogout();
-            onClose?.();
-            setIsOpen(false);
-          }}
-          className="flex items-center py-2.5 px-4 rounded-xl text-white opacity-80 hover:bg-red-500 hover:bg-opacity-20 hover:text-red-300 hover:opacity-100 cursor-pointer transition-all duration-300 w-full group"
-        >
-          <LogOutIcon className={`${isCollapsed ? "mx-auto" : "mr-3"} group-hover:-translate-x-1 transition-transform`} size={20} />
-          {!isCollapsed && <span className="font-medium">Logout</span>}
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <>
-      {/* Mobile menu button - visible only on mobile */}
       {/* Mobile menu button - visible only on mobile */}
       <button
         className={`md:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-900 text-white rounded-md shadow-md transition-opacity duration-300 ${isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
@@ -777,7 +926,15 @@ onClick={() => {
 
       {/* Desktop Sidebar - full width on desktop */}
       <div className="hidden lg:block fixed left-0 top-0 h-full">
-        <SidebarContent />
+        <SidebarContent
+          currentLang={currentLang}
+          user={user}
+          menuItems={menuItems}
+          toggleLanguage={toggleLanguage}
+          showLanguageHint={showLanguageHint}
+          handleLogout={handleLogout}
+          setIsOpen={setIsOpen}
+        />
       </div>
 
       {/* Tablet Sidebar - collapsible */}
@@ -793,7 +950,16 @@ onClick={() => {
           className={`fixed left-0 top-0 h-full z-50 transform ${isOpen ? "translate-x-0" : "-translate-x-full"
             } transition-transform duration-300 ease-in-out`}
         >
-          <SidebarContent onClose={() => setIsOpen(false)} />
+          <SidebarContent
+            onClose={() => setIsOpen(false)}
+            currentLang={currentLang}
+            user={user}
+            menuItems={menuItems}
+            toggleLanguage={toggleLanguage}
+            showLanguageHint={showLanguageHint}
+            handleLogout={handleLogout}
+            setIsOpen={setIsOpen}
+          />
         </div>
       </div>
 
@@ -810,12 +976,21 @@ onClick={() => {
           className={`fixed left-0 top-0 h-full z-50 transform ${isOpen ? "translate-x-0" : "-translate-x-full"
             } transition-transform duration-300 ease-in-out`}
         >
-          <SidebarContent onClose={() => setIsOpen(false)} />
+          <SidebarContent
+            onClose={() => setIsOpen(false)}
+            currentLang={currentLang}
+            user={user}
+            menuItems={menuItems}
+            toggleLanguage={toggleLanguage}
+            showLanguageHint={showLanguageHint}
+            handleLogout={handleLogout}
+            setIsOpen={setIsOpen}
+          />
         </div>
       </div>
 
       {/* Add padding to main content when sidebar is open on desktop */}
-    <div className="min-h-screen lg:pl-64"></div>
+      <div className="min-h-screen lg:pl-64"></div>
     </>
   );
 };
