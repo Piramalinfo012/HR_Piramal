@@ -9,45 +9,19 @@ const InterviewSelection = () => {
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
-    const [showModal, setShowModal] = useState(false);
     const [tableLoading, setTableLoading] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-    const [fileUploading, setFileUploading] = useState(false);
-    const [indentOptions, setIndentOptions] = useState([]);
-    const [fmsDataMap, setFmsDataMap] = useState({});
     const [activeTab, setActiveTab] = useState("pending");
     const [actionSubmitting, setActionSubmitting] = useState(false);
     const [showActionModal, setShowActionModal] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const [deptFilter, setDeptFilter] = useState("");
     const [desigFilter, setDesigFilter] = useState("");
+    const [indentOptions, setIndentOptions] = useState([]);
+    const [fmsDataMap, setFmsDataMap] = useState({});
     const [actionFormData, setActionFormData] = useState({
         indentNumber: "",
         status: "",
         finalizedSalary: "",
-    });
-
-    const [formData, setFormData] = useState({
-        openPositionDepartment: "",
-        designation: "",
-        nameOfCandidate: "",
-        contactNo: "",
-        mailID: "",
-        age: "",
-        highestQualification: "",
-        nativePlace: "",
-        currentWorkingLocation: "",
-        currentEmploymentStatus: "",
-        currentCompany: "",
-        currentDesignation: "",
-        tenureWithCurrentCompany: "",
-        totalWorkExperience: "",
-        currentCTC: "",
-        expectedCTC: "",
-        noticePeriod: "",
-        interviewDate: "",
-        resumeUrl: "",
-        indentNumber: "",
     });
 
     const {
@@ -56,6 +30,11 @@ const InterviewSelection = () => {
         isLoading: storeLoading,
         refreshData
     } = useDataStore();
+
+    // Refresh data on mount to ensure we have latest from Canidate_Selection
+    useEffect(() => {
+        refreshData();
+    }, [refreshData]);
 
     useEffect(() => {
         setTableLoading(storeLoading);
@@ -90,7 +69,7 @@ const InterviewSelection = () => {
             return;
         }
 
-        const dataRows = candidateSelectionData.slice(7);
+        const dataRows = candidateSelectionData.slice(8);
         const processedData = dataRows.map((row, idx) => ({
             rowIndex: idx + 8, // Slice 7, so row 1 is index 8
             id: row[1], // Column B
@@ -99,165 +78,20 @@ const InterviewSelection = () => {
             candidateName: row[4], // Column E
             contactNo: row[5], // Column F
             mail: row[6], // Column G
-            indentId: row[41], // Column A (Indent Number as per user) ??? Wait, original said 41 which is weird but I must copy it exactly.
-            // Wait, original: `indentId: row[41]`
-            // But looking at file view earlier for Indent.jsx, mapping was A-P.
-            // Here fetches Canidate_Selection not FMS.
-            trigger_AD: row[29], // Column AD (Trigger)
-            statusMarker_AE: row[30], // Column AE (Marker)
+            indentId: row[41], // Column A
+            trigger_AD: row[29], // Column AD (Previous Step Marker)
+            statusMarker_AE: row[30], // Column AE (This Step Marker)
         }));
         setCandidateData(processedData);
 
     }, [candidateSelectionData]);
 
-    // fetchFmsData and fetchCandidateData replaced by effects
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        if (name === "indentNumber") {
-            setFormData((prev) => ({
-                ...prev,
-                indentNumber: value,
-                openPositionDepartment: fmsDataMap[value] || prev.openPositionDepartment,
-            }));
-        } else {
-            setFormData((prev) => ({ ...prev, [name]: value }));
-        }
-    };
-
-    const handleFileUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        setFileUploading(true);
-        try {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const base64Data = reader.result;
-                const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
-                    method: "POST",
-                    body: new URLSearchParams({
-                        action: "uploadFile",
-                        base64Data: base64Data,
-                        fileName: file.name,
-                        mimeType: file.type,
-                        folderId: "1tSoT0na5lGKAE82z0kDiDNU6ikkHJjA1OayGwV5CFq9tfc3BVrbLl3g-nkyKwHoYIMzTI2aI",
-                    }),
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    setFormData((prev) => ({ ...prev, resumeUrl: result.fileUrl }));
-                    toast.success("Resume uploaded successfully!");
-                } else {
-                    toast.error("Upload failed: " + (result.error || "Unknown error"));
-                }
-                setFileUploading(false);
-            };
-            reader.readAsDataURL(file);
-        } catch (error) {
-            console.error("Upload error:", error);
-            toast.error("File upload error");
-            setFileUploading(false);
-        }
-    };
-
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setSubmitting(true);
-
-        try {
-            const newID = `${formData.indentNumber}_${formData.designation}`;
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-
-            const rowData = [];
-            rowData[0] = formData.indentNumber; // Column A (Indent Number)
-            rowData[1] = newID;     // Column B (Combined ID: Indent_Designation)
-            rowData[2] = formData.openPositionDepartment; // Column C
-            rowData[3] = formData.designation; // Column D
-            rowData[4] = formData.nameOfCandidate; // Column E
-            rowData[5] = formData.contactNo; // Column F
-            rowData[6] = formData.mailID; // Column G
-            rowData[7] = formData.age; // Column H
-            rowData[8] = formData.highestQualification; // Column I
-            rowData[9] = formData.nativePlace; // Column J
-            rowData[10] = formData.currentWorkingLocation; // Column K
-            rowData[11] = formData.currentEmploymentStatus; // Column L
-            rowData[12] = formData.currentCompany; // Column M
-            rowData[13] = formData.currentDesignation; // Column N
-            rowData[14] = formData.tenureWithCurrentCompany; // Column O
-            rowData[15] = formData.totalWorkExperience; // Column P
-            rowData[16] = formData.currentCTC; // Column Q
-            rowData[17] = formData.expectedCTC; // Column R
-            rowData[18] = formData.noticePeriod; // Column S
-            rowData[19] = formData.interviewDate; // Column T
-            rowData[20] = formData.resumeUrl; // Column U
-            rowData[21] = timestamp; // Column V (Timestamp)
-
-            console.log("Submitting Row Data to 'appsheet db':", rowData);
-
-            const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
-                method: "POST",
-                body: new URLSearchParams({
-                    sheetName: "appsheet db",
-                    action: "bulkInsert",
-                    rowsData: JSON.stringify([rowData]),
-                }),
-            });
-
-            const result = await response.json();
-            console.log("Submission Result:", result);
-
-            if (result.success) {
-                toast.success("Interview data submitted successfully!");
-                setShowModal(false);
-                setFormData({
-                    openPositionDepartment: "",
-                    designation: "",
-                    nameOfCandidate: "",
-                    contactNo: "",
-                    mailID: "",
-                    age: "",
-                    highestQualification: "",
-                    nativePlace: "",
-                    currentWorkingLocation: "",
-                    currentEmploymentStatus: "",
-                    currentCompany: "",
-                    currentDesignation: "",
-                    tenureWithCurrentCompany: "",
-                    totalWorkExperience: "",
-                    currentCTC: "",
-                    expectedCTC: "",
-                    noticePeriod: "",
-                    interviewDate: "",
-                    resumeUrl: "",
-                    indentNumber: "",
-                });
-                refreshData();
-            } else {
-                toast.error("Submission failed: " + result.error);
-            }
-        } catch (error) {
-            console.error("Submission error:", error);
-            toast.error("Something went wrong");
-        } finally {
-            setSubmitting(false);
-        }
-    };
 
     const handleActionClick = (candidate) => {
         setSelectedCandidate(candidate);
         setActionFormData({
             indentNumber: candidate.indentId || "",
-            status: "Yes",
+            status: "Selected",
             finalizedSalary: "",
         });
         setShowActionModal(true);
@@ -303,11 +137,11 @@ const InterviewSelection = () => {
                 }),
             });
 
-            // 2. Update Column AE in appsheet db (index 30) - Step Marker
+            // 2. Update Column AE in Canidate_Selection (index 30, so 31st column)
             const updateResponse = await fetch(getSubmitUrl(), {
                 method: "POST",
                 body: new URLSearchParams({
-                    sheetName: "appsheet db",
+                    sheetName: "Data Resposnse",
                     action: "updateCell",
                     rowIndex: candidate.rowIndex,
                     columnIndex: 31, // Column AE is 31st column (1-indexed)
@@ -315,11 +149,11 @@ const InterviewSelection = () => {
                 }),
             });
 
-            // 3. Update Column AF in appsheet db (index 31) - Action Status for Joining
+            // 3. Update Column AF in Canidate_Selection (index 31, so 32nd column) - Action Status for Joining
             const triggerResponse = await fetch(getSubmitUrl(), {
                 method: "POST",
                 body: new URLSearchParams({
-                    sheetName: "appsheet db",
+                    sheetName: "Data Resposnse",
                     action: "updateCell",
                     rowIndex: candidate.rowIndex,
                     columnIndex: 32, // Column AF is 32nd column (1-indexed)
@@ -500,126 +334,6 @@ const InterviewSelection = () => {
                 </div>
             </div>
 
-            {showModal && (
-                <div className="fixed inset-0 z-50 overflow-y-auto">
-                    <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-                        <div className="fixed inset-0 transition-opacity" onClick={() => setShowModal(false)}>
-                            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-                        </div>
-                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen"></span>&#8203;
-                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-bold text-gray-900">Add Interview Record</h3>
-                                    <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-500"><X size={24} /></button>
-                                </div>
-                                <form onSubmit={handleSubmit} className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Indent Number</label>
-                                            <select name="indentNumber" value={formData.indentNumber} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
-                                                <option value="">Select Indent</option>
-                                                {indentOptions.map((opt, i) => (<option key={i} value={opt}>{opt}</option>))}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Open position department</label>
-                                            <input type="text" name="openPositionDepartment" value={formData.openPositionDepartment} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Designation</label>
-                                            <input type="text" name="designation" value={formData.designation} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Name of candidate</label>
-                                            <input type="text" name="nameOfCandidate" value={formData.nameOfCandidate} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Contact No.</label>
-                                            <input type="text" name="contactNo" value={formData.contactNo} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Mail ID</label>
-                                            <input type="email" name="mailID" value={formData.mailID} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Age</label>
-                                            <input type="number" name="age" value={formData.age} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Highest Qualification</label>
-                                            <input type="text" name="highestQualification" value={formData.highestQualification} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Native Place</label>
-                                            <input type="text" name="nativePlace" value={formData.nativePlace} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Current Working Location</label>
-                                            <input type="text" name="currentWorkingLocation" value={formData.currentWorkingLocation} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Current Employment Status</label>
-                                            <select name="currentEmploymentStatus" value={formData.currentEmploymentStatus} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                                                <option value="">Select Status</option>
-                                                <option value="Employed">Employed</option>
-                                                <option value="Unemployed">Unemployed</option>
-                                                <option value="Freelance">Freelance</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Current Company</label>
-                                            <input type="text" name="currentCompany" value={formData.currentCompany} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Current Designation</label>
-                                            <input type="text" name="currentDesignation" value={formData.currentDesignation} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Tenure with current company</label>
-                                            <input type="text" name="tenureWithCurrentCompany" value={formData.tenureWithCurrentCompany} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Total Work Experience</label>
-                                            <input type="text" name="totalWorkExperience" value={formData.totalWorkExperience} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Current CTC (LPA)</label>
-                                            <input type="text" name="currentCTC" value={formData.currentCTC} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Expected (LPA)</label>
-                                            <input type="text" name="expectedCTC" value={formData.expectedCTC} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Notice Period</label>
-                                            <input type="text" name="noticePeriod" value={formData.noticePeriod} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Interview Date with HR SPOC</label>
-                                            <input type="date" name="interviewDate" value={formData.interviewDate} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div className="md:col-span-3">
-                                            <label className="block text-sm font-medium text-gray-700">Resume/cv</label>
-                                            <div className="mt-1 flex items-center gap-4">
-                                                <input type="file" onChange={handleFileUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-                                                {fileUploading && <Clock className="animate-spin text-navy" size={20} />}
-                                                {formData.resumeUrl && <CheckCircle className="text-green-600" size={20} />}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="mt-8 flex justify-end gap-3">
-                                        <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                                        <button type="submit" disabled={submitting || fileUploading} className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50 flex items-center gap-2">
-                                            {submitting ? "Submitting..." : "Submit Record"}
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
             {showActionModal && (
                 <div className="fixed inset-0 z-50 overflow-y-auto">
                     <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -664,9 +378,9 @@ const InterviewSelection = () => {
                                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                                             required
                                         >
-                                            <option value="Yes">Yes</option>
-                                            <option value="No">No</option>
-                                            <option value="Hold">Hold</option>
+                                            <option value="Selected">Selected</option>
+                                            <option value="Rejected">Rejected</option>
+
                                         </select>
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">

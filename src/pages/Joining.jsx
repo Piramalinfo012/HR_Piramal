@@ -48,8 +48,13 @@ const Joining = () => {
   });
   const [uploading, setUploading] = useState(false);
 
-  const { joiningFmsData, isLoading: storeLoading, refreshData } = useDataStore();
+  const { joiningFmsData, candidateSelectionData, isLoading: storeLoading, refreshData, fetchGlobalData } = useDataStore();
   const [candidateData, setCandidateData] = useState([]);
+
+  // Fetch global data on mount to ensure candidateSelectionData is available
+  useEffect(() => {
+    fetchGlobalData();
+  }, [fetchGlobalData]);
 
   // Process data when store updates
   useEffect(() => {
@@ -58,11 +63,36 @@ const Joining = () => {
       return;
     }
 
+    const headers = joiningFmsData[6] || [];
     const dataRows = joiningFmsData.slice(7);
+
+    const getIndex = (headerName) => {
+      const index = headers.findIndex(
+        (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
+      );
+      return index;
+    };
+
+    // Refined fallback indices based on your manual log data
+    const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 10; // "PPPL/EI/25" was here
+    const idxId = getIndex("ID") !== -1 ? getIndex("ID") : 5; // "IN-05_hr" was here
+    const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 6; // Column G is index 6
+    const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 1;
+    const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 2;
+    const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+    const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
+    const idxSalary = getIndex("Salary") !== -1 ? getIndex("Salary") : 14;
+    const idxLocation = getIndex("Work Location") !== -1 ? getIndex("Work Location") : 13;
+    const idxAadharF = getIndex("Aadhar Front") !== -1 ? getIndex("Aadhar Front") : 15;
+    const idxAadharB = getIndex("Aadhar Back") !== -1 ? getIndex("Aadhar Back") : 16;
+    const idxPan = getIndex("Pan Card") !== -1 ? getIndex("Pan Card") : 17;
+    const idxBank = getIndex("Bank Passbook") !== -1 ? getIndex("Bank Passbook") : 18;
+
+    console.log("Indices for Mapping:", { idxIndent, idxId, idxName });
 
     const processed = dataRows
       .filter(row => {
-        if (!row || row.length < 9) return false;
+        if (!row || row.length < 5) return false;
         const isRowEmpty = row.every(cell => !cell || cell.toString().trim() === '');
         if (isRowEmpty) return false;
         const status = (row[8] || "").toString().trim().toUpperCase();
@@ -70,19 +100,19 @@ const Joining = () => {
       })
       .map((row, idx) => ({
         rowIndex: idx + 8,
-        id: row[5] || "",
-        department: row[1] || "",
-        designation: row[2] || "",
-        candidateName: row[6] || "",
-        joiningPlace: row[13] || "",
-        salary: row[14] || "",
-        aadharFrontsidephoto: row[15] || "",
-        aadharBacksidephoto: row[16] || "",
-        panCardphoto: row[17] || "",
-        bankAccountphoto: row[18] || "",
-        contactNo: row[4] || "",
-        mail: row[5] || "",
-        indentId: row[6] || "",
+        id: row[idxId] || "",
+        department: row[idxDept] || "",
+        designation: row[idxDesig] || "",
+        candidateName: row[idxName] || "",
+        joiningPlace: row[idxLocation] || "",
+        salary: row[idxSalary] || "",
+        aadharFrontsidephoto: row[idxAadharF] || "",
+        aadharBacksidephoto: row[idxAadharB] || "",
+        panCardphoto: row[idxPan] || "",
+        bankAccountphoto: row[idxBank] || "",
+        contactNo: row[idxMobile] || "",
+        mail: row[idxEmail] || "",
+        indentId: row[idxIndent] || "", // This is the "PPPL/EI/25" enquiry number
       }));
 
     setCandidateData(processed);
@@ -118,14 +148,55 @@ const Joining = () => {
 
   const handleOpenModal = (candidate) => {
     setSelectedCandidate(candidate);
+    console.log("Selected Candidate (from Joining Table):", candidate);
+
+    // Find corresponding data in candidateSelectionData based on candidate ID or name
+    // According to requirements:
+    // Column B (index 1) = Candidate Enquiry No
+    // Column G (index 6) = Personal Email-Id
+    // Column F (index 5) = Mobile No
+    let candidateSelectionInfo = null;
+    if (candidateSelectionData && candidateSelectionData.length > 0) {
+      // Look for matching candidate in candidateSelectionData
+      candidateSelectionInfo = candidateSelectionData.find(row => {
+        if (!row || row.length < 7) return false;
+
+        // Match by Enquiry Number in column B (index 1)
+        const enquiryMatch = row[1] && candidate.indentId &&
+          row[1].toString().trim() === candidate.indentId.toString().trim();
+
+        // Match by System ID (index 5 in FMS) - if we can find where it is in Canidate_Selection
+        // For now, let's use Enquiry No as primary and Name/Mobile/Email as backup
+
+        // Try to match by candidate name (index 0)
+        const nameMatch = row[0] && candidate.candidateName &&
+          row[0].toString().toLowerCase().includes(candidate.candidateName.toString().toLowerCase());
+
+        // Try to match by mobile number (index 5)
+        const mobileMatch = row[5] && candidate.contactNo &&
+          candidate.contactNo.toString().length > 5 && // Avoid matching empty/junk contact numbers
+          row[5].toString().replace(/\D/g, '').includes(candidate.contactNo.toString().replace(/\D/g, ''));
+
+        // Try to match by email (index 6)
+        const emailMatch = row[6] && candidate.mail &&
+          candidate.mail.toString().includes('@') &&
+          row[6].toString().toLowerCase().trim() === candidate.mail.toString().toLowerCase().trim();
+
+        return enquiryMatch || nameMatch || mobileMatch || emailMatch;
+      });
+    }
+
+    console.log("Pre-fill Logic Source - selectionInfo:", candidateSelectionInfo ? candidateSelectionInfo[1] : "not found");
+    console.log("Pre-fill Logic Source - tableData:", candidate.indentId);
+
     setFormData({
-      candidateEnquiryNo: candidate.indentId || "",
+      candidateEnquiryNo: candidate.id || "", // Automatically show the ID here
       nameAsPerAadhar: "",
       fatherName: "",
       dateOfJoining: "",
-      joiningPlace: "",
+      joiningPlace: candidate.joiningPlace || "",  // Pre-fill joining place from candidate data
       designation: candidate.designation || "",
-      salary: "",
+      salary: candidate.salary || "",  // Pre-fill salary from candidate data
       aadharFrontPhoto: null,
       panCard: null,
       candidatePhoto: null,
@@ -133,7 +204,7 @@ const Joining = () => {
       addressAsPerAadhar: "",
       dobAsPerAadhar: "",
       gender: "",
-      mobileNo: candidate.contactNo || "",
+      mobileNo: candidateSelectionInfo ? (candidateSelectionInfo[5] || candidate.contactNo || "") : (candidate.contactNo || ""), // Column F of Canidate_Selection
       familyMobileNo: "",
       twoReferenceNo: "",
       pastPfId: "",
@@ -141,7 +212,7 @@ const Joining = () => {
       ifscCode: "",
       branchName: "",
       bankPassbookPhoto: null,
-      personalEmail: candidate.mail || "",
+      personalEmail: candidateSelectionInfo ? (candidateSelectionInfo[6] || candidate.mail || "") : (candidate.mail || ""), // Column G of Canidate_Selection
       esicNo: "",
       highestQualification: "",
       aadharCardNo: "",
@@ -266,9 +337,8 @@ const Joining = () => {
       // Column A will be empty (handled by backend)
       const rowData = [
         timestamp,
-        // Create ID format: IndentID_Designation (e.g., IN-32_hr)
-        // Ensure format is like "IN-05_hr"
-        `${formData.candidateEnquiryNo.split('_')[0].trim()}_${formData.designation}`, // B
+        // Column B: Pre-filled enquiry number (Candidate ID)
+        formData.candidateEnquiryNo,           // B
         formData.nameAsPerAadhar,              // C
         formData.fatherName,                   // D
         formData.dateOfJoining,                // E
@@ -341,7 +411,7 @@ const Joining = () => {
               <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               <div className="w-40">
                 <select
                   value={deptFilter}
@@ -377,7 +447,7 @@ const Joining = () => {
               >
                 <X size={20} />
               </button>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
@@ -391,16 +461,7 @@ const Joining = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joining Place</th>
-                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th> */}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salary</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aadhar Frontside photo</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aadhar Backside photo</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PAN Card photo</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bank Account photo</th>
-                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th> */}
+                  
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -421,16 +482,7 @@ const Joining = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.joiningPlace}</td>
-                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td> */}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.salary}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.aadharFrontsidephoto}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.aadharBacksidephoto}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.panCardphoto}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.bankAccountphoto}</td>
-                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.contactNo}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.mail}</td> */}
+                     
                     </tr>
                   ))
                 )}

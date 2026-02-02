@@ -12,7 +12,7 @@ const Indent = () => {
     department: "",
     prefer: "",
     numberOfPost: "",
-    experience: "",
+    // experience: "",
     salary: "",
     officeTiming: "",
     typeOfWeek: "",
@@ -98,7 +98,7 @@ const Indent = () => {
     if (headerRowIndex === -1) headerRowIndex = 6;
 
     const headers = resultData[headerRowIndex].map((h) => (h ? h.trim() : ""));
-    const dataRows = resultData.slice(headerRowIndex + 1);
+    const dataRows = resultData.slice(9);
 
     const getIndex = (name) => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
 
@@ -264,47 +264,7 @@ const Indent = () => {
     });
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
 
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Data = reader.result;
-
-        const response = await fetch(
-          import.meta.env.VITE_GOOGLE_SHEET_URL,
-          {
-            method: "POST",
-            body: new URLSearchParams({
-              action: "uploadFile",
-              base64Data: base64Data,
-              fileName: file.name,
-              mimeType: file.type,
-              folderId: "1tSoT0na5lGKAE82z0kDiDNU6ikkHJjA1OayGwV5CFq9tfc3BVrbLl3g-nkyKwHoYIMzTI2aI", // Replace with your folder ID
-            }),
-          }
-        );
-
-        const result = await response.json();
-
-        if (result.success) {
-          setFormData((prev) => ({
-            ...prev,
-            uploadedFileUrl: result.fileUrl,
-          }));
-          toast.success("File uploaded successfully!");
-        } else {
-          toast.error("File upload failed");
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("File upload error");
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -321,10 +281,7 @@ const Indent = () => {
         toast.error(`Please fill all required fields for Post #${i + 1}`);
         return;
       }
-      if (p.prefer === "Experience" && !p.experience) {
-        toast.error(`Please enter experience details for Post #${i + 1}`);
-        return;
-      }
+     
     }
 
     try {
@@ -646,21 +603,7 @@ const Indent = () => {
                       </div>
                     </div>
 
-                    {postField.prefer === "Experience" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Experience Details *
-                        </label>
-                        <input
-                          type="text"
-                          name="experience"
-                          value={postField.experience}
-                          onChange={(e) => handlePostInputChange(index, e)}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-navy text-sm"
-                          placeholder="e.g. 2+ years in Manufacturing"
-                        />
-                      </div>
-                    )}
+                    
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -821,12 +764,8 @@ const Indent = () => {
         </div>
       )}
 
-      {/* Info Card */}
-      <div className="bg-white rounded-xl shadow-lg border p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-4">
-          Indent Management
-        </h2>
-      </div>
+      
+     
 
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
@@ -872,9 +811,9 @@ const Indent = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Completion Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Qualifications
-                  </th>
+                  <th className="px-4 py-2 text-sm font-medium text-gray5500 max-w-[880px] whitespace-normal break-words">
+                    Qualification                   </th>
+
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
@@ -947,9 +886,9 @@ const Indent = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {item.completionDate}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.qualifications}
-                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-500 max-w-[180px] whitespace-normal break-words">
+                          {item.qualifications}                        </td>
+
                       </tr>
                     ))
                 )}

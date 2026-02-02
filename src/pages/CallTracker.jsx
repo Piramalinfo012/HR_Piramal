@@ -1,109 +1,44 @@
 import React, { useState, useEffect } from "react";
 import useDataStore from "../store/dataStore";
-import { Search, Clock, CheckCircle, X, Plus } from "lucide-react";
-import toast from "react-hot-toast";
+import { Search, X, Plus } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 const CallTracker = () => {
-  const [activeTab, setActiveTab] = useState("pending");
   const [searchTerm, setSearchTerm] = useState("");
-  const [deptFilter, setDeptFilter] = useState("");
-  const [postFilter, setPostFilter] = useState("");
   const [tableLoading, setTableLoading] = useState(false);
+  const [displayData, setDisplayData] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 10;
 
-  const [candidateData, setCandidateData] = useState([]);
-  const [historyData, setHistoryData] = useState([]);
-  const [statusOptions, setStatusOptions] = useState([]);
-  const [uniqueStages, setUniqueStages] = useState([]);
+  const { callingTrackingData, isLoading: storeLoading, fetchSpecificSheets, error: storeError } = useDataStore();
 
   const [showModal, setShowModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-
   const [formData, setFormData] = useState({
-    customerSale: "",
-    status: "",
-    nextFollowUp: "",
-    candidateName: "",
-    contactNumber: "",
+    entryBy: "",
+    applicantName: "",
+    contactNo: "",
+    role: "",
+    portalUsed: "",
+    location: "",
+    stage: "",
     notes: "",
-    stage: ""
+    feedback: "",
+    status: ""
   });
 
+  const generateTaskId = () => {
+    if (!callingTrackingData || callingTrackingData.length < 2) return "TI-001";
 
+    const taskIds = callingTrackingData.slice(1)
+      .map(row => row[1]) // Column B is index 1
+      .filter(id => id && id.startsWith("TI-"))
+      .map(id => parseInt(id.replace("TI-", "")))
+      .filter(num => !isNaN(num));
 
-  const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
-
-  const { fmsData: globalFmsData, masterData: globalMasterData, dataResponseData: globalHistoryData, isLoading: storeLoading, refreshData } = useDataStore();
-
-  useEffect(() => {
-    setTableLoading(storeLoading);
-  }, [storeLoading]);
-
-  // Master Data Effect
-  useEffect(() => {
-    if (!globalMasterData || globalMasterData.length < 2) {
-      setStatusOptions([]);
-      return;
-    }
-    const options = [...new Set(globalMasterData.slice(1).map(row => row[4]).filter(val => val && val.trim()))];
-    setStatusOptions(options);
-  }, [globalMasterData]);
-
-  // FMS Data Effect
-  useEffect(() => {
-    if (!globalFmsData || globalFmsData.length < 9) {
-      setCandidateData([]);
-      setUniqueStages([]); // Reset if no data?
-      return;
-    }
-    const dataRows = globalFmsData.slice(8); // FMS starts from row 9
-    const processed = dataRows.map((row, idx) => ({
-      rowIndex: idx + 9,
-      indentNumber: row[4],     // Column E
-      candidateName: row[5],    // Column F
-      department: row[12],      // Column M
-      post: row[6],             // Column G
-      columnAL: row[37],        // Index 37 (Trigger)
-      columnAM: row[38],        // Index 38 (Marker)
-      gender: row[11],
-      salary: row[7],
-      experience: row[16]
-    })).filter(item => item.indentNumber);
-
-    setCandidateData(processed);
-    setUniqueStages(getUniqueStages());
-  }, [globalFmsData]);
-
-  // History Data Effect
-  useEffect(() => {
-    if (!globalHistoryData || globalHistoryData.length < 2) {
-      setHistoryData([]);
-      return;
-    }
-    const historyRows = globalHistoryData.slice(1).filter(row => row[1] === "CT-1");
-    const processedHistory = historyRows.map(row => ({
-      indentNumber: row[0],
-      timestamp: row[2],
-      status: row[3],
-      customerSale: row[13], // Column N
-      nextFollowUp: row[14]  // Column O
-    }));
-    setHistoryData(processedHistory);
-  }, [globalHistoryData]);
-
-  const getUniqueStages = () => {
-    const allStages = [
-      "call back", "intrested", "intrested", "interested", "unavailable", "disconnected",
-      "send resume", "not connected", "call not received", "wrong no.", "wrong no",
-      "not receive", "not received", "not intrested", "not intrested", "not interested",
-      "send resume", "busy", "not answer", "switch off", "disconected call", "disconnect",
-      "freshers", "no", "not selected", "interview lineup", "bakup", "hold", "selected",
-      "no exp.", "no experience", "NR", "NOT CONN.", "INT.", "int.", "NC", "in.",
-      "intrestred", "Call connected", "Call not connected", "Connected", "Connected on call",
-      "Busy", "Wrong number", "Invalid number", "Cv share kiya hi", "Working hi",
-      "Apna job", "Chattisgarh", "selected"
-    ];
-    return [...new Set(allStages)];
+    if (taskIds.length === 0) return "TI-001";
+    const maxId = Math.max(...taskIds);
+    return `TI-${(maxId + 1).toString().padStart(3, '0')}`;
   };
 
   const handleInputChange = (e) => {
@@ -111,140 +46,151 @@ const CallTracker = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleActionClick = (item) => {
-    setSelectedItem(item);
+  const resetForm = () => {
     setFormData({
-      customerSale: "",
-      status: statusOptions[0] || "",
-      nextFollowUp: "",
-      candidateName: "",
-      contactNumber: "",
+      entryBy: "",
+      applicantName: "",
+      contactNo: "",
+      role: "",
+      portalUsed: "",
+      location: "",
+      stage: "",
       notes: "",
-      stage: ""
+      feedback: "",
+      status: ""
     });
-    setShowModal(true);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.status) {
-      toast.error("Please select a status");
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    // Silent refresh specifically for Calling Tracking data when this page loads
+    // This allows showing cached data immediately while fetching updates
+    fetchSpecificSheets({ callingTrackingData: "Calling Tracking" });
+  }, [fetchSpecificSheets]);
+
+  useEffect(() => {
+    setTableLoading(storeLoading);
+  }, [storeLoading]);
+
+  useEffect(() => {
+    console.log("Calling Tracking Data Update:", callingTrackingData);
+    if (!callingTrackingData || callingTrackingData.length < 2) {
+      setDisplayData([]);
       return;
     }
 
+    // Skip header row and map to requested columns
+    const processed = callingTrackingData.slice(1).map((row, idx) => ({
+      id: idx,
+      taskId: row[1] || "",
+      entryBy: row[2] || "",
+      applicantName: row[3] || "",
+      contactName: row[4] || "",
+      role: row[5] || "",
+      portalUsed: row[6] || "",
+      location: row[7] || "",
+      stage: row[8] || "",
+      notes: row[9] || "",
+      feedback: row[10] || "",
+      status: row[11] || ""
+    }));
+
+    setDisplayData(processed);
+  }, [callingTrackingData]);
+
+  const filteredRows = displayData.filter(item => {
+    const term = searchTerm.toLowerCase();
+    return (
+      (item.taskId || "").toLowerCase().includes(term) ||
+      (item.applicantName || "").toLowerCase().includes(term) ||
+      (item.entryBy || "").toLowerCase().includes(term) ||
+      (item.role || "").toLowerCase().includes(term) ||
+      (item.status || "").toLowerCase().includes(term)
+    );
+  });
+
+  const totalPages = Math.ceil(filteredRows.length / recordsPerPage);
+  const paginatedRows = filteredRows.slice(
+    (currentPage - 1) * recordsPerPage,
+    currentPage * recordsPerPage
+  );
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setSubmitting(true);
     try {
       const now = new Date();
-      const month = now.getMonth() + 1; // Month is 0-indexed
-      const day = now.getDate();
-      const year = now.getFullYear();
-      const hours = now.getHours();
-      const minutes = now.getMinutes();
-      const seconds = now.getSeconds();
-      const fullTimestamp = `${month}/${day}/${year} ${hours}:${minutes}:${seconds}`;
+      const timestamp = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+      const taskId = generateTaskId();
 
-      // 1. Submit to Calling Tracking
-      const responseData = [];
-      responseData[0] = fullTimestamp;             // Col A (Timestamp)
-      responseData[1] = "";                        // Col B (Empty)
-      responseData[2] = formData.candidateName;    // Col C (Candidate Name)
-      responseData[3] = formData.contactNumber;    // Col D (Contact Number)
-      responseData[7] = formData.stage;            // Col H (Stage)
-      responseData[8] = formData.notes;            // Col I (Notes)
-      responseData[10] = selectedItem.indentNumber; // Col K (Indent Number)
-      responseData[11] = formData.status;          // Col L (Status)
-      responseData[13] = formData.customerSale;    // Col N (Customer Sale)
-      responseData[14] = formData.nextFollowUp;    // Col O (Next Follow Up)
+      const rowData = [
+        timestamp,            // Column A
+        taskId,               // Column B
+        formData.entryBy,     // Column C
+        formData.applicantName, // Column D
+        formData.contactNo,   // Column E
+        formData.role,        // Column F
+        formData.portalUsed,  // Column G
+        formData.location,    // Column H
+        formData.stage,       // Column I
+        formData.notes,       // Column J
+        formData.feedback,    // Column K
+        formData.status       // Column L
+      ];
 
-      const insertResponse = await fetch(FETCH_URL, {
+      const res = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
         method: "POST",
         body: new URLSearchParams({
           sheetName: "Calling Tracking",
           action: "bulkInsert",
-          rowsData: JSON.stringify([responseData])
+          rowsData: JSON.stringify([rowData])
         })
       });
 
-      const res1 = await insertResponse.json();
-
-      if (res1.success) {
-        toast.success("Call tracked successfully!");
-
-        // If status is "Closed", switch to history tab
-        if (formData.status.toLowerCase() === 'closed') {
-          setActiveTab("history");
-        }
-
+      const json = await res.json();
+      if (json.success) {
+        toast.success("Task added successfully!");
         setShowModal(false);
-        refreshData();
+        resetForm();
+        fetchSpecificSheets({ callingTrackingData: "Calling Tracking" });
       } else {
-        toast.error("Submission failed");
+        toast.error("Submit failed: " + (json.error || "Unknown error"));
       }
     } catch (error) {
-      console.error("Error submitting action:", error);
-      toast.error("Something went wrong");
+      console.error("Submit Error:", error);
+      toast.error("Submit failed");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Create mapping for candidate details
-  const candidateMapping = candidateData.reduce((acc, item) => {
-    acc[item.indentNumber] = {
-      name: item.candidateName,
-      dept: item.department,
-      post: item.post
-    };
-    return acc;
-  }, {});
-
-  const filteredPendingRows = candidateData.filter(item => {
-    const term = searchTerm.toLowerCase();
-    const hasAL = !!(item.columnAL && item.columnAL.toString().trim());
-    const hasAM = !!(item.columnAM && item.columnAM.toString().trim());
-    const matchesTab = hasAL && !hasAM;
-
-    // Check if this indent number has any "Closed" status in history
-    const hasClosedStatus = historyData.some(historyItem =>
-      historyItem.indentNumber === item.indentNumber &&
-      historyItem.status &&
-      historyItem.status.trim().toLowerCase() === 'closed'
-    );
-
-    const matchesSearch =
-      (item.candidateName || "").toLowerCase().includes(term) ||
-      (item.indentNumber || "").toLowerCase().includes(term) ||
-      (item.post || "").toLowerCase().includes(term);
-    const matchesDept = !deptFilter || item.department === deptFilter;
-    const matchesPost = !postFilter || item.post === postFilter;
-
-    // Item should be in pending if it matches tab conditions AND doesn't have a closed status
-    return matchesTab && matchesSearch && matchesDept && matchesPost && !hasClosedStatus;
-  });
-
-  const filteredHistoryRows = historyData.filter(item => {
-    const term = searchTerm.toLowerCase();
-    const details = candidateMapping[item.indentNumber] || {};
-    const matchesSearch =
-      (details.name || "").toLowerCase().includes(term) ||
-      (item.indentNumber || "").toLowerCase().includes(term) ||
-      (details.post || "").toLowerCase().includes(term) ||
-      (item.customerSale || "").toLowerCase().includes(term);
-
-    const matchesDept = !deptFilter || details.dept === deptFilter;
-    const matchesPost = !postFilter || details.post === postFilter;
-
-    return matchesSearch && matchesDept && matchesPost;
-  });
-
-  const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
-  const posts = [...new Set(candidateData.map(item => item.post))].filter(Boolean).sort();
-
   return (
     <div className="space-y-6 page-content p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Call Tracker</h1>
-        <div className="flex flex-col md:flex-row items-center gap-3">
+        <h1 className="text-2xl font-bold text-gray-800">Call Tracker Data</h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm transition-colors"
+          >
+            <Plus size={18} />
+            Add New Task
+          </button>
+          <button
+            onClick={() => fetchSpecificSheets({ callingTrackingData: "Calling Tracking" })}
+            disabled={tableLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-navy text-white rounded-lg hover:bg-navy-dark text-sm transition-colors disabled:bg-gray-400"
+          >
+            {tableLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Refreshing...
+              </>
+            ) : "Refresh Data"}
+          </button>
           <div className="relative w-full md:w-64">
             <input
               type="text"
@@ -255,136 +201,131 @@ const CallTracker = () => {
             />
             <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
-
-          <div className="flex items-center gap-2">
-            <select
-              value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
-              className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-            >
-              <option value="">All Departments</option>
-              {departments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
-            </select>
-            <select
-              value={postFilter}
-              onChange={(e) => setPostFilter(e.target.value)}
-              className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-            >
-              <option value="">All Posts</option>
-              {posts.map(post => <option key={post} value={post}>{post}</option>)}
-            </select>
-            <button
-              onClick={() => { setSearchTerm(""); setDeptFilter(""); setPostFilter(""); }}
-              className="p-2 text-gray-400 hover:text-navy transition-colors"
-            >
-              <X size={20} />
-            </button>
-          </div>
+          <button
+            onClick={() => setSearchTerm("")}
+            className="p-2 text-gray-400 hover:text-navy transition-colors"
+          >
+            <X size={20} />
+          </button>
         </div>
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="flex bg-gray-50 border-b">
-          <button
-            onClick={() => setActiveTab("pending")}
-            className={`px-6 py-4 text-sm font-medium transition-colors ${activeTab === "pending" ? "text-navy border-b-2 border-navy bg-white" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            <div className="flex items-center gap-2">
-              <Clock size={16} /> Pending
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab("history")}
-            className={`px-6 py-4 text-sm font-medium transition-colors ${activeTab === "history" ? "text-navy border-b-2 border-navy bg-white" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            <div className="flex items-center gap-2">
-              <CheckCircle size={16} /> History
-            </div>
-          </button>
+      <div className="bg-white shadow rounded-lg overflow-hidden p-6">
+        <div className="overflow-x-auto max-h-[calc(100vh-250px)] overflow-y-auto table-container">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50 sticky top-0 z-10">
+              <tr className="bg-gray-50">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Task ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Entry By</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Applicant Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Contact Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Portal Used</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Location</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Stage</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Notes</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Feedback</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Status</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200 relative">
+              {paginatedRows.length === 0 ? (
+                tableLoading ? (
+                  <tr><td colSpan="11" className="px-6 py-12 text-center text-gray-500">Loading initial data...</td></tr>
+                ) : storeError ? (
+                  <tr><td colSpan="11" className="px-6 py-12 text-center text-red-500 font-medium">Error: {storeError}</td></tr>
+                ) : (
+                  <tr><td colSpan="11" className="px-6 py-12 text-center text-gray-500">No data found in 'Calling Tracking'</td></tr>
+                )
+              ) : (
+                paginatedRows.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.taskId}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.entryBy}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.applicantName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.contactName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.role}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.portalUsed}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.location}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.stage}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{item.notes}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{item.feedback}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.status?.toLowerCase() === 'closed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                        {item.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
-        <div className="p-6">
-          <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto table-container">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0 z-10">
-                <tr className="bg-gray-50">
-                  {activeTab === "pending" ? (
-                    <>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Action</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Indent No.</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Candidate Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Department</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Post</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Trigger Date</th>
-                    </>
-                  ) : (
-                    <>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Indent No.</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Candidate Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Post</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Customer Sale</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Next Follow-Up</th>
-                    </>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {tableLoading ? (
-                  <tr><td colSpan="10" className="px-6 py-12 text-center text-gray-500">Loading...</td></tr>
-                ) : (activeTab === "pending" ? filteredPendingRows : filteredHistoryRows).length === 0 ? (
-                  <tr><td colSpan="10" className="px-6 py-12 text-center text-gray-500">No data found</td></tr>
-                ) : (
-                  (activeTab === "pending" ? filteredPendingRows : filteredHistoryRows).map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      {activeTab === "pending" ? (
-                        <>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <button
-                              onClick={() => handleActionClick(item)}
-                              className="px-4 py-2 bg-navy text-white rounded-lg hover:bg-navy-dark text-sm transition-colors"
-                            >
-                              Track Call
-                            </button>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.indentNumber}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.post}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.columnAL}</td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.indentNumber}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {candidateMapping[item.indentNumber]?.name || "N/A"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {candidateMapping[item.indentNumber]?.post || "N/A"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                              {item.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{item.customerSale || "-"}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.nextFollowUp || "-"}</td>
-                        </>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        {/* Pagination Controls */}
+        {filteredRows.length > 0 && (
+          <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 bg-gray-50">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                Next
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing <span className="font-medium">{(currentPage - 1) * recordsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * recordsPerPage, filteredRows.length)}</span> of{' '}
+                  <span className="font-medium">{filteredRows.length}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100 disabled:text-gray-300"
+                  >
+                    <span className="sr-only">Previous</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <div className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 focus:z-20 focus:outline-offset-0">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:bg-gray-100 disabled:text-gray-300"
+                  >
+                    <span className="sr-only">Next</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </nav>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-800">Track Call</h2>
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b sticky top-0 bg-white z-10">
+              <h2 className="text-xl font-bold text-gray-800">Add New Task</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700 transition-colors">
                 <X size={24} />
               </button>
@@ -392,44 +333,93 @@ const CallTracker = () => {
             <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Indent Number</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Entry By</label>
                   <input
-                    type="text"
-                    value={selectedItem?.indentNumber || ""}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                    name="entryBy"
+                    value={formData.entryBy}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                    placeholder="Enter name..."
+                    required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Applicant Name</label>
                   <input
-                    name="contactNumber"
-                    value={formData.contactNumber}
+                    name="applicantName"
+                    value={formData.applicantName}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
-                    placeholder="Enter contact..."
+                    placeholder="Enter name..."
+                    required
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Candidate Name</label>
-                <input
-                  name="candidateName"
-                  value={formData.candidateName}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
-                  placeholder="Enter candidate name..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">What did the Customer Says</label>
-                <textarea
-                  name="customerSale"
-                  value={formData.customerSale}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy h-20 sm:h-24"
-                  placeholder="Enter details..."
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact No.</label>
+                  <input
+                    name="contactNo"
+                    value={formData.contactNo}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                    placeholder="Enter number..."
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <input
+                    name="role"
+                    value={formData.role}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                    placeholder="Enter role..."
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Portal Used</label>
+                  <input
+                    name="portalUsed"
+                    value={formData.portalUsed}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                    placeholder="Enter portal..."
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                  <input
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                    placeholder="Enter location..."
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
+                  <input
+                    name="stage"
+                    value={formData.stage}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                    placeholder="Enter stage..."
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <input
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                    placeholder="Enter status..."
+                    required
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
@@ -437,48 +427,21 @@ const CallTracker = () => {
                   name="notes"
                   value={formData.notes}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy h-20 sm:h-24"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy h-20"
                   placeholder="Enter notes..."
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
-                  <select
-                    name="stage"
-                    value={formData.stage}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
-                  >
-                    <option value="">Select Stage</option>
-                    {uniqueStages.map(stage => <option key={stage} value={stage}>{stage}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
-                    required
-                  >
-                    <option value="">Select Status</option>
-                    {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
-                </div>
-              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Next Follow-Up Date</label>
-                <input
-                  type="date"
-                  name="nextFollowUp"
-                  value={formData.nextFollowUp}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Feedback</label>
+                <textarea
+                  name="feedback"
+                  value={formData.feedback}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy h-20"
+                  placeholder="Enter feedback..."
                 />
               </div>
-              <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4 border-t">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -492,7 +455,7 @@ const CallTracker = () => {
                   className="px-6 py-2 bg-navy text-white rounded-lg hover:bg-navy-dark transition-colors disabled:bg-gray-400"
                   disabled={submitting}
                 >
-                  {submitting ? "Submitting..." : "Submit"}
+                  {submitting ? "Adding..." : "Add Task"}
                 </button>
               </div>
             </form>

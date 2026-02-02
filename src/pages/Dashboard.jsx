@@ -324,6 +324,32 @@ const Dashboard = () => {
 
 
 
+  // Helper to prepare monthly hiring data for chart
+  const prepareMonthlyHiringData = (hiring, leaving) => {
+    const allMonths = Array.from(new Set([...Object.keys(hiring), ...Object.keys(leaving)]));
+    return allMonths.map(month => ({
+      month,
+      hired: hiring[month]?.hired || 0,
+      left: leaving[month]?.left || 0
+    })).sort((a, b) => {
+      // Very basic sort by date string if possible, or leave as is if already ordered
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const [mA, yA] = a.month.split(' ');
+      const [mB, yB] = b.month.split(' ');
+      if (yA !== yB) return yA - yB;
+      return months.indexOf(mA) - months.indexOf(mB);
+    });
+  };
+
+  // Helper to get color based on status
+  const getStatusColor = (status) => {
+    const s = (status || "").toLowerCase();
+    if (s.includes("pending")) return "#F59E0B";
+    if (s.includes("approve")) return "#10B981";
+    if (s.includes("reject")) return "#EF4444";
+    return "#6B7280";
+  };
+
   return (
     <div className="space-y-6 page-content p-6">
       <div className="flex items-center justify-between">

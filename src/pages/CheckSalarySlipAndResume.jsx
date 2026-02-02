@@ -23,6 +23,11 @@ const CheckSalarySlipAndResume = () => {
 
     const { joiningFmsData, isLoading: storeLoading, refreshData } = useDataStore();
 
+    // Refresh data on mount to ensure latest data is fetched
+    useEffect(() => {
+        refreshData();
+    }, [refreshData]);
+
     useEffect(() => {
         setTableLoading(storeLoading);
     }, [storeLoading]);
@@ -52,6 +57,7 @@ const CheckSalarySlipAndResume = () => {
             const columnAN = row[39];
             const salarySlip = row[36];
             const resume = row[37];
+            const status = row[40];
 
             return {
                 indentNumber: row[idxIndent] || "",
@@ -64,6 +70,7 @@ const CheckSalarySlipAndResume = () => {
                 resume: resume || "",
                 columnAM: columnAM,
                 columnAN: columnAN,
+                status: status || "",
                 isPending: (columnAM != null && columnAM !== "") && (columnAN == null || columnAN === ""),
                 isHistory: (columnAM != null && columnAM !== "") && (columnAN != null && columnAN !== "")
             };
@@ -272,7 +279,7 @@ const CheckSalarySlipAndResume = () => {
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Action
+                                        {activeTab === "pending" ? "Action" : "Status"}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Indent Number
@@ -280,9 +287,7 @@ const CheckSalarySlipAndResume = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Candidate Name
                                     </th>
-                                    {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Department
-                                    </th> */}
+                                 
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Designation
                                     </th>
@@ -317,12 +322,18 @@ const CheckSalarySlipAndResume = () => {
                                     filteredData.map((item, index) => (
                                         <tr key={index} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <button
-                                                    onClick={() => handleOpenModal(item)}
-                                                    className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors"
-                                                >
-                                                    Update Status
-                                                </button>
+                                                {activeTab === "pending" ? (
+                                                    <button
+                                                        onClick={() => handleOpenModal(item)}
+                                                        className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors"
+                                                    >
+                                                        Update Status
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-green-600 font-medium">
+                                                        {item.status}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">
                                                 {item.indentNumber}
@@ -330,9 +341,7 @@ const CheckSalarySlipAndResume = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                 {item.candidateName}
                                             </td>
-                                            {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {item.department}
-                                            </td> */}
+                                         
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {item.designation}
                                             </td>

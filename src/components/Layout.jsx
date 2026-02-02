@@ -40,9 +40,18 @@ import useDataStore from '../store/dataStore';
 
 const Layout = () => {
   const fetchGlobalData = useDataStore(state => state.fetchGlobalData);
+  const forceRefreshAllData = useDataStore(state => state.forceRefreshAllData);
 
   useEffect(() => {
     fetchGlobalData();
+
+    // Set up interval to refresh data every 5 minutes
+    const interval = setInterval(() => {
+      fetchGlobalData(false, true); // Silent refresh - no loading indicators
+    }, 5 * 60 * 1000); // 5 minutes
+
+    // Clean up interval on component unmount
+    return () => clearInterval(interval);
   }, [fetchGlobalData]);
 
   return (

@@ -71,37 +71,7 @@ const SidebarContent = ({
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200">
               {currentLang === "en" ? "HR FMS" : "एचआर एफएमएस"}
             </span>
-            <div className="relative">
-              <button
-                onClick={toggleLanguage}
-                className="p-2 rounded-md hover:bg-indigo-800 transition relative"
-                aria-label="Toggle language"
-                title={
-                  currentLang === "en"
-                    ? "Switch to Hindi (हिंदी में बदलें)"
-                    : "Switch to English (अंग्रेजी में बदलें)"
-                }
-              >
-                <Globe size={20} />
-                <span className="sr-only">
-                  {currentLang === "en" ? "EN" : "हिं"}
-                </span>
-              </button>
-
-              {/* Language indicator */}
-              <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {currentLang === "en" ? "EN" : "हिं"}
-              </div>
-
-              {/* Language hint tooltip */}
-              {showLanguageHint && currentLang === "en" && (
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50">
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                    <div className="w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-orange-500"></div>
-                  </div>
-                </div>
-              )}
-            </div>
+            
             <div id="google_translate_element" style={{ display: "none" }} />
             {user?.role === "employee" && (
               <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
@@ -745,11 +715,11 @@ const Sidebar = ({ onClose }) => {
     },
     { path: "/whatsapp", icon: Phone, label: "Whatsapp" },
     { path: "/call-tracker", icon: Phone, label: "Call Tracker" },
-    {
-      path: "/candidate_shortlisted",
-      icon: Users,
-      label: "Interview Schedule",
-    },
+    // {
+    //   path: "/candidate_shortlisted",
+    //   icon: Users,
+    //   label: "Interview Schedule",
+    // },
     {
       path: "/candidate_sortlisted",
       icon: Users,

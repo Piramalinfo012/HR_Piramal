@@ -9,6 +9,7 @@ const OnlinePosting = () => {
     siteStatus: "",
     socialSiteTypes: [],
     onlinePlatformAttachment: "",
+    selectedFile: null, // New field to store file locally
     status: "Yes",
   });
 
@@ -33,6 +34,7 @@ const OnlinePosting = () => {
   const {
     masterData,
     fmsData: globalFmsData,
+    dataResponseData,
     isLoading: storeLoading,
     refreshData
   } = useDataStore();
@@ -59,7 +61,19 @@ const OnlinePosting = () => {
       return;
     }
 
-    const dataFromRow2 = globalFmsData.slice(8); // Matches previous slice(8) logic
+    // 🔥 Data Response Map (create once)
+    const dataResponseMap = {};
+    dataResponseData.slice(1).forEach(row => {
+      const indentNo = row[0];      // Col A (Indent Number)
+      if (!indentNo) return;
+
+      dataResponseMap[indentNo] = {
+        siteStatus: row[3],         // ✅ Col D
+        socialSiteTypes: row[4],    // ✅ Col E
+      };
+    });
+
+    const dataFromRow2 = globalFmsData.slice(9); // Matches previous slice(8) logic
 
     const processedData = dataFromRow2.map((row) => ({
       status: row[0],              // Col A
@@ -78,52 +92,60 @@ const OnlinePosting = () => {
       noOfPost: row[14],           // Col O
       completionDate: row[15],     // Col P
       experience: row[16],         // Col Q
-      siteStatus: row[17],       // Col R
-      socialSiteTypes: row[18],  // Col S
+       planned: row[17]?.toString().trim() || "", // Col R
+  actual: row[18]?.toString().trim() || "",  // Col S
+      siteStatus: dataResponseMap[row[4]]?.siteStatus || "",
+      socialSiteTypes: dataResponseMap[row[4]]?.socialSiteTypes || "",
     }));
 
-    const filteredPending = processedData.filter((item) => {
-      const hasSiteStatus = item.siteStatus && item.siteStatus.toString().trim() !== "";
-      const hasSocialSiteTypes = item.socialSiteTypes && item.socialSiteTypes.toString().trim() !== "";
-      return hasSiteStatus && !hasSocialSiteTypes;
-    });
+   const filteredPending = processedData.filter(item =>
+  item.planned !== "" && item.actual === ""
+);
 
-    const filteredHistory = processedData.filter((item) => {
-      const hasSiteStatus = item.siteStatus && item.siteStatus.toString().trim() !== "";
-      const hasSocialSiteTypes = item.socialSiteTypes && item.socialSiteTypes.toString().trim() !== "";
-      return hasSiteStatus && hasSocialSiteTypes;
-    });
+const filteredHistory = processedData.filter(item =>
+  item.planned !== "" && item.actual !== ""
+);
+
 
     setHistoryIndentData(filteredHistory);
     setIndentData(filteredPending);
 
   }, [globalFmsData]);
 
+
+
+
+
+
+
   // fetchMasterData is replaced by useEffect reacting to global store
 
   // fetchIndentDataFromRow7 is replaced by useEffect reacting to global store
 
 
-  const handleFileUpload = async (e) => {
+  const handleFileUpload = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      setPostFormData((prev) => ({
+        ...prev,
+        selectedFile: null,
+      }));
+      return;
+    }
 
-    console.log("📁 File selected:", file);
-    console.log("📄 File name:", file.name);
-    console.log("📄 File type:", file.type);
-    console.log("📄 File size:", file.size);
+    console.log("📁 File selected locally:", file.name);
+    setPostFormData((prev) => ({
+      ...prev,
+      selectedFile: file,
+    }));
+    toast.success("File selected: " + file.name);
+  };
 
+  // Internal upload function used during submission
+  const uploadFileToServer = async (file) => {
+    console.log("🚀 Starting file upload during submission...");
     try {
-      setUploading(true);
-
-      console.log("🔄 Converting file to base64...");
       const base64Data = await convertFileToBase64(file);
-      console.log("✅ Base64 created");
-      console.log("🧾 Base64 length:", base64Data.length);
-      console.log("🧾 Base64 preview:", base64Data.substring(0, 50));
-
-      console.log("🚀 Sending request to Apps Script...");
-
       const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
         method: "POST",
         headers: {
@@ -138,28 +160,16 @@ const OnlinePosting = () => {
         }),
       });
 
-      console.log("📥 Raw response:", response);
-
       const result = await response.json();
-      console.log("📥 Parsed response JSON:", result);
-
       if (result.success) {
         console.log("✅ Upload success, file URL:", result.fileUrl);
-        setPostFormData((prev) => ({
-          ...prev,
-          onlinePlatformAttachment: result.fileUrl,
-        }));
-        toast.success("File uploaded!");
+        return result.fileUrl;
       } else {
-        console.error("❌ Upload failed:", result);
-        toast.error(result.error || "Upload failed");
+        throw new Error(result.error || "Upload failed");
       }
-
     } catch (error) {
-      console.error("🔥 Frontend error:", error);
-      toast.error("Frontend error");
-    } finally {
-      setUploading(false);
+      console.error("🔥 Upload error:", error);
+      throw error;
     }
   };
 
@@ -177,19 +187,39 @@ const OnlinePosting = () => {
   const handlePostSubmit = async (e) => {
     e.preventDefault();
 
+    // Validate that file is selected
+    if (!postFormData.selectedFile) {
+      toast.error("Please select an attachment file before submitting!");
+      return;
+    }
+
+    // Validate that at least one social site is selected
+    if (!postFormData.socialSiteTypes || postFormData.socialSiteTypes.length === 0) {
+      toast.error("Please select at least one social site type!");
+      return;
+    }
+
     try {
       setSubmitting(true);
+      setUploading(true); // Show uploading status
 
+      // 1. Upload the file first
+      let fileUrl = "";
+      try {
+        fileUrl = await uploadFileToServer(postFormData.selectedFile);
+      } catch (uploadError) {
+        toast.error("File upload failed: " + uploadError.message);
+        setUploading(false);
+        setSubmitting(false);
+        return;
+      }
+
+      setUploading(false);
+
+      // 2. Prepare data for submission
       const PO_NUMBER = "PO-1";
-
       const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
       const dataResponseRow = [
         selectedIndent.indentNumber,
@@ -197,11 +227,10 @@ const OnlinePosting = () => {
         timestamp,
         postFormData.status,
         postFormData.socialSiteTypes.join(", "),
-        postFormData.onlinePlatformAttachment
+        fileUrl
       ];
 
-
-      // Submit to DATA RESPONSE
+      // 3. Submit to DATA RESPONSE
       const response = await fetch(
         import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
@@ -218,7 +247,7 @@ const OnlinePosting = () => {
 
       if (result.success) {
         toast.success("Post data submitted successfully!");
-        setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", status: "Yes" });
+        setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", selectedFile: null, status: "Yes" });
         setShowPostModal(false);
 
         // Refresh table data
@@ -233,6 +262,7 @@ const OnlinePosting = () => {
       toast.error("Something went wrong!");
     } finally {
       setSubmitting(false);
+      setUploading(false);
     }
   };
 
@@ -289,8 +319,7 @@ const OnlinePosting = () => {
               <button
                 onClick={() => {
                   setShowPostModal(false);
-                  setShowPostModal(false);
-                  setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", status: "Yes" });
+                  setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", selectedFile: null, status: "Yes" });
                 }}
                 className="text-gray-500 hover:text-gray-700"
               >
@@ -339,22 +368,22 @@ const OnlinePosting = () => {
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Online Platform Attachment
+                    Online Platform Attachment *
                   </label>
                   <div className="flex gap-2">
                     <input
                       type="file"
                       onChange={handleFileUpload}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy text-sm"
-                      disabled={uploading}
+                      required
                     />
                   </div>
-                  {uploading && <p className="text-xs text-blue-500 mt-1">Uploading...</p>}
-                  {postFormData.onlinePlatformAttachment && (
-                    <p className="text-xs text-green-600 mt-1 truncate">
-                      Uploaded: {postFormData.onlinePlatformAttachment}
+                  {postFormData.selectedFile && (
+                    <p className="text-xs text-blue-600 mt-1 truncate">
+                      Selected: {postFormData.selectedFile.name}
                     </p>
                   )}
+                  {uploading && <p className="text-xs text-navy mt-1 animate-pulse">Uploading file, please wait...</p>}
                 </div>
               </>
 
@@ -408,10 +437,7 @@ const OnlinePosting = () => {
                   type="button"
                   onClick={() => {
                     setShowPostModal(false);
-                    setShowPostModal(false);
-                    setShowPostModal(false);
-                    setShowPostModal(false);
-                    setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", status: "Yes" });
+                    setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", selectedFile: null, status: "Yes" });
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-all duration-200"
                   disabled={submitting}
@@ -570,7 +596,7 @@ const OnlinePosting = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Prefer
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-sm font-medium text-gray-500 max-w-[180px] whitespace-normal break-words">
                       Experience
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -643,7 +669,7 @@ const OnlinePosting = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {item.prefer}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-4 py-2 text-sm font-medium text-gray-500 max-w-[180px] whitespace-normal break-words">
                           {item.experience}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -717,9 +743,6 @@ const OnlinePosting = () => {
                 <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Indent Number
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -734,7 +757,7 @@ const OnlinePosting = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Prefer
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-sm font-medium text-gray-500 max-w-[180px] whitespace-normal break-words">
                       Experience
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -793,14 +816,6 @@ const OnlinePosting = () => {
                     filteredHistoryData.map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            onClick={() => handlePostClick(item, index + 7)}
-                            className="text-white bg-navy px-3 py-1 rounded hover:bg-navy-dark"
-                          >
-                            Post
-                          </button>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
                           {item.indentNumber}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -815,7 +830,7 @@ const OnlinePosting = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {item.prefer}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-4 py-2 text-sm font-medium text-gray-500 max-w-[180px] whitespace-normal break-words">
                           {item.experience}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

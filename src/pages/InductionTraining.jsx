@@ -268,7 +268,12 @@ const InductionTraining = () => {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                    {activeTab === "pending" && (
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Action
+                                        </th>
+                                    )}
+
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Indent Number</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
                                     {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th> */}
@@ -285,9 +290,17 @@ const InductionTraining = () => {
                                 ) : (
                                     filteredData.map((item, idx) => (
                                         <tr key={idx} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <button onClick={() => handleOpenModal(item)} className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors">Update Status</button>
-                                            </td>
+                                            {activeTab === "pending" && (
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                    <button
+                                                        onClick={() => handleOpenModal(item)}
+                                                        className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors"
+                                                    >
+                                                        Update Status
+                                                    </button>
+                                                </td>
+                                            )}
+
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.indentNumber}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
                                             {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td> */}

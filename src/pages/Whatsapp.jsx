@@ -33,6 +33,7 @@ const Whatsapp = () => {
         indenterName: "",
         closedBy: "",
         screenshotUrl: "",
+        selectedFile: null, // Local file storage
         status: "Yes",
     });
     const [indentData, setIndentData] = useState([]);
@@ -40,7 +41,7 @@ const Whatsapp = () => {
     const [tableLoading, setTableLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
-    const { fmsData: globalFmsData, isLoading: storeLoading, refreshData } = useDataStore();
+    const { fmsData: globalFmsData, dataResponseData, isLoading: storeLoading, refreshData } = useDataStore();
 
     useEffect(() => {
         setTableLoading(storeLoading);
@@ -56,7 +57,7 @@ const Whatsapp = () => {
         const resultData = globalFmsData;
         const headerRowIndex = 5;
         const headers = resultData[headerRowIndex].map((h) => h?.toString().trim());
-        const dataRows = resultData.slice(headerRowIndex + 1);
+        const dataRows = resultData.slice(8);
 
         const timestampIndex = headers.indexOf("Timestamp");
         const postIndex = headers.indexOf("Post");
@@ -79,6 +80,25 @@ const Whatsapp = () => {
                 return "";
             };
 
+
+
+            // 🔥 Data Response Map (IndentNumber → extra info)
+            const dataResponseMap = {};
+            dataResponseData?.slice(1).forEach(row => {
+                const indentNo = row[0]; // Column A (Indent Number)
+                if (!indentNo) return;
+
+                dataResponseMap[indentNo] = {
+                    status: row[3],              // Column D
+                    jobConsultancy: row[6],      // Column G
+                    contactPerson: row[11],      // Column L
+                    contactNumber: row[12],      // Column M
+                    screenshotUrl: row[8], // ✅ Column I
+
+                };
+            });
+
+
             return {
                 timestamp: row[timestampIndex],
                 indentNumber: row[4] || "",
@@ -95,6 +115,13 @@ const Whatsapp = () => {
                 residence: row[residenceIndex],
                 columnAE: row[30],
                 columnAF: row[31],
+                statusDR: dataResponseMap[row[4]]?.status || "",
+                jobConsultancyDR: dataResponseMap[row[4]]?.jobConsultancy || "",
+                contactPersonDR: dataResponseMap[row[4]]?.contactPerson || "",
+                contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
+                screenshotUrl: dataResponseMap[row[4]]?.screenshotUrl || "",
+
+
             };
         });
 
@@ -137,51 +164,92 @@ const Whatsapp = () => {
         }));
     };
 
-    const handleFileUpload = async (e) => {
+    const handleFileUpload = (e) => {
         const file = e.target.files[0];
-        if (!file) return;
+        if (!file) {
+            setFormData((prev) => ({
+                ...prev,
+                selectedFile: null,
+            }));
+            return;
+        }
 
-        setFileUploading(true);
-        try {
+        console.log("📁 File selected locally:", file.name);
+        setFormData((prev) => ({
+            ...prev,
+            selectedFile: file,
+        }));
+        toast.success("File selected: " + file.name);
+    };
+
+    // Internal function to convert file to base64
+    const convertFileToBase64 = (file) => {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onloadend = async () => {
-                const base64Data = reader.result;
-                const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
-                    method: "POST",
-                    body: new URLSearchParams({
-                        action: "uploadFile",
-                        base64Data: base64Data,
-                        fileName: file.name,
-                        mimeType: file.type,
-                        folderId: "1tSoT0na5lGKAE82z0kDiDNU6ikkHJjA1OayGwV5CFq9tfc3BVrbLl3g-nkyKwHoYIMzTI2aI",
-                    }),
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    setFormData((prev) => ({
-                        ...prev,
-                        screenshotUrl: result.fileUrl,
-                    }));
-                    toast.success("Screenshot uploaded successfully!");
-                } else {
-                    toast.error("File upload failed: " + (result.error || "Unknown error"));
-                }
-                setFileUploading(false);
-            };
             reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    };
+
+    // Internal upload function used during submission
+    const uploadFileToServer = async (file) => {
+        console.log("🚀 Starting file upload during submission...");
+        try {
+            const base64Data = await convertFileToBase64(file);
+            const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: new URLSearchParams({
+                    action: "uploadFile",
+                    base64Data: base64Data,
+                    fileName: file.name,
+                    mimeType: file.type,
+                    folderId: "1tSoT0na5lGKAE82z0kDiDNU6ikkHJjA1OayGwV5CFq9tfc3BVrbLl3g-nkyKwHoYIMzTI2aI",
+                }),
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                console.log("✅ Upload success, file URL:", result.fileUrl);
+                return result.fileUrl;
+            } else {
+                throw new Error(result.error || "Upload failed");
+            }
         } catch (error) {
-            console.error("Upload error:", error);
-            toast.error("File upload error");
-            setFileUploading(false);
+            console.error("🔥 Upload error:", error);
+            throw error;
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (!formData.selectedFile) {
+            toast.error("Please select a screenshot to upload!");
+            return;
+        }
+
         try {
             setSubmitting(true);
+            setFileUploading(true); // Show uploading status
+
+            // 1. Upload the file first
+            let uploadedUrl = "";
+            try {
+                uploadedUrl = await uploadFileToServer(formData.selectedFile);
+            } catch (uploadError) {
+                toast.error("Screenshot upload failed: " + uploadError.message);
+                setFileUploading(false);
+                setSubmitting(false);
+                return;
+            }
+
+            setFileUploading(false);
+
+            // 2. Prepare data for submission
             const timestamp = getCurrentTimestamp();
             const PO_NUMBER = "PO-3";
 
@@ -194,7 +262,7 @@ const Whatsapp = () => {
                 "",                     // F (5)
                 "",                     // G (6) 
                 "",                     // H (7)
-                formData.screenshotUrl // I (8)
+                uploadedUrl            // I (8)
             ];
 
             const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
@@ -212,8 +280,8 @@ const Whatsapp = () => {
                 setFormData((prev) => ({
                     ...prev,
                     screenshotUrl: "",
+                    selectedFile: null,
                 }));
-                setShowModal(false);
                 setShowModal(false);
                 refreshData();
             } else {
@@ -224,6 +292,7 @@ const Whatsapp = () => {
             toast.error("Something went wrong!");
         } finally {
             setSubmitting(false);
+            setFileUploading(false);
         }
     };
 
@@ -232,6 +301,7 @@ const Whatsapp = () => {
             ...formData,
             indentNumber: "",
             screenshotUrl: "",
+            selectedFile: null,
             status: "Yes",
         });
         setShowModal(false);
@@ -242,6 +312,7 @@ const Whatsapp = () => {
             ...prev,
             indentNumber: item.indentNumber,
             screenshotUrl: "",
+            selectedFile: null,
             status: "Yes",
         }));
         setShowModal(true);
@@ -364,18 +435,18 @@ const Whatsapp = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Screenshot Upload</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Screenshot Upload *</label>
                                 <input
                                     type="file"
                                     onChange={handleFileUpload}
                                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-navy focus:border-navy"
                                     accept="image/*"
-                                    disabled={fileUploading || submitting}
+                                    required
                                 />
-                                {fileUploading && <p className="text-xs text-navy mt-1">Uploading...</p>}
-                                {formData.screenshotUrl && !fileUploading && (
-                                    <p className="text-xs text-green-600 mt-1">Screenshot uploaded successfully!</p>
+                                {formData.selectedFile && (
+                                    <p className="text-xs text-blue-600 mt-1">Selected: {formData.selectedFile.name}</p>
                                 )}
+                                {fileUploading && <p className="text-xs text-navy mt-1 animate-pulse">Uploading screenshot, please wait...</p>}
                             </div>
 
                             <div className="flex justify-end space-x-2 pt-4">
@@ -439,16 +510,34 @@ const Whatsapp = () => {
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Post</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Indenter Name</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Job Consultancy
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Contact Person
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Contact No
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Status
+                                        </th>
+                                        {activeTab === "history" && (
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                Screenshot
+                                            </th>
+                                        )}
+
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {tableLoading ? (
                                         <tr>
-                                            <td colSpan="5" className="px-6 py-12 text-center text-gray-500">Loading...</td>
+                                            <td colSpan={activeTab === "history" ? 9 : 8} className="px-6 py-12 text-center text-gray-500">Loading...</td>
                                         </tr>
                                     ) : (activeTab === "pending" ? filteredPendingData : filteredHistoryData).length === 0 ? (
                                         <tr>
-                                            <td colSpan="5" className="px-6 py-12 text-center text-gray-500">No data found.</td>
+                                            <td colSpan={activeTab === "history" ? 9 : 8} className="px-6 py-12 text-center text-gray-500">No data found.</td>
                                         </tr>
                                     ) : (activeTab === "pending" ? filteredPendingData : filteredHistoryData).map((item, index) => (
                                         <tr key={index} className="hover:bg-gray-50">
@@ -466,6 +555,35 @@ const Whatsapp = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.post}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.indenterName}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">
+                                                {item.jobConsultancyDR}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">
+                                                {item.contactPersonDR}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">
+                                                {item.contactNumberDR}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">
+                                                {item.statusDR}
+                                            </td>
+                                            {activeTab === "history" && (
+                                                <td className="px-6 py-4 text-sm text-gray-500">
+                                                    {item.screenshotUrl ? (
+                                                        <a
+                                                            href={item.screenshotUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-600 underline"
+                                                        >
+                                                            View
+                                                        </a>
+                                                    ) : (
+                                                        "—"
+                                                    )}
+                                                </td>
+                                            )}
+
                                         </tr>
                                     ))}
                                 </tbody>

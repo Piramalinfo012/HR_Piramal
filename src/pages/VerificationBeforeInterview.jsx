@@ -23,6 +23,7 @@ const VerificationBeforeInterview = () => {
     const [desigFilter, setDesigFilter] = useState("");
     const [actionFormData, setActionFormData] = useState({
         indentNumber: "",
+        taskId: "",
         status: "Yes",
     });
 
@@ -55,6 +56,11 @@ const VerificationBeforeInterview = () => {
         isLoading: storeLoading,
         refreshData
     } = useDataStore();
+
+    // Refresh data on mount to ensure we have latest from Canidate_Selection
+    useEffect(() => {
+        refreshData();
+    }, [refreshData]);
 
     useEffect(() => {
         setTableLoading(storeLoading);
@@ -89,7 +95,7 @@ const VerificationBeforeInterview = () => {
             return;
         }
 
-        const dataRows = candidateSelectionData.slice(7);
+        const dataRows = candidateSelectionData.slice(8);
         const processedData = dataRows.map((row, idx) => ({
             rowIndex: idx + 8,
             id: row[1], // Column B
@@ -98,9 +104,10 @@ const VerificationBeforeInterview = () => {
             candidateName: row[4], // Column E
             contactNo: row[5], // Column F
             mail: row[6], // Column G
-            indentId: row[41], // Column A (Indent Number as per user)
-            trigger_Z: row[25], // Column Z (Previous Step Marker)
-            statusMarker_AA: row[26], // Column AA (This Step Marker)
+            indentId: row[41], // Column AP (Actual Indent Number)
+           trigger_Z: row[25],        // Column Z
+statusMarker_AA: row[26], // Column AA
+
         }));
 
         setCandidateData(processedData);
@@ -254,6 +261,7 @@ const VerificationBeforeInterview = () => {
         setSelectedCandidate(candidate);
         setActionFormData({
             indentNumber: candidate.indentId || "",
+            taskId: candidate.id || "",
             status: "Yes",
         });
         setShowActionModal(true);
@@ -284,7 +292,10 @@ const VerificationBeforeInterview = () => {
 
             // 1. Submit to DATA RESPONSE
             const responseData = [];
-            responseData[0] = candidate.indentId; // Column A (Indent Number only)
+          const safeIndent = (candidate.indentId || "").trim();
+const safeName = (candidate.candidateName || "").trim();
+
+responseData[0] = `${safeIndent}`; // Column A ✅ IN-45_pooja
             responseData[1] = "CS-2";             // Column B (Step Code CS-2)
             responseData[2] = timestamp;          // Column C (Timestamp)
             responseData[3] = status;             // Column D (Status)
@@ -298,14 +309,14 @@ const VerificationBeforeInterview = () => {
                 }),
             });
 
-            // 2. Update Column AA in appsheet db (index 26)
+            // 2. Update Column W in Canidate_Selection (index 22, so 23rd column)
             const updateResponse = await fetch(getSubmitUrl(), {
                 method: "POST",
                 body: new URLSearchParams({
-                    sheetName: "appsheet db", // Assuming we update appsheet db based on previous logic, or maybe Canidate_Selection? Previous page used appsheet db for updateCell.
+                    sheetName: "Data Resposnse",
                     action: "updateCell",
                     rowIndex: candidate.rowIndex,
-                    columnIndex: 27, // Column AA is 27th column (1-indexed)
+                    columnIndex: 23, // Column W is 23rd column (1-indexed)
                     value: timestamp
                 }),
             });
@@ -330,13 +341,15 @@ const VerificationBeforeInterview = () => {
 
     const filteredData = candidateData.filter((item, index) => {
         const term = searchTerm.toLowerCase();
+const hasZ = !!(item.trigger_Z && item.trigger_Z.toString().trim());
+const hasAA = !!(item.statusMarker_AA && item.statusMarker_AA.toString().trim());
 
-        const hasZ = !!(item.trigger_Z && item.trigger_Z.toString().trim());
-        const hasAA = !!(item.statusMarker_AA && item.statusMarker_AA.toString().trim());
 
-        const matchesTab = activeTab === "pending"
-            ? (hasZ && !hasAA)
-            : (hasZ && hasAA);
+        const matchesTab =
+  activeTab === "pending"
+    ? (hasZ && !hasAA)   // ✅ Z filled, AA empty
+    : (hasZ && hasAA);   // ✅ Z filled, AA filled
+
 
         const matchesSearch = (
             (item.candidateName || "").toLowerCase().includes(term) ||
@@ -466,7 +479,7 @@ const VerificationBeforeInterview = () => {
                                                 ) : (
                                                     <span className="flex items-center gap-1 text-green-600">
                                                         <CheckCircle size={14} />
-                                                        {item.statusMarker_AA}
+                                                        {item.statusMarker_W}
                                                     </span>
                                                 )}
                                             </td>
@@ -620,11 +633,20 @@ const VerificationBeforeInterview = () => {
                                     </button>
                                 </div>
                                 <form onSubmit={handleActionSubmit} className="space-y-4">
-                                    <div>
+                                    {/* <div>
                                         <label className="block text-sm font-medium text-gray-700">Indent Number</label>
                                         <input
                                             type="text"
                                             value={actionFormData.indentNumber}
+                                            readOnly
+                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-50"
+                                        />
+                                    </div> */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Task ID</label>
+                                        <input
+                                            type="text"
+                                            value={actionFormData.taskId}
                                             readOnly
                                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-50"
                                         />

@@ -51,6 +51,7 @@ const CallingForJobAgencies = () => {
     masterData,
     fmsData: globalFmsData,
     userData: globalUserData,
+    dataResponseData,
     isLoading: storeLoading,
     refreshData
   } = useDataStore();
@@ -85,6 +86,23 @@ const CallingForJobAgencies = () => {
       setHistoryIndentData([]);
       return;
     }
+    
+
+// 🔥 Data Response Map (IndentNumber → extra info)
+const dataResponseMap = {};
+dataResponseData?.slice(1).forEach(row => {
+  const indentNo = row[0]; // Column A (Indent Number)
+  if (!indentNo) return;
+
+  dataResponseMap[indentNo] = {
+    status: row[3],              // Column D
+    jobConsultancy: row[6],      // Column G
+    contactPerson: row[11],      // Column L
+    contactNumber: row[12],      // Column M
+  };
+});
+
+
 
     const resultData = globalFmsData;
     // Find headers dynamically
@@ -151,6 +169,11 @@ const CallingForJobAgencies = () => {
       CunsultancyScreensortImage: row[CunsultancyScreensortImage],
       CunsultancyNumber: row[CunsultancyNumber],
       JobCunsultancyName: row[JobCunsultancyName],
+      statusDR: dataResponseMap[row[4]]?.status || "",
+jobConsultancyDR: dataResponseMap[row[4]]?.jobConsultancy || "",
+contactPersonDR: dataResponseMap[row[4]]?.contactPerson || "",
+contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
+
     }));
 
     const pendingTasks = processedData.filter((item) => item.columnX && !item.columnY);
@@ -463,7 +486,8 @@ const CallingForJobAgencies = () => {
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
               <h3 className="text-lg font-medium text-gray-800">
-                Create New Indent
+                Calling Job 
+                Agencies
               </h3>
               <button
                 onClick={handleCancel}
@@ -473,166 +497,7 @@ const CallingForJobAgencies = () => {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Post (पद)*
-                </label>
-                <input
-                  type="text"
-                  name="post"
-                  value={formData.post}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="Enter post title"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Gender (लिंग) *
-                </label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  required
-                >
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Any">Any</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Department (विभाग)
-                </label>
-                <select
-                  name="department"
-                  value={formData.department}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                >
-                  <option value="">Select Department</option>
-                  <option value="Production">Production</option>
-                  <option value="Management">Management</option>
-                  <option value="Sales">Sales</option>
-                  <option value="HR">HR</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Prefer (प्राथमिकता)
-                </label>
-                <select
-                  name="prefer"
-                  value={formData.prefer}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                >
-                  <option value="">Any</option>
-                  <option value="Experience">Experience</option>
-                  <option value="Fresher">Fresher</option>
-                </select>
-              </div>
-
-              
-              {formData.prefer === "Experience" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Experience (अनुभव) *
-                  </label>
-                  <input
-                    type="text"
-                    name="experience"
-                    value={formData.experience}
-                    onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                    placeholder="Enter experience details"
-                    required={formData.prefer === "Experience"}
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Number Of Post (पद की संख्या) *
-                </label>
-                <input
-                  type="number"
-                  name="numberOfPost"
-                  value={formData.numberOfPost}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="Enter number of posts"
-                  min="1"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Competition Date (समापन तिथि) *
-                </label>
-                <input
-                  type="date"
-                  name="competitionDate"
-                  value={formData.competitionDate}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Social Site (सोशल साइट) *
-                </label>
-                <select
-                  name="socialSite"
-                  value={formData.socialSite}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  required
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div> */}
-
-              {/* Social Site Types checklist - only show when socialSite is Yes */}
-              {/* {formData.socialSite === "Yes" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Social Site Types (सोशल साइट प्रकार) *
-                  </label>
-                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
-                    {socialSiteOptions.map((option) => (
-                      <div key={option} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id={option}
-                          value={option}
-                          checked={formData.socialSiteTypes.includes(option)}
-                          onChange={handleSocialSiteTypeChange}
-                          className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
-                        />
-                        <label
-                          htmlFor={option}
-                          className="ml-2 block text-sm text-gray-700"
-                        >
-                          {option}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )} */}
+             
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -712,125 +577,7 @@ const CallingForJobAgencies = () => {
                 </div>
               </div>
 
-              {/* Global contact info fields removed, now per consultancy */}
-
-              {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Salary
-                </label>
-                <input
-                  type="number"
-                  name="salary"
-                  value={formData.salary}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="Enter salary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Office Timing (From)
-                </label>
-                <input
-                  type="time"
-                  name="officeTimingFrom"
-                  value={formData.officeTimingFrom}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Office Timing (To)
-                </label>
-                <input
-                  type="time"
-                  name="officeTimingTo"
-                  value={formData.officeTimingTo}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type of Week
-                </label>
-                <select
-                  name="typeOfWeek"
-                  value={formData.typeOfWeek}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                >
-                  <option value="">Select</option>
-                  <option value="Week off">Week off</option>
-                  <option value="No week off">No week off</option>
-                  <option value="Both">Both</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Residence
-                </label>
-                <select
-                  name="residence"
-                  value={formData.residence}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                >
-                  <option value="">Select</option>
-                  <option value="Stay">Stay</option>
-                  <option value="Up-down">Up-down</option>
-                  <option value="Both">Both</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Closed By
-                </label>
-                <input
-                  type="text"
-                  name="closedBy"
-                  value={formData.closedBy}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="Enter name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Indenter Name
-                </label>
-                <input
-                  type="text"
-                  name="indenterName"
-                  value={formData.indenterName}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="Enter indenter name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                >
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                  <option value="Hold">Hold</option>
-                </select>
-              </div>
+             
 
               {/* WhatsApp field removed as per user request */}
 
@@ -843,39 +590,7 @@ const CallingForJobAgencies = () => {
                 >
                   Cancel
                 </button>
-                {/* <button
-                  type="submit"
-                  className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark transition-all duration-200 flex items-center justify-center"
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <>
-                      <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Processing...
-                    </>
-                  ) : (
-                    "Submit"
-                  )}
-                </button> */}
+               
 
                 <button
                   type="submit"
@@ -1199,25 +914,10 @@ const CallingForJobAgencies = () => {
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Indent No
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Person Name
+                        Indent Number
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Post
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Salary
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Office Timing
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Types of Weekly Off
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Residence
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Gender
@@ -1228,18 +928,42 @@ const CallingForJobAgencies = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Prefer
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Number Of Post
-                      </th>
+
+
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Completion Date
                       </th>
+
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Required Qualifications
+                        Salary
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Action
+                        Office Timing
                       </th>
+
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Residence
+                      </th>
+                      {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Closed By
+                      </th> */}
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Indenter Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+  Job Consultancy
+</th>
+<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+  Contact Person
+</th>
+<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+  Contact No
+</th>
+<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+  Status
+</th>
+
+                     
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
@@ -1263,16 +987,8 @@ const CallingForJobAgencies = () => {
                     ) : (
                       filteredHistoryData.map((item, index) => (
                         <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <button
-                              onClick={() => handlePostClick(item)}
-                              className="px-3 py-1 bg-navy text-white rounded hover:bg-navy-dark"
-                            >
-                              Post
-                            </button>
-                          </td>
-
-                          <td className="px-6 py-4 whitespace-nowrap">
+                         
+                           <td className="px-6 py-4 whitespace-nowrap">
                             {item.indentNumber}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1288,9 +1004,7 @@ const CallingForJobAgencies = () => {
                             {item.prefer}
                           </td>
 
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.noOfPost}
-                          </td>
+
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <div className="text-sm text-gray-900 break-words">
                               {item.completionDate
@@ -1332,16 +1046,7 @@ const CallingForJobAgencies = () => {
                                 : "—"}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.socialSite}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.socialSiteTypes}
-                          </td>
 
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.jobConsultancyName}
-                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.salary}
                           </td>
@@ -1349,35 +1054,24 @@ const CallingForJobAgencies = () => {
                             {item.officeTiming}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.typeOfWeek}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.residence}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {item.indenterName}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.JobCunsultancyName}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.CunsultancyNumber}
-                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+  {item.jobConsultancyDR}
+</td>
+<td className="px-6 py-4 text-sm text-gray-500">
+  {item.contactPersonDR}
+</td>
+<td className="px-6 py-4 text-sm text-gray-500">
+  {item.contactNumberDR}
+</td>
+<td className="px-6 py-4 text-sm text-gray-500">
+  {item.statusDR}
+</td>
 
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.CunsultancyScreensortImage ? (
-                              <a
-                                href={item.CunsultancyScreensortImage}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline"
-                              >
-                                View
-                              </a>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
                         </tr>
                       ))
                     )}

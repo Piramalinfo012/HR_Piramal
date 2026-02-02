@@ -57,6 +57,11 @@ const AssetAssignment = () => {
         const processed = dataRows.map((row) => {
             const columnBE = row[idxBE];
             const columnBF = row[idxBF];
+            const responseG = row[60] || ""; // BI → Laptop
+const responseH = row[61] || ""; // BJ → Mobile
+const responseI = row[62] || ""; // BK → Gmail
+const responseJ = row[63] || ""; // BL → Assets
+
             return {
                 indentNumber: row[idxIndent] || "",
                 candidateName: row[idxName] || "",
@@ -66,6 +71,11 @@ const AssetAssignment = () => {
                 email: row[idxEmail] || "",
                 columnBE,
                 columnBF,
+                laptopDetails: responseG,     // BI
+  mobileDetails: responseH,     // BJ
+  gmailId: responseI,           // BK
+  assetsAssigned: responseJ,    // BL
+
                 // Pending: BE not null && BF null
                 isPending: (columnBE != null && columnBE !== "") && (columnBF == null || columnBF === ""),
                 // History: both not null
@@ -270,11 +280,32 @@ const AssetAssignment = () => {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                   {activeTab === "pending" && (
+  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+    Action
+  </th>
+)}
+
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Indent Number</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
                                     {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th> */}
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
+                                    {activeTab === "history" && (
+      <>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+          Laptop
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+          Mobile
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+          Gmail ID
+        </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+          Assets
+        </th>
+      </>
+    )}
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -285,13 +316,37 @@ const AssetAssignment = () => {
                                 ) : (
                                     filteredData.map((item, idx) => (
                                         <tr key={idx} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <button onClick={() => handleOpenModal(item)} className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors">Assign Assets</button>
-                                            </td>
+                                           {activeTab === "pending" && (
+  <td className="px-6 py-4 whitespace-nowrap text-sm">
+    <button
+      onClick={() => handleOpenModal(item)}
+      className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors"
+    >
+      Assign Assets
+    </button>
+  </td>
+)}
+
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.indentNumber}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
                                             {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td> */}
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
+                                             {activeTab === "history" && (
+        <>
+          <td className="px-6 py-4 text-sm text-gray-500">
+            {item.laptopDetails || "—"}
+          </td>
+          <td className="px-6 py-4 text-sm text-gray-500">
+            {item.mobileDetails || "—"}
+          </td>
+          <td className="px-6 py-4 text-sm text-gray-500">
+            {item.gmailId || "—"}
+          </td>
+          <td className="px-6 py-4 text-sm text-gray-500">
+            {item.assetsAssigned || "—"}
+          </td>
+        </>
+      )}
                                         </tr>
                                     ))
                                 )}

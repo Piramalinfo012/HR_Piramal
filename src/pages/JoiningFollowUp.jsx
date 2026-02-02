@@ -394,7 +394,7 @@ const JoiningFollowUp = () => {
                             <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        {/* <div className="flex items-center gap-2">
                             <div className="w-40">
                                 <select
                                     value={deptFilter}
@@ -430,7 +430,7 @@ const JoiningFollowUp = () => {
                             >
                                 <X size={20} />
                             </button>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </div>
