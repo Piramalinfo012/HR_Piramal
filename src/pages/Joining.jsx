@@ -51,77 +51,205 @@ const Joining = () => {
   const { joiningFmsData, candidateSelectionData, isLoading: storeLoading, refreshData, fetchGlobalData } = useDataStore();
   const [candidateData, setCandidateData] = useState([]);
 
-  // Fetch global data on mount to ensure candidateSelectionData is available
-  useEffect(() => {
-    fetchGlobalData();
-  }, [fetchGlobalData]);
+  // Fetch data from Canidate_Selection
+  // Fetch data from Canidate_Selection and filter by JOINING_FMS
+ // Fetch data from Canidate_Selection and filter by JOINING_FMS
+useEffect(() => {
+  const fetchData = async () => {
+    setTableLoading(true);
+    try {
+      // 1. Fetch Canidate_Selection
+      console.log("📥 Fetching from Canidate_Selection...");
+      const candidateRes = await fetch(`${FETCH_URL}?sheet=Canidate_Selection`);
+      const candidateJson = await candidateRes.json();
+      console.log("✅ Canidate_Selection Raw Data:", candidateJson);
 
-  // Process data when store updates
-  useEffect(() => {
-    if (!joiningFmsData || joiningFmsData.length < 8) {
+      // 2. Fetch JOINING_FMS
+      const joiningFmsUrl = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
+      console.log("📥 Fetching from JOINING_FMS...");
+      const joiningRes = await fetch(`${joiningFmsUrl}?sheet=JOINING_FMS`);
+      const joiningJson = await joiningRes.json();
+      console.log("✅ JOINING_FMS Raw Data:", joiningJson);
+
+      // Helper to parse JSON - NOW FINDS ACTUAL HEADER ROW
+      const parseData = (json) => {
+        let allRows = [];
+        if (Array.isArray(json)) {
+          allRows = json;
+        } else if (json && typeof json === 'object' && json.data && Array.isArray(json.data)) {
+          allRows = json.data;
+        } else {
+          return { headers: [], rows: [] };
+        }
+
+        // Find the row that contains "ID" or "Candidate Enquiry No" - that's the header row
+        const headerRowIndex = allRows.findIndex(row => 
+          row && row.some(cell => 
+            cell && (
+              cell.toString().trim().toUpperCase() === "ID" ||
+              cell.toString().trim().toLowerCase().includes("candidate enquiry")
+            )
+          )
+        );
+
+        if (headerRowIndex === -1) {
+          // Fallback: use first row as header
+          return { headers: allRows[0] || [], rows: allRows.slice(1) };
+        }
+
+        console.log(`📍 Found header row at index: ${headerRowIndex}`);
+        return {
+          headers: allRows[headerRowIndex],
+          rows: allRows.slice(headerRowIndex + 1)
+        };
+      };
+
+      const { headers: cHeaders, rows: cRows } = parseData(candidateJson);
+      const { headers: jHeaders, rows: jRows } = parseData(joiningJson);
+
+      console.log("📋 Canidate_Selection Headers:", cHeaders);
+      console.log("📋 Canidate_Selection Total Rows:", cRows.length);
+      
+      // DETAILED DEBUGGING
+      console.log("🔍 DETAILED DEBUGGING:");
+      console.log("📋 First 10 Headers:", cHeaders.slice(0, 10));
+      console.log("📋 Headers around AJ (30-40):", cHeaders.slice(30, 40));
+      console.log("📋 First data row:", cRows[0]);
+      console.log("📋 Second data row:", cRows[1]);
+      
+      // Check specifically AJ column
+      console.log("📋 Column 35 (AJ) in first 10 rows:");
+      for (let i = 0; i < 10 && i < cRows.length; i++) {
+        console.log(`  Row ${i + 1}: [${i}][35] = "${cRows[i] ? cRows[i][35] : 'undefined'}"`);
+      }
+
+      console.log("📋 JOINING_FMS Headers:", jHeaders);
+      console.log("📋 JOINING_FMS Total Rows:", jRows.length);
+
+      if (!cHeaders.length || !cRows.length) {
+        console.warn("⚠️ No data found in Canidate_Selection");
+        setCandidateData([]);
+        return;
+      }
+
+      // --- Logic for JOINING_FMS ---
+      const getFmsIndex = (name, fixedIdx) => {
+        const idx = jHeaders.findIndex(h => h && h.toString().trim().toLowerCase() === name.toLowerCase());
+        return idx !== -1 ? idx : fixedIdx;
+      };
+
+      const idxJ_Id = getFmsIndex("ID", 5);
+      const idxJ_Planned = getFmsIndex("Planned", 38);
+      
+      console.log("📌 JOINING_FMS Column Indexes - ID:", idxJ_Id, "Planned:", idxJ_Planned);
+
+      const blockedIds = new Set();
+      jRows.forEach(row => {
+        if (!row) return;
+        const id = row[idxJ_Id];
+        const planned = row[idxJ_Planned];
+
+        if (id && planned && planned.toString().trim() !== "") {
+          blockedIds.add(id.toString().trim());
+        }
+      });
+
+      console.log("🚫 Blocked IDs from JOINING_FMS:", Array.from(blockedIds));
+
+      // --- Logic for Canidate_Selection ---
+      const getCIndex = (name, fallbackIndex) => {
+        const idx = cHeaders.findIndex(
+          h => h && h.toString().trim().toLowerCase() === name.toLowerCase()
+        );
+        console.log(`🔍 Searching for "${name}": found at index ${idx} (fallback: ${fallbackIndex})`);
+        return idx !== -1 ? idx : fallbackIndex;
+      };
+
+      const idxEnquiry = getCIndex("Candidate Enquiry No", 1);
+      const idxName = getCIndex("Candidate Name", 4);
+      const idxMobile = getCIndex("Mobile No", 5);
+      const idxEmail = getCIndex("Email Id", 6);
+      const idxResume = getCIndex("Resume/CV", 20);
+      const idxQual = getCIndex("Highest Qualification", 8);
+      const idxCurrentCTC = getCIndex("Current CTC (LPA)", 16);
+      const idxExpectedCTC = getCIndex("Expected (LPA)", 17);
+      const idxStatus = getCIndex("Status", 36);
+      const idxActualAJ = getCIndex("Actual", 35); // Column AJ
+
+      console.log("📌 Canidate_Selection Column Indexes:");
+      console.log("  - Enquiry No:", idxEnquiry);
+      console.log("  - Name:", idxName);
+      console.log("  - Mobile:", idxMobile);
+      console.log("  - Email:", idxEmail);
+      console.log("  - Resume:", idxResume);
+      console.log("  - Qualification:", idxQual);
+      console.log("  - Current CTC:", idxCurrentCTC);
+      console.log("  - Expected CTC:", idxExpectedCTC);
+      console.log("  - Status:", idxStatus);
+      console.log("  - Actual (AJ):", idxActualAJ);
+
+      console.log("🔍 Filtering rows where Column AJ (Actual) is NOT NULL...");
+
+      const processed = cRows
+        .filter((row, index) => {
+          if (!row || row.length === 0) {
+            console.log(`Row ${index + 1}: Empty or undefined row`);
+            return false;
+          }
+
+          const actualAJ = row[idxActualAJ];
+          const id = row[idxEnquiry];
+
+          if (index < 5) { // Log first 5 rows in detail
+            console.log(`Row ${index + 1}: ID=${id}, AJ Value="${actualAJ}"`);
+          }
+
+          // ✅ AJ must be filled (not null, not empty)
+          if (
+            actualAJ === undefined ||
+            actualAJ === null ||
+            actualAJ.toString().trim() === ""
+          ) {
+            if (index < 5) console.log(`  ❌ Filtered out: AJ is empty`);
+            return false;
+          }
+
+          // ❌ Skip if already planned in JOINING_FMS
+          if (id && blockedIds.has(id.toString().trim())) {
+            console.log(`  ❌ Filtered out: Already in JOINING_FMS`);
+            return false;
+          }
+
+          console.log(`  ✅ Included: ID=${id}, AJ="${actualAJ}"`);
+          return true;
+        })
+        .map((row, i) => ({
+          indentNumber: row[idxEnquiry],
+          id: row[idxEnquiry] || (i + 1),
+          candidateName: row[idxName] || "",
+          contactNo: row[idxMobile] || "",
+          mail: row[idxEmail] || "",
+          resume: row[idxResume] || "",
+          qualification: row[idxQual] || "",
+          currentCTC: row[idxCurrentCTC] || "",
+          expectedCTC: row[idxExpectedCTC] || "",
+          status: row[idxStatus] || "",
+          joiningDate: row[idxActualAJ] || "" // Display AJ column data as joining date
+        }));
+
+      console.log("✅ Final Processed Data (Total:", processed.length, "):", processed);
+      setCandidateData(processed);
+    } catch (err) {
+      console.error("❌ Fetch error:", err);
       setCandidateData([]);
-      return;
+    } finally {
+      setTableLoading(false);
     }
+  };
 
-    const headers = joiningFmsData[6] || [];
-    const dataRows = joiningFmsData.slice(7);
+  fetchData();
+}, [FETCH_URL]);
 
-    const getIndex = (headerName) => {
-      const index = headers.findIndex(
-        (h) => h && h.toString().trim().toLowerCase() === headerName.trim().toLowerCase()
-      );
-      return index;
-    };
-
-    // Refined fallback indices based on your manual log data
-    const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 10; // "PPPL/EI/25" was here
-    const idxId = getIndex("ID") !== -1 ? getIndex("ID") : 5; // "IN-05_hr" was here
-    const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 6; // Column G is index 6
-    const idxDept = getIndex("Department") !== -1 ? getIndex("Department") : 1;
-    const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 2;
-    const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
-    const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
-    const idxSalary = getIndex("Salary") !== -1 ? getIndex("Salary") : 14;
-    const idxLocation = getIndex("Work Location") !== -1 ? getIndex("Work Location") : 13;
-    const idxAadharF = getIndex("Aadhar Front") !== -1 ? getIndex("Aadhar Front") : 15;
-    const idxAadharB = getIndex("Aadhar Back") !== -1 ? getIndex("Aadhar Back") : 16;
-    const idxPan = getIndex("Pan Card") !== -1 ? getIndex("Pan Card") : 17;
-    const idxBank = getIndex("Bank Passbook") !== -1 ? getIndex("Bank Passbook") : 18;
-
-    console.log("Indices for Mapping:", { idxIndent, idxId, idxName });
-
-    const processed = dataRows
-      .filter(row => {
-        if (!row || row.length < 5) return false;
-        const isRowEmpty = row.every(cell => !cell || cell.toString().trim() === '');
-        if (isRowEmpty) return false;
-        const status = (row[8] || "").toString().trim().toUpperCase();
-        return status !== "DONE";
-      })
-      .map((row, idx) => ({
-        rowIndex: idx + 8,
-        id: row[idxId] || "",
-        department: row[idxDept] || "",
-        designation: row[idxDesig] || "",
-        candidateName: row[idxName] || "",
-        joiningPlace: row[idxLocation] || "",
-        salary: row[idxSalary] || "",
-        aadharFrontsidephoto: row[idxAadharF] || "",
-        aadharBacksidephoto: row[idxAadharB] || "",
-        panCardphoto: row[idxPan] || "",
-        bankAccountphoto: row[idxBank] || "",
-        contactNo: row[idxMobile] || "",
-        mail: row[idxEmail] || "",
-        indentId: row[idxIndent] || "", // This is the "PPPL/EI/25" enquiry number
-      }));
-
-    setCandidateData(processed);
-  }, [joiningFmsData]);
-
-  // Sync local loading state with store loading (optional, but good for UI)
-  useEffect(() => {
-    setTableLoading(storeLoading);
-  }, [storeLoading]);
 
   // ============================================
   // EXISTING FETCH LOGIC - NO CHANGE
@@ -162,8 +290,10 @@ const Joining = () => {
         if (!row || row.length < 7) return false;
 
         // Match by Enquiry Number in column B (index 1)
-        const enquiryMatch = row[1] && candidate.indentId &&
-          row[1].toString().trim() === candidate.indentId.toString().trim();
+        const enquiryMatch = row[1] && candidate.indentNumber
+          &&
+          row[1].toString().trim() === candidate.indentNumber
+            .toString().trim();
 
         // Match by System ID (index 5 in FMS) - if we can find where it is in Canidate_Selection
         // For now, let's use Enquiry No as primary and Name/Mobile/Email as backup
@@ -187,7 +317,8 @@ const Joining = () => {
     }
 
     console.log("Pre-fill Logic Source - selectionInfo:", candidateSelectionInfo ? candidateSelectionInfo[1] : "not found");
-    console.log("Pre-fill Logic Source - tableData:", candidate.indentId);
+    console.log("Pre-fill Logic Source - tableData:", candidate.indentNumber
+    );
 
     setFormData({
       candidateEnquiryNo: candidate.id || "", // Automatically show the ID here
@@ -411,43 +542,7 @@ const Joining = () => {
               <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             </div>
 
-            {/* <div className="flex items-center gap-2">
-              <div className="w-40">
-                <select
-                  value={deptFilter}
-                  onChange={(e) => setDeptFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-                >
-                  <option value="">All Departments</option>
-                  {departments.map(dept => (
-                    <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="w-40">
-                <select
-                  value={desigFilter}
-                  onChange={(e) => setDesigFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-                >
-                  <option value="">All Posts</option>
-                  {designations.map(desig => (
-                    <option key={desig} value={desig}>{desig}</option>
-                  ))}
-                </select>
-              </div>
-              <button
-                onClick={() => {
-                  setSearchTerm("");
-                  setDeptFilter("");
-                  setDesigFilter("");
-                }}
-                className="p-2 text-gray-400 hover:text-navy transition-colors"
-                title="Clear Filters"
-              >
-                <X size={20} />
-              </button>
-            </div> */}
+
           </div>
         </div>
       </div>
@@ -458,21 +553,58 @@ const Joining = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
-                  
+                  <th className="px-6 py-3 text-left">Action</th>
+                  <th className="px-6 py-3">Indent No</th>
+
+                  <th className="px-6 py-3">Resume/CV</th>
+                  <th className="px-6 py-3">Highest Qualification</th>
+                  <th className="px-6 py-3">Candidate Name</th>
+                  <th className="px-6 py-3">Current CTC (LPA)</th>
+                  <th className="px-6 py-3">Expected (LPA)</th>
+                  <th className="px-6 py-3">Status</th>
+                  <th className="px-6 py-3">Joining Date</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y text-gray-500 text-sm">
                 {tableLoading ? (
-                  <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">Loading...</td></tr>
+                  <tr>
+                    <td colSpan="9" className="py-12 text-center">
+                      <div className="flex justify-center items-center gap-3">
+                        <svg
+                          className="animate-spin h-5 w-5 text-gray-500"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                        <span>Loading data...</span>
+                      </div>
+                    </td>
+                  </tr>
                 ) : filteredData.length === 0 ? (
-                  <tr><td colSpan="7" className="px-6 py-12 text-center text-gray-500">No candidates found.</td></tr>
+                  <tr>
+                    <td colSpan="9" className="py-10 text-center text-gray-400">
+                      No records found
+                    </td>
+                  </tr>
                 ) : (
-                  filteredData.map((item, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+
+                  filteredData.map((item, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-3">
                         <button
                           onClick={() => handleOpenModal(item)}
                           className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors"
@@ -480,13 +612,33 @@ const Joining = () => {
                           Fill Details
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
-                     
+
+                      <td className="px-6 py-3">
+                        {item.indentNumber}
+                      </td>
+
+                      <td className="px-6 py-3">
+                        {item.resume ? (
+                          <a
+                            href={item.resume}
+                            target="_blank"
+                            className="text-blue-600 underline"
+                          >
+                            View
+                          </a>
+                        ) : "-"}
+                      </td>
+
+                      <td className="px-6 py-3">{item.qualification}</td>
+                      <td className="px-6 py-3">{item.candidateName}</td>
+                      <td className="px-6 py-3">{item.currentCTC}</td>
+                      <td className="px-6 py-3">{item.expectedCTC}</td>
+                      <td className="px-6 py-3">{item.status}</td>
+                      <td className="px-6 py-3">{item.joiningDate}</td>
                     </tr>
-                  ))
-                )}
+                  )))}
               </tbody>
+
             </table>
           </div>
         </div>
