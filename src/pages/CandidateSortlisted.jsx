@@ -403,7 +403,7 @@ responseData[3] = status;                      // Column D
                             className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "new" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
                         >
                             <Clock size={18} />
-                            New Candidates
+                            Pending Candidates
                         </button>
                     </div>
 
