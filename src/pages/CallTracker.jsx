@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast";
 
 const CallTracker = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
   const [tableLoading, setTableLoading] = useState(false);
   const [displayData, setDisplayData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,7 +64,7 @@ const CallTracker = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, dateFilter]);
 
   useEffect(() => {
     // Silent refresh specifically for Calling Tracking data when this page loads
@@ -85,6 +86,7 @@ const CallTracker = () => {
     // Skip header row and map to requested columns
     const processed = callingTrackingData.slice(1).map((row, idx) => ({
       id: idx,
+      timestamp: row[0] || "",
       taskId: row[1] || "",
       entryBy: row[2] || "",
       applicantName: row[3] || "",
@@ -102,14 +104,47 @@ const CallTracker = () => {
   }, [callingTrackingData]);
 
   const filteredRows = displayData.filter(item => {
+    // 1. Search filter
     const term = searchTerm.toLowerCase();
-    return (
+    const matchesSearch = (
       (item.taskId || "").toLowerCase().includes(term) ||
       (item.applicantName || "").toLowerCase().includes(term) ||
       (item.entryBy || "").toLowerCase().includes(term) ||
       (item.role || "").toLowerCase().includes(term) ||
       (item.status || "").toLowerCase().includes(term)
     );
+
+    if (!matchesSearch) return false;
+
+    // 2. Date filter
+    if (dateFilter === "all") return true;
+
+    if (!item.timestamp) return false;
+
+    const recordDate = new Date(item.timestamp);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const recordDateOnly = new Date(recordDate);
+    recordDateOnly.setHours(0, 0, 0, 0);
+
+    if (dateFilter === "today") {
+      return recordDateOnly.getTime() === today.getTime();
+    }
+
+    if (dateFilter === "yesterday") {
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return recordDateOnly.getTime() === yesterday.getTime();
+    }
+
+    if (dateFilter === "monthly") {
+      const lastMonth = new Date(today);
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      return recordDate >= lastMonth;
+    }
+
+    return true;
   });
 
   const totalPages = Math.ceil(filteredRows.length / recordsPerPage);
@@ -201,6 +236,16 @@ const CallTracker = () => {
             />
             <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm outline-none"
+          >
+            <option value="all">All Data</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="monthly">One Month</option>
+          </select>
           <button
             onClick={() => setSearchTerm("")}
             className="p-2 text-gray-400 hover:text-navy transition-colors"
