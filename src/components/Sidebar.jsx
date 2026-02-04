@@ -65,7 +65,7 @@ const SidebarContent = ({
       <div className="flex items-center justify-between p-5 border-b border-white border-opacity-10">
         {!isCollapsed && (
           <h1 className="text-xl font-extrabold flex items-center gap-2 text-white tracking-tight">
-            <div className="w-10 h-10 overflow-hidden rounded-lg shadow-sm border border-white border-opacity-10 flex items-center justify-center bg-white">
+            <div className="w-10 h-10 overflow-hidden rounded-full shadow-sm border border-white border-opacity-10 flex items-center justify-center bg-white">
               <img src={logo} alt="Logo" className="w-full h-full object-contain" />
             </div>
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200">
