@@ -55,6 +55,7 @@ const Dashboard = () => {
   const {
     fmsData: globalFmsData,
     joiningEntryData,
+    candidateSelectionData,
     leavingData: globalLeavingData,
     leaveManagementData,
     isLoading: storeLoading,
@@ -232,16 +233,6 @@ const Dashboard = () => {
       });
     }
 
-    // Designation Data
-    const designationCounts = {};
-    if (designationIndex !== -1) {
-      dataRows.forEach(row => {
-        const d = row[designationIndex]?.toString().trim();
-        if (d) designationCounts[d] = (designationCounts[d] || 0) + 1;
-      });
-      setDesignationData(Object.keys(designationCounts).map(k => ({ designation: k, employees: designationCounts[k] })));
-    }
-
     // Department Data
     const departmentCounts = {};
     dataRows.forEach(row => {
@@ -250,12 +241,35 @@ const Dashboard = () => {
     });
     setDepartmentData(Object.keys(departmentCounts).map(k => ({ department: k, employees: departmentCounts[k] })));
 
-    // Store monthly hiring for combination later? 
-    // It's hard to combine inside separate effects without extra state. 
-    // I can put monthlyHiring in a state.
+    // Store monthly hiring for combination later
     setMonthlyHiringState(monthlyHiring);
 
   }, [joiningEntryData]);
+
+  // Handle Candidate Selection Data (Designation Data)
+  useEffect(() => {
+    if (!candidateSelectionData || candidateSelectionData.length < 2) {
+      setDesignationData([]);
+      return;
+    }
+
+    // Column D (index 3) has Designation
+    const designationIndex = 3;
+    const dataRows = candidateSelectionData.slice(1); // Assuming first row is header
+
+    const designationCounts = {};
+    dataRows.forEach(row => {
+      const d = row[designationIndex]?.toString().trim();
+      if (d && d !== "" && d.toLowerCase() !== "designation") {
+        designationCounts[d] = (designationCounts[d] || 0) + 1;
+      }
+    });
+
+    setDesignationData(Object.keys(designationCounts).map(k => ({
+      designation: k,
+      employees: designationCounts[k]
+    })));
+  }, [candidateSelectionData]);
 
   // Handle Leaving Data
   useEffect(() => {
@@ -377,65 +391,13 @@ const Dashboard = () => {
             <h3 className="text-2xl font-bold text-gray-800">{activeEmployee}</h3>
           </div>
         </div>
-
-        <div className="bg-white rounded-xl shadow-lg border p-6 flex items-start">
-          <div className="p-3 rounded-full bg-amber-100 mr-4">
-            <Clock size={24} className="text-amber-600" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-600 font-medium">On Resigned</p>
-            <h3 className="text-2xl font-bold text-gray-800">{leftEmployee}</h3>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg border p-6 flex items-start">
-          <div className="p-3 rounded-full bg-red-100 mr-4">
-            <UserX size={24} className="text-red-600" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-600 font-medium">Left This Month</p>
-            <h3 className="text-2xl font-bold text-gray-800">{leaveThisMonth}</h3>
-          </div>
-        </div>
       </div>
 
       {/* New Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Leave Status Distribution Chart */}
-        <div className="bg-white rounded-xl shadow-lg border p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
-            <FileText size={20} className="mr-2" />
-            Leave Status Distribution
-          </h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={leaveStatusData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-                <XAxis dataKey="status" stroke="#374151" />
-                <YAxis stroke="#374151" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    color: '#374151'
-                  }}
-                />
-                <Bar dataKey="count" name="Number of Leaves">
-                  {leaveStatusData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={getStatusColor(entry.status)}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
 
-        {/* Leave Type Distribution Chart */}
-        <div className="bg-white rounded-xl shadow-lg border p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Department-wise Employee Count Chart */}
+        <div className="bg-white rounded-xl shadow-lg border p-6 col-span-2">
           <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
             <Users size={20} className="mr-2" />
             Department-wise Employee Count
@@ -608,7 +570,7 @@ const Dashboard = () => {
           </table>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

@@ -13,7 +13,12 @@ const CallTracker = () => {
   const [nextTaskId, setNextTaskId] = useState("TI-001");
   const recordsPerPage = 10;
 
-  const { fetchPaginatedSheet } = useDataStore();
+  const { fetchPaginatedSheet, callingTrackingData, fetchCallingTrackingData } = useDataStore();
+
+  useEffect(() => {
+    // Get fresh data for counts on mount
+    fetchCallingTrackingData(true);
+  }, []);
 
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -141,6 +146,72 @@ const CallTracker = () => {
 
   const totalPages = Math.ceil(totalRecords / recordsPerPage);
 
+  // Calculate filter counts
+  const filterCounts = React.useMemo(() => {
+    if (!callingTrackingData || callingTrackingData.length < 2) {
+      return { all: 0, today: 0, yesterday: 0, monthly: 0 };
+    }
+
+    const dataRows = callingTrackingData.slice(1);
+    const now = new Date();
+
+    const parseTimestamp = (ts) => {
+      if (!ts) return null;
+      let d = new Date(ts);
+      if (!isNaN(d.getTime())) return d;
+
+      // Manually parse DD/MM/YYYY or M/D/YYYY if standard parse fails
+      const datePart = ts.split(' ')[0];
+      const parts = datePart.split('/');
+      if (parts.length === 3) {
+        // Try assuming DD/MM/YYYY first as it's common in HR sheets
+        const p0 = parseInt(parts[0], 10);
+        const p1 = parseInt(parts[1], 10) - 1;
+        const p2 = parseInt(parts[2], 10);
+
+        // If it looks like year is first (YYYY/MM/DD)
+        if (p0 > 1000) d = new Date(p0, p1, p2);
+        else d = new Date(p2, p1, p0);
+
+        if (!isNaN(d.getTime())) return d;
+      }
+      return null;
+    };
+
+    const isSameDay = (d1, d2) => {
+      return d1 && d2 &&
+        d1.getDate() === d2.getDate() &&
+        d1.getMonth() === d2.getMonth() &&
+        d1.getFullYear() === d2.getFullYear();
+    };
+
+    const counts = {
+      all: dataRows.length,
+      today: 0,
+      yesterday: 0,
+      monthly: 0
+    };
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    const oneMonthAgo = new Date(now);
+    oneMonthAgo.setMonth(now.getMonth() - 1);
+
+    dataRows.forEach(row => {
+      const timestampStr = row[0];
+      const d = parseTimestamp(timestampStr);
+
+      if (d) {
+        if (isSameDay(d, now)) counts.today++;
+        if (isSameDay(d, yesterday)) counts.yesterday++;
+        if (d >= oneMonthAgo) counts.monthly++;
+      }
+    });
+
+    return counts;
+  }, [callingTrackingData]);
+
   return (
     <div className="space-y-6 page-content p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -186,10 +257,10 @@ const CallTracker = () => {
             }}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm outline-none"
           >
-            <option value="all">All Data</option>
-            <option value="today">Today</option>
-            <option value="yesterday">Yesterday</option>
-            <option value="monthly">One Month</option>
+            <option value="all">All Data ({filterCounts.all})</option>
+            <option value="today">Today ({filterCounts.today})</option>
+            <option value="yesterday">Yesterday ({filterCounts.yesterday})</option>
+            <option value="monthly">One Month ({filterCounts.monthly})</option>
           </select>
           <button
             onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
