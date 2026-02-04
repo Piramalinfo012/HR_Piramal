@@ -206,6 +206,24 @@ const useDataStore = create(
       // Refresh only Calling Tracking data
       refreshCallingTrackingData: async () => {
         await get().fetchCallingTrackingData();
+      },
+
+      // Fetch paginated data for specific sheet with filters
+      fetchPaginatedSheet: async (sheetName, page, limit, search = "", dateFilter = "all") => {
+        set({ isLoading: true, error: null });
+        try {
+          const fetchJson = get().fetchJson;
+          const cb = `&_=${Date.now()}`;
+          const url = `${FETCH_URL}?sheet=${encodeURIComponent(sheetName)}&action=fetchPaginated&page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&dateFilter=${encodeURIComponent(dateFilter)}${cb}`;
+          const result = await fetchJson(url, `Paginated ${sheetName}`);
+
+          set({ isLoading: false });
+          return result;
+        } catch (error) {
+          console.error("Paginated Fetch Error:", error);
+          set({ error: error.message, isLoading: false });
+          return { success: false, error: error.message };
+        }
       }
     }),
     {
@@ -217,7 +235,7 @@ const useDataStore = create(
         fmsData: state.fmsData,
         masterData: state.masterData,
         dataResponseData: state.dataResponseData,
-        callingTrackingData: state.callingTrackingData,
+        // callingTrackingData: state.callingTrackingData, // Don't persist this anymore to save memory
         leavingData: state.leavingData,
         joiningEntryData: state.joiningEntryData,
         leaveManagementData: state.leaveManagementData,
