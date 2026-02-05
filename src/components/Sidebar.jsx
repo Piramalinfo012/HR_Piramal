@@ -229,136 +229,6 @@ const Sidebar = ({ onClose }) => {
     navigate("/login", { replace: true });
   };
 
-  // ... (language effects)
-  // Re-paste logic if needed, but since we are modifying lines 577-756 we assume the top part is intact. 
-  // Wait, I need to verify I am not overwriting the top part.
-  // The replace_file_content tool will replace the TARGET block.
-  // I need to provide the block that contains SidebarContent definition and usage.
-
-  // I will structure the replacement to replace the Definition of SidebarContent and its usage
-  // However, `SidebarContent` definition uses variables from `Sidebar` scope.
-  // I need to be careful. The variables like `menuItems`, `user`, etc are defined in Sidebar.
-
-  // So I cannot just move the definition out without passing props.
-  // The block I am replacing MUST include the usage inside Sidebar OR I need to redefine Sidebar as well to pass props.
-
-  // The tool works by replacing a block.
-  // I will replace the `const SidebarContent = ...` block with the extracted component, AND then update the `Sidebar` return statement to pass the props.
-  // BUT `Sidebar` return statement is AFTER `SidebarContent` definition.
-
-  // Actually, `SidebarContent` is defined inside `Sidebar` body. 
-  // So I need to replace the entire `Sidebar` component body? Or just the parts I can match.
-
-  // Let's look at the file stricture again.
-  // Lines 1-40: imports
-  // Line 41: const Sidebar = ... {
-  // ... variables ...
-  // Line 577: const SidebarContent = ...
-  // Line 756: return ...
-
-  // I should probably replace from `const Sidebar =` down to the end of `return`, effectively rewriting the component structure.
-  // OR, I can define `SidebarContent` BEFORE `Sidebar` (replacing the file content significantly).
-
-  // Strategy:
-  // 1. Rename `const Sidebar` to something else or just start writing the new `SidebarContent` before it? No, `Sidebar` depends on items inside.
-  // Wait, `menuItems` calculation depends on `user`.
-
-  // Correct refactoring:
-  // 1. Move `SidebarContent` component OUTSIDE and ABOVE `Sidebar`.
-  // 2. Modify `Sidebar` to accept props and pass them.
-
-  // Since `replace_file_content` replaces a contiguous block, I can:
-  // 1. Replace the inner definition of `SidebarContent` with nothing (or comments).
-  // 2. Add `SidebarContent` definition before `Sidebar`? No, I can't insert before `Sidebar` if I haven't selected that range.
-
-  // Better: I will use `replace_file_content` to replace the WHOLE content of `const Sidebar = ...` until the end?
-  // That's 800 lines. The tool limits might be an issue? "You can view at most 800 lines".
-  // The file is 824 lines.
-
-  // I can try to replace from line 41 (Start of Sidebar) to 824.
-  // But wait, `Sidebar` has a lot of logic for language at the top (lines 61-405).
-  // I don't want to touch that if possible.
-
-  // How about this:
-  // 1. I cut `SidebarContent` definition (lines 577-755) and `return (...)` (757-824).
-  // 2. I replace it with:
-  //    - The `return` statement engaging the `SidebarContent` with props.
-  //    - Close `Sidebar` component.
-  //    - Define `SidebarContent` component AFTER `Sidebar`.
-
-  // Is it valid to define a component after export?
-  // `export default Sidebar;` is at end? No, usually `export default Sidebar` is at the end.
-  // But React components can be defined after usage due to hoisting? No, `const` is not hoisted.
-  // Functions are.
-
-  // So `SidebarContent` must be defined BEFORE `Sidebar` OR `SidebarContent` defined as `function` and hoisted?
-  // Or I can define it at the bottom and use it? `const` will throw ReferenceError.
-
-  // So I SHOULD define it before.
-  // But `Sidebar` starts at line 41.
-
-  // Alternative:
-  // Use `multi_replace_file_content`.
-  // Chunk 1: Insert `SidebarContent` definition BEFORE `const Sidebar`.
-  // Chunk 2: Remove `SidebarContent` definition inside `Sidebar` and update the `return` statement.
-
-  // Let's do that.
-
-  // Chunk 1:
-  // Target: `const Sidebar = ({ onClose }) => {`
-  // Replace with: 
-  // `const SidebarContent = ({...}) => { ... }`
-  // `const Sidebar = ({ onClose }) => {`
-
-  // Chunk 2:
-  // Target: Range covering the inner `SidebarContent` definition and the `return` block.
-  // Replace with: just the `return` block passing props.
-
-  // NOTE: `SidebarContent` is huge (lines 577-755).
-  // I need to be careful with `multi_replace_file_content` 800 line limit? No, the limit is for view.
-
-  // Let's verify imports. `Sidebar` uses imports. `SidebarContent` needs them too. They are at file level, so it's fine.
-
-  // So:
-  // 1. Prepare `SidebarContent` code.
-  // 2. Prepare `Sidebar` return code with props passed.
-
-  /*
-  <SidebarContent 
-     onClose={onClose} // Passed from Sidebar props or closed within?
-     // usage in Sidebar: <SidebarContent onClose={() => setIsOpen(false)} />
-     isCollapsed={false}
-     currentLang={currentLang}
-     user={user}
-     menuItems={menuItems}
-     toggleLanguage={toggleLanguage}
-     showLanguageHint={showLanguageHint}
-     handleLogout={handleLogout}
-     setIsOpen={setIsOpen}
-  />
-  */
-
-  // Let's check `SidebarContent` signature in my previous thought.
-  // `const SidebarContent = ({ onClose, isCollapsed = false })`
-
-  // I will update it to:
-  // `const SidebarContent = ({ onClose, isCollapsed = false, currentLang, user, menuItems, toggleLanguage, showLanguageHint, handleLogout })`
-  // `setIsOpen` was used in the footer logout.
-  // `handleLogout` calls `setIsOpen(false)`? No.
-  // inside SidebarContent footer:
-  /*
-        <button
-          onClick={() => {
-            handleLogout();
-            onClose?.(); // This onClose is the prop passed to SidebarContent
-            setIsOpen(false); // This setIsOpen is interactively available in scope? No.
-          }}
-  */
-  // Wait, `setIsOpen(false)` is called in the inner component.
-  // `setIsOpen` is state of `Sidebar`.
-  // So I must pass `setIsOpen` OR handle the closing logic in a handler passed to `SidebarContent`.
-
-  // Get current language from Google Translate
   const getCurrentLanguage = () => {
     const googTransCookie = document.cookie
       .split("; ")
@@ -775,6 +645,7 @@ const Sidebar = ({ onClose }) => {
     //   label: "After Leaving Work",
     // },
     { path: "/employee", icon: Users, label: "Employee" },
+    { path: "/leaving", icon:Users, label:"Leaving"},
     // { path: "/leave-management", icon: BookPlus, label: "Leave Management" },
     // { path: "/gate-pass", icon: DoorOpen, label: "Gate Pass" },
     // {

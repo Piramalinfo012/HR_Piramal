@@ -95,7 +95,7 @@ function App() {
             <Route path="report" element={<Report />} />
             <Route path="payroll" element={<Payroll />} />
             <Route path="misreport" element={<MisReport />} />
-
+            <Route path="leaving" element={<Leaving />} />
 
             <Route path="online_posting" element={<OnlinePosting />} />
             <Route path="calling_for_job_agencies" element={<CallingForJobAgencies />} />
