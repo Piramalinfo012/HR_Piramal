@@ -20,7 +20,8 @@ import {
   UserPlus,
   TrendingUp,
   FileText,
-  Calendar
+  Calendar,
+  CheckCircle
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -28,6 +29,8 @@ const Dashboard = () => {
   const [activeEmployee, setActiveEmployee] = useState(0);
   const [leftEmployee, setLeftEmployee] = useState(0);
   const [leaveThisMonth, setLeaveThisMonth] = useState(0);
+  const [openCount, setOpenCount] = useState(0);
+  const [closeCount, setCloseCount] = useState(0);
   const [monthlyHiringData, setMonthlyHiringData] = useState([]);
   const [designationData, setDesignationData] = useState([]);
   const [leaveStatusData, setLeaveStatusData] = useState([]);
@@ -37,6 +40,7 @@ const Dashboard = () => {
 
 
   const [indentData, setIndentData] = useState([]);
+  const [filterStatus, setFilterStatus] = useState("All");
 
   const [tableLoading, setTableLoading] = useState(false);
 
@@ -87,15 +91,12 @@ const Dashboard = () => {
     });
 
     setLeaveStatusData(Object.keys(statusCounts).map(k => ({ status: k, count: statusCounts[k] })));
-    setLeaveTypeData(Object.keys(typeCounts).map(k => ({ type: k, count: statusCounts[k] }))); // Wait, bug in original logic? original used typeCounts for typeArray.
-    // Correction: use typeCounts
     setLeaveTypeData(Object.keys(typeCounts).map(k => ({ type: k, count: typeCounts[k] })));
-
   }, [leaveManagementData]);
 
   // Handle FMS Data (Total Indents + Indent Table)
   useEffect(() => {
-    if (!globalFmsData || globalFmsData.length < 2) {
+    if (!globalFmsData || globalFmsData.length < 10) {
       setTotalEmployee(0);
       setIndentData([]);
       return;
@@ -105,7 +106,16 @@ const Dashboard = () => {
     const validRows = globalFmsData.slice(1).filter(row => row[1] && row[1].toString().trim() !== "");
     setTotalEmployee(validRows.length);
 
+    const open = validRows.filter(row => (row[1] || "").toString().trim().toLowerCase() === "open").length;
+    const close = validRows.filter(row => {
+      const s = (row[1] || "").toString().trim().toLowerCase();
+      return s === "close" || s === "closed";
+    }).length;
+    setOpenCount(open);
+    setCloseCount(close);
+
     // 2. Indent Table Data
+    // Find Header Row (Keep dynamic logic to find valid Indices for display columns)
     let headerRowIndex = -1;
     for (let i = 0; i < globalFmsData.length; i++) {
       const row = globalFmsData[i];
@@ -117,7 +127,10 @@ const Dashboard = () => {
     if (headerRowIndex === -1) headerRowIndex = 6;
 
     const headers = globalFmsData[headerRowIndex].map(h => h ? h.trim() : "");
-    const dataFromHead = globalFmsData.slice(headerRowIndex + 1);
+
+    // SLICE 9 Logic as requested (Data starts from Row 10)
+    // We use the whole array for indices, but slice for data processing
+    const dataRows = globalFmsData.slice(9);
 
     const findIdx = (names) => headers.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
 
@@ -135,10 +148,10 @@ const Dashboard = () => {
     const typeOfWeekIndex = findIdx(["Type Of Week", "Weekly Off"]);
     const residenceIndex = findIdx(["Residence"]);
     const indenterNameIndex = findIdx(["Indenter Name", "Person Name"]);
-    const statusIndex = findIdx(["Position Status", "Status"]);
-    const TotalJoiningIndex = findIdx(["Total Joining"]); // Note: Case sensitive in findIdx helper? includes is used.
+    const statusIndex = findIdx(["Position Status", "Status"]); // For display
+    const TotalJoiningIndex = findIdx(["Total Joining"]);
 
-    const processed = dataFromHead.map(row => ({
+    const processed = dataRows.map(row => ({
       timestamp: row[timestampIndex],
       indentNumber: row[indentNumberIndex],
       post: row[postIndex],
@@ -155,10 +168,29 @@ const Dashboard = () => {
       indenterName: row[indenterNameIndex],
       status: row[statusIndex],
       totaljoining: row[TotalJoiningIndex],
+      // Filter Source: Column B (Index 1)
+      filterKey: row[1]
     }));
 
-    const openIndents = processed.filter(item => (item.status || "").trim().toUpperCase() === "OPEN");
-    const finalData = openIndents.map(item => {
+    // Filter based on filterStatus state ("Open", "Close", or "All")
+    // Column B (Index 1) check
+    const filteredIndents = processed.filter(item => {
+      const itemStatus = (item.filterKey || "").toString().trim().toLowerCase();
+      if (filterStatus === "All") {
+        return true;
+      }
+
+      const filterLower = filterStatus.toLowerCase();
+
+      // Handle "Close" matching "Closed" or "Close"
+      if (filterLower === "close") {
+        return itemStatus === "close" || itemStatus === "closed";
+      }
+
+      return itemStatus === filterLower;
+    });
+
+    const finalData = filteredIndents.map(item => {
       const noOfPost = parseInt(item.noOfPost) || 0;
       const totalJoining = parseInt(item.totaljoining) || 0;
       return {
@@ -168,7 +200,7 @@ const Dashboard = () => {
     });
     setIndentData(finalData);
 
-  }, [globalFmsData]);
+  }, [globalFmsData, filterStatus]);
 
   // Handle Joining Entry Data (Active Count, Monthly Hiring, Department Data)
   useEffect(() => {
@@ -246,30 +278,46 @@ const Dashboard = () => {
 
   }, [joiningEntryData]);
 
-  // Handle Candidate Selection Data (Designation Data)
+  // Handle Designation Data (Direct Fetch from JOINING_FMS)
   useEffect(() => {
-    if (!candidateSelectionData || candidateSelectionData.length < 2) {
-      setDesignationData([]);
-      return;
-    }
+    const fetchDesignationData = async () => {
+      try {
+        const url = `${import.meta.env.VITE_JOINING_SHEET_URL}?action=read&sheet=JOINING_FMS`;
+        const response = await fetch(url);
+        const data = await response.json();
+        const rows = data.data;
 
-    // Column D (index 3) has Designation
-    const designationIndex = 3;
-    const dataRows = candidateSelectionData.slice(1); // Assuming first row is header
+        if (!rows || rows.length < 2) {
+          setDesignationData([]);
+          return;
+        }
 
-    const designationCounts = {};
-    dataRows.forEach(row => {
-      const d = row[designationIndex]?.toString().trim();
-      if (d && d !== "" && d.toLowerCase() !== "designation") {
-        designationCounts[d] = (designationCounts[d] || 0) + 1;
+        const designationCounts = {};
+        // Start from index 1 (skip header)
+        rows.slice(1).forEach(row => {
+          // Filter: Column BM (Index 64) - Don't show if "Yes"
+          const colBM = (row[64] || "").toString().trim().toLowerCase();
+          if (colBM === "yes") return;
+
+          // Designation: Column O (Index 14)
+          const designation = (row[14] || "").toString().trim();
+          if (designation) {
+            designationCounts[designation] = (designationCounts[designation] || 0) + 1;
+          }
+        });
+
+        setDesignationData(Object.keys(designationCounts).map(k => ({
+          designation: k,
+          employees: designationCounts[k]
+        })));
+
+      } catch (error) {
+        console.error("Error fetching designation data:", error);
       }
-    });
+    };
 
-    setDesignationData(Object.keys(designationCounts).map(k => ({
-      designation: k,
-      employees: designationCounts[k]
-    })));
-  }, [candidateSelectionData]);
+    fetchDesignationData();
+  }, []);
 
   // Handle Leaving Data
   useEffect(() => {
@@ -391,12 +439,31 @@ const Dashboard = () => {
             <h3 className="text-2xl font-bold text-gray-800">{activeEmployee}</h3>
           </div>
         </div>
+
+        <div className="bg-white rounded-xl shadow-lg border p-6 flex items-start">
+          <div className="p-3 rounded-full bg-red-100 mr-4">
+            <Clock size={24} className="text-red-600" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-600 font-medium">Total Open</p>
+            <h3 className="text-2xl font-bold text-gray-800">{openCount}</h3>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg border p-6 flex items-start">
+          <div className="p-3 rounded-full bg-green-100 mr-4">
+            <CheckCircle size={24} className="text-green-600" />
+          </div>
+          <div>
+            <p className="text-sm text-gray-600 font-medium">Total Close</p>
+            <h3 className="text-2xl font-bold text-gray-800">{closeCount}</h3>
+          </div>
+        </div>
       </div>
 
       {/* New Charts */}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Department-wise Employee Count Chart */}
+      {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-lg border p-6 col-span-2">
           <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
             <Users size={20} className="mr-2" />
@@ -428,50 +495,38 @@ const Dashboard = () => {
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
-
-      {/* Designation-wise Employee Count */}
-      <div className="bg-white rounded-xl shadow-lg border p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
-          <UserPlus size={20} className="mr-2" />
-          Designation-wise Employee Count
-        </h2>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={designationData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
-              <XAxis dataKey="designation" stroke="#374151" />
-              <YAxis stroke="#374151" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  color: '#374151'
-                }}
-              />
-              <Bar dataKey="employees" name="Employees">
-                {designationData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={index % 3 === 0 ? '#EF4444' : index % 3 === 1 ? '#10B981' : '#312e81'}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
+      </div> */}
 
       {/* reporting table */}
-
+      <div className="flex flex-col md:flex-row justify-between items-center mt-8 mb-4">
+        <h2 className="text-lg font-bold text-gray-800 flex items-center">
+          <FileText size={20} className="mr-2" />
+          Reporting Table
+        </h2>
+        <div className="relative">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="appearance-none bg-white border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+          >
+            <option value="All">All</option>
+            <option value="Open">Open</option>
+            <option value="Close">Close</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+          </div>
+        </div>
+      </div>
       <div className="overflow-x-auto">
         {/* Add max-height and overflow-y to the table container */}
         <div className="max-h-[calc(100vh-300px)] overflow-y-auto table-container">
           <table className="min-w-full divide-y divide-gray-200 shadow">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Indent Number
                 </th>
@@ -507,7 +562,7 @@ const Dashboard = () => {
             <tbody className="divide-y divide-gray-200 bg-white">
               {tableLoading ? (
                 <tr>
-                  <td colSpan="11" className="px-6 py-12 text-center">
+                  <td colSpan="12" className="px-6 py-12 text-center">
                     <div className="flex justify-center flex-col items-center">
                       <div className="w-6 h-6 border-4 border-navy border-dashed rounded-full animate-spin mb-2"></div>
                       <span className="text-gray-600 text-sm">
@@ -518,13 +573,23 @@ const Dashboard = () => {
                 </tr>
               ) : indentData.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className="px-6 py-12 text-center">
+                  <td colSpan="12" className="px-6 py-12 text-center">
                     <p className="text-gray-500">No indent data found.</p>
                   </td>
                 </tr>
               ) : (
                 indentData.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${(item.filterKey || "").toString().toLowerCase().includes("close")
+                        ? "bg-green-100 text-green-800"
+                        : (item.filterKey || "").toString().toLowerCase().includes("open")
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
+                        }`}>
+                        {item.filterKey}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.indentNumber}
                     </td>
@@ -570,6 +635,48 @@ const Dashboard = () => {
           </table>
         </div>
       </div>
+
+      {/* Designation-wise Employee Count */}
+      <div className="bg-white rounded-xl shadow-lg border p-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
+          <UserPlus size={20} className="mr-2" />
+          Designation-wise Employee Count
+        </h2>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={designationData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+              <XAxis
+                dataKey="designation"
+                stroke="#374151"
+                interval={0}
+                angle={-30}
+                textAnchor="end"
+                height={80}
+              />
+              <YAxis stroke="#374151" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  color: '#374151'
+                }}
+              />
+              <Bar dataKey="employees" name="Employees">
+                {designationData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={index % 3 === 0 ? '#EF4444' : index % 3 === 1 ? '#10B981' : '#312e81'}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+
     </div >
   );
 };

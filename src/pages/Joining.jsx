@@ -53,202 +53,202 @@ const Joining = () => {
 
   // Fetch data from Canidate_Selection
   // Fetch data from Canidate_Selection and filter by JOINING_FMS
- // Fetch data from Canidate_Selection and filter by JOINING_FMS
-useEffect(() => {
-  const fetchData = async () => {
-    setTableLoading(true);
-    try {
-      // 1. Fetch Canidate_Selection
-      console.log("📥 Fetching from Canidate_Selection...");
-      const candidateRes = await fetch(`${FETCH_URL}?sheet=Canidate_Selection`);
-      const candidateJson = await candidateRes.json();
-      console.log("✅ Canidate_Selection Raw Data:", candidateJson);
+  // Fetch data from Canidate_Selection and filter by JOINING_FMS
+  useEffect(() => {
+    const fetchData = async () => {
+      setTableLoading(true);
+      try {
+        // 1. Fetch Canidate_Selection
+        console.log("📥 Fetching from Canidate_Selection...");
+        const candidateRes = await fetch(`${FETCH_URL}?sheet=Canidate_Selection`);
+        const candidateJson = await candidateRes.json();
+        console.log("✅ Canidate_Selection Raw Data:", candidateJson);
 
-      // 2. Fetch JOINING_FMS
-      const joiningFmsUrl = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
-      console.log("📥 Fetching from JOINING_FMS...");
-      const joiningRes = await fetch(`${joiningFmsUrl}?sheet=JOINING_FMS`);
-      const joiningJson = await joiningRes.json();
-      console.log("✅ JOINING_FMS Raw Data:", joiningJson);
+        // 2. Fetch JOINING_FMS
+        const joiningFmsUrl = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
+        console.log("📥 Fetching from JOINING_FMS...");
+        const joiningRes = await fetch(`${joiningFmsUrl}?sheet=JOINING_FMS`);
+        const joiningJson = await joiningRes.json();
+        console.log("✅ JOINING_FMS Raw Data:", joiningJson);
 
-      // Helper to parse JSON - NOW FINDS ACTUAL HEADER ROW
-      const parseData = (json) => {
-        let allRows = [];
-        if (Array.isArray(json)) {
-          allRows = json;
-        } else if (json && typeof json === 'object' && json.data && Array.isArray(json.data)) {
-          allRows = json.data;
-        } else {
-          return { headers: [], rows: [] };
-        }
+        // Helper to parse JSON - NOW FINDS ACTUAL HEADER ROW
+        const parseData = (json) => {
+          let allRows = [];
+          if (Array.isArray(json)) {
+            allRows = json;
+          } else if (json && typeof json === 'object' && json.data && Array.isArray(json.data)) {
+            allRows = json.data;
+          } else {
+            return { headers: [], rows: [] };
+          }
 
-        // Find the row that contains "ID" or "Candidate Enquiry No" - that's the header row
-        const headerRowIndex = allRows.findIndex(row => 
-          row && row.some(cell => 
-            cell && (
-              cell.toString().trim().toUpperCase() === "ID" ||
-              cell.toString().trim().toLowerCase().includes("candidate enquiry")
+          // Find the row that contains "ID" or "Candidate Enquiry No" - that's the header row
+          const headerRowIndex = allRows.findIndex(row =>
+            row && row.some(cell =>
+              cell && (
+                cell.toString().trim().toUpperCase() === "ID" ||
+                cell.toString().trim().toLowerCase().includes("candidate enquiry")
+              )
             )
-          )
-        );
+          );
 
-        if (headerRowIndex === -1) {
-          // Fallback: use first row as header
-          return { headers: allRows[0] || [], rows: allRows.slice(1) };
-        }
+          if (headerRowIndex === -1) {
+            // Fallback: use first row as header
+            return { headers: allRows[0] || [], rows: allRows.slice(1) };
+          }
 
-        console.log(`📍 Found header row at index: ${headerRowIndex}`);
-        return {
-          headers: allRows[headerRowIndex],
-          rows: allRows.slice(headerRowIndex + 1)
+          console.log(`📍 Found header row at index: ${headerRowIndex}`);
+          return {
+            headers: allRows[headerRowIndex],
+            rows: allRows.slice(headerRowIndex + 1)
+          };
         };
-      };
 
-      const { headers: cHeaders, rows: cRows } = parseData(candidateJson);
-      const { headers: jHeaders, rows: jRows } = parseData(joiningJson);
+        const { headers: cHeaders, rows: cRows } = parseData(candidateJson);
+        const { headers: jHeaders, rows: jRows } = parseData(joiningJson);
 
-      console.log("📋 Canidate_Selection Headers:", cHeaders);
-      console.log("📋 Canidate_Selection Total Rows:", cRows.length);
-      
-      // DETAILED DEBUGGING
-      console.log("🔍 DETAILED DEBUGGING:");
-      console.log("📋 First 10 Headers:", cHeaders.slice(0, 10));
-      console.log("📋 Headers around AJ (30-40):", cHeaders.slice(30, 40));
-      console.log("📋 First data row:", cRows[0]);
-      console.log("📋 Second data row:", cRows[1]);
-      
-      // Check specifically AJ column
-      console.log("📋 Column 35 (AJ) in first 10 rows:");
-      for (let i = 0; i < 10 && i < cRows.length; i++) {
-        console.log(`  Row ${i + 1}: [${i}][35] = "${cRows[i] ? cRows[i][35] : 'undefined'}"`);
-      }
+        console.log("📋 Canidate_Selection Headers:", cHeaders);
+        console.log("📋 Canidate_Selection Total Rows:", cRows.length);
 
-      console.log("📋 JOINING_FMS Headers:", jHeaders);
-      console.log("📋 JOINING_FMS Total Rows:", jRows.length);
+        // DETAILED DEBUGGING
+        console.log("🔍 DETAILED DEBUGGING:");
+        console.log("📋 First 10 Headers:", cHeaders.slice(0, 10));
+        console.log("📋 Headers around AJ (30-40):", cHeaders.slice(30, 40));
+        console.log("📋 First data row:", cRows[0]);
+        console.log("📋 Second data row:", cRows[1]);
 
-      if (!cHeaders.length || !cRows.length) {
-        console.warn("⚠️ No data found in Canidate_Selection");
-        setCandidateData([]);
-        return;
-      }
-
-      // --- Logic for JOINING_FMS ---
-      const getFmsIndex = (name, fixedIdx) => {
-        const idx = jHeaders.findIndex(h => h && h.toString().trim().toLowerCase() === name.toLowerCase());
-        return idx !== -1 ? idx : fixedIdx;
-      };
-
-      const idxJ_Id = getFmsIndex("ID", 5);
-      const idxJ_Planned = getFmsIndex("Planned", 38);
-      
-      console.log("📌 JOINING_FMS Column Indexes - ID:", idxJ_Id, "Planned:", idxJ_Planned);
-
-      const blockedIds = new Set();
-      jRows.forEach(row => {
-        if (!row) return;
-        const id = row[idxJ_Id];
-        const planned = row[idxJ_Planned];
-
-        if (id && planned && planned.toString().trim() !== "") {
-          blockedIds.add(id.toString().trim());
+        // Check specifically AJ column
+        console.log("📋 Column 35 (AJ) in first 10 rows:");
+        for (let i = 0; i < 10 && i < cRows.length; i++) {
+          console.log(`  Row ${i + 1}: [${i}][35] = "${cRows[i] ? cRows[i][35] : 'undefined'}"`);
         }
-      });
 
-      console.log("🚫 Blocked IDs from JOINING_FMS:", Array.from(blockedIds));
+        console.log("📋 JOINING_FMS Headers:", jHeaders);
+        console.log("📋 JOINING_FMS Total Rows:", jRows.length);
 
-      // --- Logic for Canidate_Selection ---
-      const getCIndex = (name, fallbackIndex) => {
-        const idx = cHeaders.findIndex(
-          h => h && h.toString().trim().toLowerCase() === name.toLowerCase()
-        );
-        console.log(`🔍 Searching for "${name}": found at index ${idx} (fallback: ${fallbackIndex})`);
-        return idx !== -1 ? idx : fallbackIndex;
-      };
+        if (!cHeaders.length || !cRows.length) {
+          console.warn("⚠️ No data found in Canidate_Selection");
+          setCandidateData([]);
+          return;
+        }
 
-      const idxEnquiry = getCIndex("Candidate Enquiry No", 1);
-      const idxName = getCIndex("Candidate Name", 4);
-      const idxMobile = getCIndex("Mobile No", 5);
-      const idxEmail = getCIndex("Email Id", 6);
-      const idxResume = getCIndex("Resume/CV", 20);
-      const idxQual = getCIndex("Highest Qualification", 8);
-      const idxCurrentCTC = getCIndex("Current CTC (LPA)", 16);
-      const idxExpectedCTC = getCIndex("Expected (LPA)", 17);
-      const idxStatus = getCIndex("Status", 36);
-      const idxActualAJ = getCIndex("Actual", 35); // Column AJ
+        // --- Logic for JOINING_FMS ---
+        const getFmsIndex = (name, fixedIdx) => {
+          const idx = jHeaders.findIndex(h => h && h.toString().trim().toLowerCase() === name.toLowerCase());
+          return idx !== -1 ? idx : fixedIdx;
+        };
 
-      console.log("📌 Canidate_Selection Column Indexes:");
-      console.log("  - Enquiry No:", idxEnquiry);
-      console.log("  - Name:", idxName);
-      console.log("  - Mobile:", idxMobile);
-      console.log("  - Email:", idxEmail);
-      console.log("  - Resume:", idxResume);
-      console.log("  - Qualification:", idxQual);
-      console.log("  - Current CTC:", idxCurrentCTC);
-      console.log("  - Expected CTC:", idxExpectedCTC);
-      console.log("  - Status:", idxStatus);
-      console.log("  - Actual (AJ):", idxActualAJ);
+        const idxJ_Id = getFmsIndex("ID", 5);
+        const idxJ_Planned = getFmsIndex("Planned", 38);
 
-      console.log("🔍 Filtering rows where Column AJ (Actual) is NOT NULL...");
+        console.log("📌 JOINING_FMS Column Indexes - ID:", idxJ_Id, "Planned:", idxJ_Planned);
 
-      const processed = cRows
-        .filter((row, index) => {
-          if (!row || row.length === 0) {
-            console.log(`Row ${index + 1}: Empty or undefined row`);
-            return false;
+        const blockedIds = new Set();
+        jRows.forEach(row => {
+          if (!row) return;
+          const id = row[idxJ_Id];
+          const planned = row[idxJ_Planned];
+
+          if (id && planned && planned.toString().trim() !== "") {
+            blockedIds.add(id.toString().trim());
           }
+        });
 
-          const actualAJ = row[idxActualAJ];
-          const id = row[idxEnquiry];
+        console.log("🚫 Blocked IDs from JOINING_FMS:", Array.from(blockedIds));
 
-          if (index < 5) { // Log first 5 rows in detail
-            console.log(`Row ${index + 1}: ID=${id}, AJ Value="${actualAJ}"`);
-          }
+        // --- Logic for Canidate_Selection ---
+        const getCIndex = (name, fallbackIndex) => {
+          const idx = cHeaders.findIndex(
+            h => h && h.toString().trim().toLowerCase() === name.toLowerCase()
+          );
+          console.log(`🔍 Searching for "${name}": found at index ${idx} (fallback: ${fallbackIndex})`);
+          return idx !== -1 ? idx : fallbackIndex;
+        };
 
-          // ✅ AJ must be filled (not null, not empty)
-          if (
-            actualAJ === undefined ||
-            actualAJ === null ||
-            actualAJ.toString().trim() === ""
-          ) {
-            if (index < 5) console.log(`  ❌ Filtered out: AJ is empty`);
-            return false;
-          }
+        const idxEnquiry = getCIndex("Candidate Enquiry No", 1);
+        const idxName = getCIndex("Candidate Name", 4);
+        const idxMobile = getCIndex("Mobile No", 5);
+        const idxEmail = getCIndex("Email Id", 6);
+        const idxResume = getCIndex("Resume/CV", 20);
+        const idxQual = getCIndex("Highest Qualification", 8);
+        const idxCurrentCTC = getCIndex("Current CTC (LPA)", 16);
+        const idxExpectedCTC = getCIndex("Expected (LPA)", 17);
+        const idxStatus = getCIndex("Status", 36);
+        const idxActualAJ = getCIndex("Actual", 35); // Column AJ
 
-          // ❌ Skip if already planned in JOINING_FMS
-          if (id && blockedIds.has(id.toString().trim())) {
-            console.log(`  ❌ Filtered out: Already in JOINING_FMS`);
-            return false;
-          }
+        console.log("📌 Canidate_Selection Column Indexes:");
+        console.log("  - Enquiry No:", idxEnquiry);
+        console.log("  - Name:", idxName);
+        console.log("  - Mobile:", idxMobile);
+        console.log("  - Email:", idxEmail);
+        console.log("  - Resume:", idxResume);
+        console.log("  - Qualification:", idxQual);
+        console.log("  - Current CTC:", idxCurrentCTC);
+        console.log("  - Expected CTC:", idxExpectedCTC);
+        console.log("  - Status:", idxStatus);
+        console.log("  - Actual (AJ):", idxActualAJ);
 
-          console.log(`  ✅ Included: ID=${id}, AJ="${actualAJ}"`);
-          return true;
-        })
-        .map((row, i) => ({
-          indentNumber: row[idxEnquiry],
-          id: row[idxEnquiry] || (i + 1),
-          candidateName: row[idxName] || "",
-          contactNo: row[idxMobile] || "",
-          mail: row[idxEmail] || "",
-          resume: row[idxResume] || "",
-          qualification: row[idxQual] || "",
-          currentCTC: row[idxCurrentCTC] || "",
-          expectedCTC: row[idxExpectedCTC] || "",
-          status: row[idxStatus] || "",
-          joiningDate: row[idxActualAJ] || "" // Display AJ column data as joining date
-        }));
+        console.log("🔍 Filtering rows where Column AJ (Actual) is NOT NULL...");
 
-      console.log("✅ Final Processed Data (Total:", processed.length, "):", processed);
-      setCandidateData(processed);
-    } catch (err) {
-      console.error("❌ Fetch error:", err);
-      setCandidateData([]);
-    } finally {
-      setTableLoading(false);
-    }
-  };
+        const processed = cRows
+          .filter((row, index) => {
+            if (!row || row.length === 0) {
+              console.log(`Row ${index + 1}: Empty or undefined row`);
+              return false;
+            }
 
-  fetchData();
-}, [FETCH_URL]);
+            const actualAJ = row[idxActualAJ];
+            const id = row[idxEnquiry];
+
+            if (index < 5) { // Log first 5 rows in detail
+              console.log(`Row ${index + 1}: ID=${id}, AJ Value="${actualAJ}"`);
+            }
+
+            // ✅ AJ must be filled (not null, not empty)
+            if (
+              actualAJ === undefined ||
+              actualAJ === null ||
+              actualAJ.toString().trim() === ""
+            ) {
+              if (index < 5) console.log(`  ❌ Filtered out: AJ is empty`);
+              return false;
+            }
+
+            // ❌ Skip if already planned in JOINING_FMS
+            if (id && blockedIds.has(id.toString().trim())) {
+              console.log(`  ❌ Filtered out: Already in JOINING_FMS`);
+              return false;
+            }
+
+            console.log(`  ✅ Included: ID=${id}, AJ="${actualAJ}"`);
+            return true;
+          })
+          .map((row, i) => ({
+            indentNumber: row[idxEnquiry],
+            id: row[idxEnquiry] || (i + 1),
+            candidateName: row[idxName] || "",
+            contactNo: row[idxMobile] || "",
+            mail: row[idxEmail] || "",
+            resume: row[idxResume] || "",
+            qualification: row[idxQual] || "",
+            currentCTC: row[idxCurrentCTC] || "",
+            expectedCTC: row[idxExpectedCTC] || "",
+            status: row[idxStatus] || "",
+            joiningDate: row[idxActualAJ] || "" // Display AJ column data as joining date
+          }));
+
+        console.log("✅ Final Processed Data (Total:", processed.length, "):", processed);
+        setCandidateData(processed);
+      } catch (err) {
+        console.error("❌ Fetch error:", err);
+        setCandidateData([]);
+      } finally {
+        setTableLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [FETCH_URL]);
 
 
   // ============================================
@@ -726,14 +726,20 @@ useEffect(() => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Joining Place <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="joiningPlace"
                     value={formData.joiningPlace}
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
-                  />
+                  >
+                    <option value="">Select Joining Place</option>
+                    <option value="Shyam Plaza Office">Shyam Plaza Office</option>
+                    <option value="Shankar Nagar Office">Shankar Nagar Office</option>
+                    <option value="Plant">Plant</option>
+                    <option value="VBA">VBA</option>
+                    <option value="Home">Home</option>
+                  </select>
                 </div>
 
                 {/* Designation */}
