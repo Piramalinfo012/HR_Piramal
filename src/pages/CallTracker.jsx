@@ -11,7 +11,7 @@ const CallTracker = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [nextTaskId, setNextTaskId] = useState("TI-001");
-  const recordsPerPage = 10;
+  const recordsPerPage = 100;
 
   const { fetchPaginatedSheet, callingTrackingData, fetchCallingTrackingData } = useDataStore();
 
@@ -257,10 +257,10 @@ const CallTracker = () => {
             }}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm outline-none"
           >
-            <option value="all">All Data ({filterCounts.all})</option>
-            <option value="today">Today ({filterCounts.today})</option>
-            <option value="yesterday">Yesterday ({filterCounts.yesterday})</option>
-            <option value="monthly">One Month ({filterCounts.monthly})</option>
+            <option value="all">All Data</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="monthly">One Month</option>
           </select>
           <button
             onClick={() => { setSearchTerm(""); setCurrentPage(1); }}
