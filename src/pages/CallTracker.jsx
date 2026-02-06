@@ -11,6 +11,8 @@ const CallTracker = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [nextTaskId, setNextTaskId] = useState("TI-001");
+  const [users, setUsers] = useState([]);
+
   const recordsPerPage = 100;
 
   const { fetchPaginatedSheet, callingTrackingData, fetchCallingTrackingData } = useDataStore();
@@ -19,6 +21,31 @@ const CallTracker = () => {
     // Get fresh data for counts on mount
     fetchCallingTrackingData(true);
   }, []);
+useEffect(() => {
+  fetchUsers();
+}, []);
+
+const fetchUsers = async () => {
+  try {
+    const res = await fetch(
+      `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`
+    );
+    const json = await res.json();
+
+    if (json.success && json.data) {
+      // Column I = index 8
+      const entryByList = json.data
+        .slice(1)                 // remove header
+        .map(row => row[8])       // column I
+        .filter(Boolean);         // remove empty values
+
+      setUsers(entryByList);
+    }
+  } catch (err) {
+    console.error("Failed to fetch users", err);
+    toast.error("Failed to load Entry By users");
+  }
+};
 
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -392,14 +419,21 @@ const CallTracker = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Entry By</label>
-                  <input
-                    name="entryBy"
-                    value={formData.entryBy}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
-                    placeholder="Enter name..."
-                    required
-                  />
+                  <select
+  name="entryBy"
+  value={formData.entryBy}
+  onChange={handleInputChange}
+  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+  required
+>
+  <option value="">Select Entry By</option>
+  {users.map((user, idx) => (
+    <option key={idx} value={user}>
+      {user}
+    </option>
+  ))}
+</select>
+
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Applicant Name</label>
