@@ -71,7 +71,7 @@ const SidebarContent = ({
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200">
               {currentLang === "en" ? "HR FMS" : "एचआर एफएमएस"}
             </span>
-            
+
             <div id="google_translate_element" style={{ display: "none" }} />
             {user?.role === "employee" && (
               <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
@@ -645,7 +645,7 @@ const Sidebar = ({ onClose }) => {
     //   label: "After Leaving Work",
     // },
     { path: "/employee", icon: Users, label: "Employee" },
-    { path: "/leaving", icon:Users, label:"Leaving"},
+    { path: "/leaving", icon: Users, label: "Leaving" },
     // { path: "/leave-management", icon: BookPlus, label: "Leave Management" },
     // { path: "/gate-pass", icon: DoorOpen, label: "Gate Pass" },
     // {
@@ -712,23 +712,7 @@ const Sidebar = ({ onClose }) => {
       // For regular items, check label
       const itemLabel = item.label.toLowerCase();
 
-      // Temporary bypass for new pages
-      const newPages = [
-        "check salary slip & resume copy",
-        "joining letter release",
-        "induction or training",
-        "induction or welcome",
-        "asset assignment (it team)",
-        "whatsapp",
-        "interview schedule",
-        "candidate sortlisted",
-        "verification before interview",
-        "interview & final selection",
-        "joining follow up",
-        "call tracker",
-      ];
-      if (newPages.includes(itemLabel)) return true;
-
+      // Only show pages that are in the user's Pages Access column
       return userPageAccess.includes(itemLabel);
     });
 
@@ -741,6 +725,7 @@ const Sidebar = ({ onClose }) => {
     // Default behavior: show admin or employee menu based on Admin status
     menuItems = user?.Admin === "Yes" ? adminMenuItems : employeeMenuItems;
   }
+
 
   // console.log("userPageAccess",userPageAccess);
   // console.log("menuItems",menuItems);
