@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Search, Clock, HistoryIcon, Plus, X, CheckCircle } from "lucide-react";
-import useDataStore from "../store/dataStore";
+
 import toast from "react-hot-toast";
 
 const Whatsapp = () => {
@@ -41,20 +41,48 @@ const Whatsapp = () => {
     const [tableLoading, setTableLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
-    const { fmsData: globalFmsData, dataResponseData, isLoading: storeLoading, refreshData } = useDataStore();
+    // Local State Replacement for Store
+    const [fmsData, setFmsData] = useState([]);
+    const [dataResponseData, setDataResponseData] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(true);
+    const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
+
+    const fetchData = async () => {
+        setStoreLoading(true);
+        setTableLoading(true);
+        try {
+            const cb = `&_=${Date.now()}`;
+            const [fmsRes, dataRes] = await Promise.all([
+                fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json()),
+                fetch(`${FETCH_URL}?sheet=Data Resposnse&action=fetch${cb}`).then(res => res.json())
+            ]);
+
+            if (fmsRes.success) setFmsData(fmsRes.data);
+            if (dataRes.success) setDataResponseData(dataRes.data);
+
+        } catch (error) {
+            console.error("Whatsapp Data Fetch Error:", error);
+            toast.error("Failed to load data");
+        } finally {
+            setStoreLoading(false);
+            setTableLoading(false);
+        }
+    };
 
     useEffect(() => {
-        setTableLoading(storeLoading);
-    }, [storeLoading]);
+        fetchData();
+    }, []);
+
+    const refreshData = fetchData;
 
     useEffect(() => {
-        if (!globalFmsData || globalFmsData.length < 7) {
+        if (!fmsData || fmsData.length < 7) {
             setIndentData([]);
             setHistoryIndentData([]);
             return;
         }
 
-        const resultData = globalFmsData;
+        const resultData = fmsData;
         const headerRowIndex = 5;
         const headers = resultData[headerRowIndex].map((h) => h?.toString().trim());
         const dataRows = resultData.slice(8);
@@ -140,7 +168,7 @@ const Whatsapp = () => {
         setHistoryIndentData(historyTasks);
         setIndentData(pendingTasks);
 
-    }, [globalFmsData]);
+    }, [fmsData, dataResponseData]);
 
     const getCurrentTimestamp = () => {
         const now = new Date();

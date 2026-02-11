@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, Clock, Plus, X, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
-import useDataStore from "../store/dataStore";
+
 
 const JoiningFollowUp = () => {
     const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
@@ -50,11 +50,35 @@ const JoiningFollowUp = () => {
         indentNumber: "",
     });
 
-    const { candidateSelectionData, isLoading: storeLoading, refreshData } = useDataStore();
+    // Local State Replacement for Store
+    const [candidateSelectionData, setCandidateSelectionData] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(true);
+
+    const fetchData = async () => {
+        setStoreLoading(true);
+        setTableLoading(true);
+        try {
+            const cb = `&_=${Date.now()}`;
+            const res = await fetch(`${FETCH_URL}?action=read&sheet=Canidate_Selection${cb}`);
+            const json = await res.json();
+
+            if (json.success) {
+                setCandidateSelectionData(json.data);
+            }
+        } catch (error) {
+            console.error("Joining FollowUp Data Fetch Error:", error);
+            toast.error("Failed to load data");
+        } finally {
+            setStoreLoading(false);
+            setTableLoading(false);
+        }
+    };
 
     useEffect(() => {
-        setTableLoading(storeLoading);
-    }, [storeLoading]);
+        fetchData();
+    }, []);
+
+    const refreshData = fetchData;
 
     useEffect(() => {
         if (!candidateSelectionData || candidateSelectionData.length === 0) {

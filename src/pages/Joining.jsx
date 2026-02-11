@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import useDataStore from "../store/dataStore";
+
 import { Search, Clock, CheckCircle, X, Upload } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -48,10 +48,10 @@ const Joining = () => {
   });
   const [uploading, setUploading] = useState(false);
 
-  const { joiningFmsData, candidateSelectionData, isLoading: storeLoading, refreshData, fetchGlobalData } = useDataStore();
+  const [candidateSelectionData, setCandidateSelectionData] = useState([]); // Store raw data for modal pre-fill
   const [candidateData, setCandidateData] = useState([]);
 
-  // Fetch data from Canidate_Selection
+  // Fetch data from Canidate_Selection and filter by JOINING_FMS
   // Fetch data from Canidate_Selection and filter by JOINING_FMS
   // Fetch data from Canidate_Selection and filter by JOINING_FMS
   useEffect(() => {
@@ -106,6 +106,9 @@ const Joining = () => {
 
         const { headers: cHeaders, rows: cRows } = parseData(candidateJson);
         const { headers: jHeaders, rows: jRows } = parseData(joiningJson);
+
+        // Store raw rows for modal pre-fill logic
+        setCandidateSelectionData(cRows);
 
         console.log("📋 Canidate_Selection Headers:", cHeaders);
         console.log("📋 Canidate_Selection Total Rows:", cRows.length);
@@ -507,7 +510,7 @@ const Joining = () => {
         toast.success("Joining details submitted successfully!");
         handleCloseModal();
         handleCloseModal();
-        refreshData(); // Refresh via store
+        fetchData(); // Refresh via local fetch
       } else {
         toast.error(result.error || "Failed to submit joining details");
       }
@@ -568,29 +571,12 @@ const Joining = () => {
               <tbody className="divide-y text-gray-500 text-sm">
                 {tableLoading ? (
                   <tr>
-                    <td colSpan="9" className="py-12 text-center">
-                      <div className="flex justify-center items-center gap-3">
-                        <svg
-                          className="animate-spin h-5 w-5 text-gray-500"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                          />
-                        </svg>
-                        <span>Loading data...</span>
+                    <td colSpan="9" className="px-6 py-12 text-center">
+                      <div className="flex justify-center flex-col items-center">
+                        <div className="w-6 h-6 border-4 border-blue-500 border-dashed rounded-full animate-spin mb-2"></div>
+                        <span className="text-gray-600 text-sm">
+                          Loading joining data...
+                        </span>
                       </div>
                     </td>
                   </tr>

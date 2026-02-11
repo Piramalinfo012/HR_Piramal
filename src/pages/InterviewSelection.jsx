@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import useDataStore from "../store/dataStore";
+
 import { Search, Clock, Plus, X, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -24,17 +24,41 @@ const InterviewSelection = () => {
         finalizedSalary: "",
     });
 
-    const {
-        candidateSelectionData,
-        fmsData: globalFmsData,
-        isLoading: storeLoading,
-        refreshData
-    } = useDataStore();
+    // Local State Replacement for Store
+    const [candidateSelectionData, setCandidateSelectionData] = useState([]);
+    const [globalFmsData, setGlobalFmsData] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(true);
 
-    // Refresh data on mount to ensure we have latest from Canidate_Selection
+    const fetchData = async () => {
+        setStoreLoading(true);
+        setTableLoading(true);
+        try {
+            const cb = `&_=${Date.now()}`;
+            const [resFMS, resCand] = await Promise.all([
+                fetch(`${FETCH_URL}?action=read&sheet=FMS${cb}`),
+                fetch(`${FETCH_URL}?action=read&sheet=Canidate_Selection${cb}`)
+            ]);
+
+            const jsonFMS = await resFMS.json();
+            const jsonCand = await resCand.json();
+
+            if (jsonFMS.success) setGlobalFmsData(jsonFMS.data);
+            if (jsonCand.success) setCandidateSelectionData(jsonCand.data);
+
+        } catch (error) {
+            console.error("Interview Selection Data Fetch Error:", error);
+            toast.error("Failed to load data");
+        } finally {
+            setStoreLoading(false);
+            setTableLoading(false);
+        }
+    };
+
     useEffect(() => {
-        refreshData();
-    }, [refreshData]);
+        fetchData();
+    }, []);
+
+    const refreshData = fetchData;
 
     useEffect(() => {
         setTableLoading(storeLoading);

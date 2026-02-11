@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { DollarSign, Download, Eye, Calendar, TrendingUp } from 'lucide-react';
 import useAuthStore from '../store/authStore';
-import useDataStore from '../store/dataStore';
+
 import toast from 'react-hot-toast';
 
 const MySalary = () => {

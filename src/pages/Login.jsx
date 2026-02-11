@@ -25,8 +25,8 @@ const Login = () => {
 
     try {
       const [userRes, leavingRes] = await Promise.all([
-        fetch(SHEET_API_URL),
-        fetch(LEAVING_API_URL),
+        fetch(`${SHEET_API_URL}&_t=${Date.now()}`),
+        fetch(`${LEAVING_API_URL}&_t=${Date.now()}`),
       ]);
 
       const userJson = await userRes.json();
@@ -45,6 +45,8 @@ const Login = () => {
       const users = userRows.slice(1).map((row) => {
         let obj = {};
         userHeaders.forEach((h, i) => (obj[h] = row[i]));
+        // Add explicit status check from Column K (index 10)
+        obj.isDeleted = row[10] === "Deleted";
         return obj;
       });
 
@@ -57,7 +59,7 @@ const Login = () => {
       });
 
       const matchedUser = users.find(
-        (u) => u.Username === username && u.Password === password
+        (u) => u.Username === username && u.Password === password && !u.isDeleted
       );
 
       if (!matchedUser) {

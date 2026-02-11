@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Search, Clock, HistoryIcon, Plus, X, CheckCircle } from "lucide-react";
-import useDataStore from "../store/dataStore";
+
 import toast from "react-hot-toast";
 
 const OnlinePosting = () => {
@@ -31,13 +31,40 @@ const OnlinePosting = () => {
   // Social site options from Master sheet
   const [socialSiteOptions, setSocialSiteOptions] = useState([]);
 
-  const {
-    masterData,
-    fmsData: globalFmsData,
-    dataResponseData,
-    isLoading: storeLoading,
-    refreshData
-  } = useDataStore();
+  const [masterData, setMasterData] = useState([]);
+  const [globalFmsData, setGlobalFmsData] = useState([]);
+  const [dataResponseData, setDataResponseData] = useState([]);
+  const [storeLoading, setStoreLoading] = useState(true);
+
+  const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
+
+  const fetchData = async () => {
+    setStoreLoading(true);
+    try {
+      const cb = `&_=${Date.now()}`;
+      const [masterRes, fmsRes, dataRes] = await Promise.all([
+        fetch(`${FETCH_URL}?sheet=Master&action=fetch${cb}`).then(res => res.json()),
+        fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json()),
+        fetch(`${FETCH_URL}?sheet=Data Resposnse&action=fetch${cb}`).then(res => res.json())
+      ]);
+
+      if (masterRes.success) setMasterData(masterRes.data);
+      if (fmsRes.success) setGlobalFmsData(fmsRes.data);
+      if (dataRes.success) setDataResponseData(dataRes.data);
+
+    } catch (error) {
+      console.error("OnlinePosting Data Fetch Error:", error);
+      toast.error("Failed to load data");
+    } finally {
+      setStoreLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const refreshData = fetchData;
 
   useEffect(() => {
     setTableLoading(storeLoading);
@@ -92,19 +119,19 @@ const OnlinePosting = () => {
       noOfPost: row[14],           // Col O
       completionDate: row[15],     // Col P
       experience: row[16],         // Col Q
-       planned: row[17]?.toString().trim() || "", // Col R
-  actual: row[18]?.toString().trim() || "",  // Col S
+      planned: row[17]?.toString().trim() || "", // Col R
+      actual: row[18]?.toString().trim() || "",  // Col S
       siteStatus: dataResponseMap[row[4]]?.siteStatus || "",
       socialSiteTypes: dataResponseMap[row[4]]?.socialSiteTypes || "",
     }));
 
-   const filteredPending = processedData.filter(item =>
-  item.planned !== "" && item.actual === ""
-);
+    const filteredPending = processedData.filter(item =>
+      item.planned !== "" && item.actual === ""
+    );
 
-const filteredHistory = processedData.filter(item =>
-  item.planned !== "" && item.actual !== ""
-);
+    const filteredHistory = processedData.filter(item =>
+      item.planned !== "" && item.actual !== ""
+    );
 
 
     setHistoryIndentData(filteredHistory);

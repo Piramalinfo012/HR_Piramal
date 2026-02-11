@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import useDataStore from "../store/dataStore";
+
 import { Search, X, Plus } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -15,37 +15,52 @@ const CallTracker = () => {
 
   const recordsPerPage = 100;
 
-  const { fetchPaginatedSheet, callingTrackingData, fetchCallingTrackingData } = useDataStore();
+  // Local State
+  const [callingTrackingData, setCallingTrackingData] = useState([]);
+  const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
+
+  const fetchCallingTrackingData = async () => {
+    try {
+      const cb = `&_=${Date.now()}`;
+      const res = await fetch(`${FETCH_URL}?sheet=Calling Tracking&action=fetch${cb}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        setCallingTrackingData(json.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch calling tracking data for counts", error);
+    }
+  };
 
   useEffect(() => {
     // Get fresh data for counts on mount
-    fetchCallingTrackingData(true);
+    fetchCallingTrackingData();
   }, []);
-useEffect(() => {
-  fetchUsers();
-}, []);
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
-const fetchUsers = async () => {
-  try {
-    const res = await fetch(
-      `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`
-    );
-    const json = await res.json();
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`
+      );
+      const json = await res.json();
 
-    if (json.success && json.data) {
-      // Column I = index 8
-      const entryByList = json.data
-        .slice(1)                 // remove header
-        .map(row => row[8])       // column I
-        .filter(Boolean);         // remove empty values
+      if (json.success && json.data) {
+        // Column I = index 8
+        const entryByList = json.data
+          .slice(1)                 // remove header
+          .map(row => row[8])       // column I
+          .filter(Boolean);         // remove empty values
 
-      setUsers(entryByList);
+        setUsers(entryByList);
+      }
+    } catch (err) {
+      console.error("Failed to fetch users", err);
+      toast.error("Failed to load Entry By users");
     }
-  } catch (err) {
-    console.error("Failed to fetch users", err);
-    toast.error("Failed to load Entry By users");
-  }
-};
+  };
 
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -92,7 +107,16 @@ const fetchUsers = async () => {
 
   const loadData = async () => {
     setTableLoading(true);
-    const result = await fetchPaginatedSheet("Calling Tracking", currentPage, recordsPerPage, searchTerm, dateFilter);
+    let result = { success: false, data: [] };
+    try {
+      const cb = `&_=${Date.now()}`;
+      const url = `${FETCH_URL}?sheet=${encodeURIComponent("Calling Tracking")}&action=fetchPaginated&page=${currentPage}&limit=${recordsPerPage}&search=${encodeURIComponent(searchTerm)}&dateFilter=${encodeURIComponent(dateFilter)}${cb}`;
+      const res = await fetch(url);
+      result = await res.json();
+    } catch (error) {
+      console.error("Pagination Fetch Error:", error);
+      result = { success: false, error: error.message };
+    }
 
     if (result.success && result.data) {
       // Map data (Assuming server returns array of arrays)
@@ -420,19 +444,19 @@ const fetchUsers = async () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Entry By</label>
                   <select
-  name="entryBy"
-  value={formData.entryBy}
-  onChange={handleInputChange}
-  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
-  required
->
-  <option value="">Select Entry By</option>
-  {users.map((user, idx) => (
-    <option key={idx} value={user}>
-      {user}
-    </option>
-  ))}
-</select>
+                    name="entryBy"
+                    value={formData.entryBy}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                    required
+                  >
+                    <option value="">Select Entry By</option>
+                    {users.map((user, idx) => (
+                      <option key={idx} value={user}>
+                        {user}
+                      </option>
+                    ))}
+                  </select>
 
                 </div>
                 <div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import toast from "react-hot-toast";
-import useDataStore from "../store/dataStore";
+
 
 const JoiningLetterRelease = () => {
     const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
@@ -21,11 +21,35 @@ const JoiningLetterRelease = () => {
     const [uploading, setUploading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
-    const { joiningFmsData, isLoading: storeLoading, refreshData } = useDataStore();
+    // Local State Replacement for Store
+    const [joiningFmsData, setJoiningFmsData] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(true);
+
+    const fetchData = async () => {
+        setStoreLoading(true);
+        setTableLoading(true);
+        try {
+            const cb = `&_=${Date.now()}`;
+            const res = await fetch(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS${cb}`);
+            const json = await res.json();
+
+            if (json.success) {
+                setJoiningFmsData(json.data);
+            }
+        } catch (error) {
+            console.error("Joining Letter Data Fetch Error:", error);
+            toast.error("Failed to load data");
+        } finally {
+            setStoreLoading(false);
+            setTableLoading(false);
+        }
+    };
 
     useEffect(() => {
-        setTableLoading(storeLoading);
-    }, [storeLoading]);
+        fetchData();
+    }, []);
+
+    const refreshData = fetchData;
 
     useEffect(() => {
         if (!joiningFmsData || joiningFmsData.length === 0) {
@@ -313,11 +337,11 @@ const JoiningLetterRelease = () => {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                   {activeTab === "pending" && (
-  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-    Action
-  </th>
-)}
+                                    {activeTab === "pending" && (
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Action
+                                        </th>
+                                    )}
 
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Indent Number
@@ -325,7 +349,7 @@ const JoiningLetterRelease = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Candidate Name
                                     </th>
-                                    
+
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Designation
                                     </th>
@@ -353,16 +377,16 @@ const JoiningLetterRelease = () => {
                                 ) : (
                                     filteredData.map((item, index) => (
                                         <tr key={index} className="hover:bg-gray-50">
-                                           {activeTab === "pending" && (
-  <td className="px-6 py-4 whitespace-nowrap text-sm">
-    <button
-      onClick={() => handleOpenModal(item)}
-      className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors"
-    >
-      Update Status
-    </button>
-  </td>
-)}
+                                            {activeTab === "pending" && (
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                    <button
+                                                        onClick={() => handleOpenModal(item)}
+                                                        className="bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors"
+                                                    >
+                                                        Update Status
+                                                    </button>
+                                                </td>
+                                            )}
 
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">
                                                 {item.indentNumber}
@@ -370,7 +394,7 @@ const JoiningLetterRelease = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                 {item.candidateName}
                                             </td>
-                                           
+
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {item.designation}
                                             </td>

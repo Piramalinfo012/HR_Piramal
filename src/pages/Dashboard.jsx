@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import useDataStore from '../store/dataStore';
+
 import {
   BarChart,
   Bar,
@@ -56,15 +56,45 @@ const Dashboard = () => {
     return new Date(year, month, day);
   };
 
-  const {
-    fmsData: globalFmsData,
-    joiningEntryData,
-    candidateSelectionData,
-    leavingData: globalLeavingData,
-    leaveManagementData,
-    isLoading: storeLoading,
-    refreshData
-  } = useDataStore();
+  const [globalFmsData, setGlobalFmsData] = useState([]);
+  const [joiningEntryData, setJoiningEntryData] = useState([]);
+  const [candidateSelectionData, setCandidateSelectionData] = useState([]); // Unused but kept for compatibility
+  const [globalLeavingData, setGlobalLeavingData] = useState([]); // Unused/Empty in store
+  const [leaveManagementData, setLeaveManagementData] = useState([]); // Unused? Handled in effect
+  const [storeLoading, setStoreLoading] = useState(true);
+
+  // API URLs
+  const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
+  const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setStoreLoading(true);
+      try {
+        const cb = `&_=${Date.now()}`;
+
+        // Parallel Fetch
+        const [fmsRes, joiningEntryRes, leaveManageRes] = await Promise.all([
+          fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json()),
+          fetch(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING ENTRY FORM${cb}`).then(res => res.json()),
+          // Attempt to fetch Leave Management if it exists
+          // Using a generic fetch for potential Leave data if needed, but for now focusing on what was in store
+          Promise.resolve({ data: [] })
+        ]);
+
+        if (fmsRes.success) setGlobalFmsData(fmsRes.data);
+        if (joiningEntryRes.success) setJoiningEntryData(joiningEntryRes.data);
+        // setLeaveManagementData(leaveManageRes.data || []);
+
+      } catch (error) {
+        console.error("Dashboard Data Fetch Error:", error);
+      } finally {
+        setStoreLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   useEffect(() => {
     setTableLoading(storeLoading);

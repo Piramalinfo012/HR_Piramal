@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Search, Clock, HistoryIcon, Plus, X, CheckCircle } from "lucide-react";
-import useDataStore from "../store/dataStore";
+
 import toast from "react-hot-toast";
 
 const CallingForJobAgencies = () => {
@@ -47,14 +47,49 @@ const CallingForJobAgencies = () => {
   const [tableLoading, setTableLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const {
-    masterData,
-    fmsData: globalFmsData,
-    userData: globalUserData,
-    dataResponseData,
-    isLoading: storeLoading,
-    refreshData
-  } = useDataStore();
+  // Local State Replacement for Store
+  const [masterData, setMasterData] = useState([]);
+  const [globalFmsData, setGlobalFmsData] = useState([]);
+  const [globalUserData, setGlobalUserData] = useState([]);
+  const [dataResponseData, setDataResponseData] = useState([]);
+  const [storeLoading, setStoreLoading] = useState(true);
+
+  const fetchData = async () => {
+    setStoreLoading(true);
+    setTableLoading(true);
+    try {
+      const cb = `&_=${Date.now()}`;
+      const [resMaster, resFMS, resUser, resDR] = await Promise.all([
+        fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?action=read&sheet=Master${cb}`),
+        fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?action=read&sheet=FMS${cb}`),
+        fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?action=read&sheet=USER${cb}`),
+        fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?action=read&sheet=Data Resposnse${cb}`)
+      ]);
+
+      const jsonMaster = await resMaster.json();
+      const jsonFMS = await resFMS.json();
+      const jsonUser = await resUser.json();
+      const jsonDR = await resDR.json();
+
+      if (jsonMaster.success) setMasterData(jsonMaster.data);
+      if (jsonFMS.success) setGlobalFmsData(jsonFMS.data);
+      if (jsonUser.success) setGlobalUserData(jsonUser.data);
+      if (jsonDR.success) setDataResponseData(jsonDR.data);
+
+    } catch (error) {
+      console.error("CallingForJobAgencies Data Fetch Error:", error);
+      toast.error("Failed to load data");
+    } finally {
+      setStoreLoading(false);
+      setTableLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const refreshData = fetchData;
 
   useEffect(() => {
     setTableLoading(storeLoading);
@@ -86,21 +121,21 @@ const CallingForJobAgencies = () => {
       setHistoryIndentData([]);
       return;
     }
-    
 
-// 🔥 Data Response Map (IndentNumber → extra info)
-const dataResponseMap = {};
-dataResponseData?.slice(1).forEach(row => {
-  const indentNo = row[0]; // Column A (Indent Number)
-  if (!indentNo) return;
 
-  dataResponseMap[indentNo] = {
-    status: row[3],              // Column D
-    jobConsultancy: row[6],      // Column G
-    contactPerson: row[11],      // Column L
-    contactNumber: row[12],      // Column M
-  };
-});
+    // 🔥 Data Response Map (IndentNumber → extra info)
+    const dataResponseMap = {};
+    dataResponseData?.slice(1).forEach(row => {
+      const indentNo = row[0]; // Column A (Indent Number)
+      if (!indentNo) return;
+
+      dataResponseMap[indentNo] = {
+        status: row[3],              // Column D
+        jobConsultancy: row[6],      // Column G
+        contactPerson: row[11],      // Column L
+        contactNumber: row[12],      // Column M
+      };
+    });
 
 
 
@@ -170,9 +205,9 @@ dataResponseData?.slice(1).forEach(row => {
       CunsultancyNumber: row[CunsultancyNumber],
       JobCunsultancyName: row[JobCunsultancyName],
       statusDR: dataResponseMap[row[4]]?.status || "",
-jobConsultancyDR: dataResponseMap[row[4]]?.jobConsultancy || "",
-contactPersonDR: dataResponseMap[row[4]]?.contactPerson || "",
-contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
+      jobConsultancyDR: dataResponseMap[row[4]]?.jobConsultancy || "",
+      contactPersonDR: dataResponseMap[row[4]]?.contactPerson || "",
+      contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
 
     }));
 
@@ -486,7 +521,7 @@ contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
               <h3 className="text-lg font-medium text-gray-800">
-                Calling Job 
+                Calling Job
                 Agencies
               </h3>
               <button
@@ -497,7 +532,7 @@ contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-             
+
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -577,7 +612,7 @@ contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
                 </div>
               </div>
 
-             
+
 
               {/* WhatsApp field removed as per user request */}
 
@@ -590,7 +625,7 @@ contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
                 >
                   Cancel
                 </button>
-               
+
 
                 <button
                   type="submit"
@@ -951,19 +986,19 @@ contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
                         Indenter Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-  Job Consultancy
-</th>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-  Contact Person
-</th>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-  Contact No
-</th>
-<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-  Status
-</th>
+                        Job Consultancy
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Contact Person
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Contact No
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Status
+                      </th>
 
-                     
+
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
@@ -987,8 +1022,8 @@ contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
                     ) : (
                       filteredHistoryData.map((item, index) => (
                         <tr key={index} className="hover:bg-gray-50">
-                         
-                           <td className="px-6 py-4 whitespace-nowrap">
+
+                          <td className="px-6 py-4 whitespace-nowrap">
                             {item.indentNumber}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1060,17 +1095,17 @@ contactNumberDR: dataResponseMap[row[4]]?.contactNumber || "",
                             {item.indenterName}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500">
-  {item.jobConsultancyDR}
-</td>
-<td className="px-6 py-4 text-sm text-gray-500">
-  {item.contactPersonDR}
-</td>
-<td className="px-6 py-4 text-sm text-gray-500">
-  {item.contactNumberDR}
-</td>
-<td className="px-6 py-4 text-sm text-gray-500">
-  {item.statusDR}
-</td>
+                            {item.jobConsultancyDR}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {item.contactPersonDR}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {item.contactNumberDR}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {item.statusDR}
+                          </td>
 
                         </tr>
                       ))

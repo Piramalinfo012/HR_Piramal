@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, X, Calendar, Clock, CheckCircle, AlertCircle, Filter, Search } from 'lucide-react';
 import useAuthStore from '../store/authStore';
-import useDataStore from '../store/dataStore';
+
 import toast from 'react-hot-toast';
 
 const LeaveRequest = () => {

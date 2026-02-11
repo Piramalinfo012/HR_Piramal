@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import useDataStore from "../store/dataStore";
+
 import { Search, Plus, X, CheckCircle, Clock } from "lucide-react";
 import toast from "react-hot-toast";
 import { History as HistoryIcon } from "lucide-react";
@@ -18,8 +18,38 @@ const CandidateShortlisted = () => {
     const [indentOptions, setIndentOptions] = useState([]);
     const [fmsDataMap, setFmsDataMap] = useState({});
 
-    // Use Store
-    const { candidateSelectionData, fmsData: globalFmsData, isLoading: storeLoading, refreshData } = useDataStore();
+    // Local State Replacement for Store
+    const [candidateSelectionData, setCandidateSelectionData] = useState([]);
+    const [globalFmsData, setGlobalFmsData] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(true);
+
+    const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
+
+    const fetchData = async () => {
+        setStoreLoading(true);
+        try {
+            const cb = `&_=${Date.now()}`;
+            const [candidateRes, fmsRes] = await Promise.all([
+                fetch(`${FETCH_URL}?sheet=Canidate_Selection&action=fetch${cb}`).then(res => res.json()),
+                fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json())
+            ]);
+
+            if (candidateRes.success) setCandidateSelectionData(candidateRes.data);
+            if (fmsRes.success) setGlobalFmsData(fmsRes.data);
+
+        } catch (error) {
+            console.error("CandidateShortlisted Data Fetch Error:", error);
+            toast.error("Failed to load data");
+        } finally {
+            setStoreLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const refreshData = fetchData;
 
     useEffect(() => {
         if (!candidateSelectionData || candidateSelectionData.length < 2) {
@@ -254,7 +284,7 @@ const CandidateShortlisted = () => {
                     interviewDate: "",
                     resumeUrl: "",
                 });
-                await refreshData();
+                await fetchData();
             } else {
                 toast.error("Submission failed: " + result.error);
             }

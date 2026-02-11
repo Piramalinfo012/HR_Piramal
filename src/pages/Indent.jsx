@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { HistoryIcon, Plus, X, Search } from "lucide-react";
-import useDataStore from "../store/dataStore";
 import toast from "react-hot-toast";
 
 const Indent = () => {
-  const { addIndent } = useDataStore();
+
   const [showModal, setShowModal] = useState(false);
   const [posts, setPosts] = useState([{
     post: "",
@@ -45,7 +44,37 @@ const Indent = () => {
     "Job Consultancy",
   ];
 
-  const { fmsData: globalFmsData, masterData: globalMasterData, isLoading: storeLoading, refreshData } = useDataStore();
+  const [globalFmsData, setGlobalFmsData] = useState([]);
+  const [globalMasterData, setGlobalMasterData] = useState([]);
+  const [storeLoading, setStoreLoading] = useState(true);
+
+  const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
+
+  const fetchData = async () => {
+    setStoreLoading(true);
+    try {
+      const cb = `&_=${Date.now()}`;
+      const [fmsRes, masterRes] = await Promise.all([
+        fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json()),
+        fetch(`${FETCH_URL}?sheet=Master&action=fetch${cb}`).then(res => res.json())
+      ]);
+
+      if (fmsRes.success) setGlobalFmsData(fmsRes.data);
+      if (masterRes.success) setGlobalMasterData(masterRes.data);
+
+    } catch (error) {
+      console.error("Indent Data Fetch Error:", error);
+      toast.error("Failed to load data");
+    } finally {
+      setStoreLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const refreshData = fetchData;
 
   useEffect(() => {
     setTableLoading(storeLoading);
@@ -281,7 +310,7 @@ const Indent = () => {
         toast.error(`Please fill all required fields for Post #${i + 1}`);
         return;
       }
-     
+
     }
 
     try {
@@ -603,7 +632,7 @@ const Indent = () => {
                       </div>
                     </div>
 
-                    
+
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -764,8 +793,8 @@ const Indent = () => {
         </div>
       )}
 
-      
-     
+
+
 
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="overflow-x-auto">

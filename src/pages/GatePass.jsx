@@ -683,8 +683,8 @@ const GatePass = () => {
             <button
               onClick={() => setActiveTab('pending')}
               className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'pending'
-                  ? 'border-indigo-500 text-navy'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-indigo-500 text-navy'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               Pending ({pendingPasses.length})
@@ -692,8 +692,8 @@ const GatePass = () => {
             <button
               onClick={() => setActiveTab('approved')}
               className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'approved'
-                  ? 'border-indigo-500 text-navy'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-indigo-500 text-navy'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               Approved ({approvedPasses.length})
@@ -701,8 +701,8 @@ const GatePass = () => {
             <button
               onClick={() => setActiveTab('rejected')}
               className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'rejected'
-                  ? 'border-indigo-500 text-navy'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-indigo-500 text-navy'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
               Rejected ({rejectedPasses.length})

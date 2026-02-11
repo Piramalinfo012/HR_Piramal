@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import useDataStore from "../store/dataStore";
+
 import { Search, Clock, Plus, X, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -50,21 +50,38 @@ const VerificationBeforeInterview = () => {
         indentNumber: "",
     });
 
-    const {
-        candidateSelectionData,
-        fmsData: globalFmsData,
-        isLoading: storeLoading,
-        refreshData
-    } = useDataStore();
+    // Local State Replacement for Store
+    const [candidateSelectionData, setCandidateSelectionData] = useState([]);
+    const [globalFmsData, setGlobalFmsData] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(true);
 
-    // Refresh data on mount to ensure we have latest from Canidate_Selection
-    useEffect(() => {
-        refreshData();
-    }, [refreshData]);
+    const fetchData = async () => {
+        setStoreLoading(true);
+        setTableLoading(true);
+        try {
+            const cb = `&_=${Date.now()}`;
+            const [candidateRes, fmsRes] = await Promise.all([
+                fetch(`${FETCH_URL}?sheet=Canidate_Selection&action=fetch${cb}`).then(res => res.json()),
+                fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json())
+            ]);
+
+            if (candidateRes.success) setCandidateSelectionData(candidateRes.data);
+            if (fmsRes.success) setGlobalFmsData(fmsRes.data);
+
+        } catch (error) {
+            console.error("Verification Data Fetch Error:", error);
+            toast.error("Failed to load data");
+        } finally {
+            setStoreLoading(false);
+            setTableLoading(false);
+        }
+    };
 
     useEffect(() => {
-        setTableLoading(storeLoading);
-    }, [storeLoading]);
+        fetchData();
+    }, []);
+
+    const refreshData = fetchData;
 
     // FMS Data Effect
     useEffect(() => {
@@ -105,8 +122,8 @@ const VerificationBeforeInterview = () => {
             contactNo: row[5], // Column F
             mail: row[6], // Column G
             indentId: row[41], // Column AP (Actual Indent Number)
-           trigger_Z: row[25],        // Column Z
-statusMarker_AA: row[26], // Column AA
+            trigger_Z: row[25],        // Column Z
+            statusMarker_AA: row[26], // Column AA
 
         }));
 
@@ -292,10 +309,10 @@ statusMarker_AA: row[26], // Column AA
 
             // 1. Submit to DATA RESPONSE
             const responseData = [];
-          const safeIndent = (candidate.indentId || "").trim();
-const safeName = (candidate.candidateName || "").trim();
+            const safeIndent = (candidate.indentId || "").trim();
+            const safeName = (candidate.candidateName || "").trim();
 
-responseData[0] = `${safeIndent}`; // Column A ✅ IN-45_pooja
+            responseData[0] = `${safeIndent}`; // Column A ✅ IN-45_pooja
             responseData[1] = "CS-2";             // Column B (Step Code CS-2)
             responseData[2] = timestamp;          // Column C (Timestamp)
             responseData[3] = status;             // Column D (Status)
@@ -341,14 +358,14 @@ responseData[0] = `${safeIndent}`; // Column A ✅ IN-45_pooja
 
     const filteredData = candidateData.filter((item, index) => {
         const term = searchTerm.toLowerCase();
-const hasZ = !!(item.trigger_Z && item.trigger_Z.toString().trim());
-const hasAA = !!(item.statusMarker_AA && item.statusMarker_AA.toString().trim());
+        const hasZ = !!(item.trigger_Z && item.trigger_Z.toString().trim());
+        const hasAA = !!(item.statusMarker_AA && item.statusMarker_AA.toString().trim());
 
 
         const matchesTab =
-  activeTab === "pending"
-    ? (hasZ && !hasAA)   // ✅ Z filled, AA empty
-    : (hasZ && hasAA);   // ✅ Z filled, AA filled
+            activeTab === "pending"
+                ? (hasZ && !hasAA)   // ✅ Z filled, AA empty
+                : (hasZ && hasAA);   // ✅ Z filled, AA filled
 
 
         const matchesSearch = (

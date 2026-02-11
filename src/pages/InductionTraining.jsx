@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import useDataStore from "../store/dataStore";
+
 import { Search, X } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -33,7 +33,35 @@ const InductionTraining = () => {
         "Company Directory (कंपनी निर्देशिका)"
     ];
 
-    const { joiningFmsData, isLoading: storeLoading, refreshData } = useDataStore();
+    // Local State Replacement for Store
+    const [joiningFmsData, setJoiningFmsData] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(true);
+
+    const fetchData = async () => {
+        setStoreLoading(true);
+        setTableLoading(true);
+        try {
+            const cb = `&_=${Date.now()}`;
+            const res = await fetch(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS${cb}`);
+            const json = await res.json();
+
+            if (json.success) {
+                setJoiningFmsData(json.data);
+            }
+        } catch (error) {
+            console.error("Induction Training Data Fetch Error:", error);
+            toast.error("Failed to load data");
+        } finally {
+            setStoreLoading(false);
+            setTableLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const refreshData = fetchData;
 
     useEffect(() => {
         if (!joiningFmsData || joiningFmsData.length < 8) {

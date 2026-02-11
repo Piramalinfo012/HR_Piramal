@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import useDataStore from "../store/dataStore";
+
 import { Search, X } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -7,7 +7,7 @@ const InductionOrTraining = () => {
     const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
 
     // Global Store
-    const { joiningFmsData: globalData, isLoading: storeLoading, refreshData } = useDataStore();
+
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -36,17 +36,43 @@ const InductionOrTraining = () => {
         "Company Directory (कंपनी निर्देशिका)"
     ];
 
-    useEffect(() => {
-        setTableLoading(storeLoading);
-    }, [storeLoading]);
+    // Local State Replacement for Store
+    const [joiningFmsData, setJoiningFmsData] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(true);
+
+    const fetchData = async () => {
+        setStoreLoading(true);
+        setTableLoading(true);
+        try {
+            const cb = `&_=${Date.now()}`;
+            const res = await fetch(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS${cb}`);
+            const json = await res.json();
+
+            if (json.success) {
+                setJoiningFmsData(json.data);
+            }
+        } catch (error) {
+            console.error("InductionOrTraining Data Fetch Error:", error);
+            toast.error("Failed to load data");
+        } finally {
+            setStoreLoading(false);
+            setTableLoading(false);
+        }
+    };
 
     useEffect(() => {
-        if (!globalData || globalData.length < 2) {
+        fetchData();
+    }, []);
+
+    const refreshData = fetchData;
+
+    useEffect(() => {
+        if (!joiningFmsData || joiningFmsData.length < 2) {
             setCandidateData([]);
             return;
         }
 
-        const rawData = globalData;
+        const rawData = joiningFmsData;
         const headers = rawData[6] || [];
         const dataRows = rawData.length > 7 ? rawData.slice(7) : [];
 
@@ -86,7 +112,7 @@ const InductionOrTraining = () => {
         }).filter(item => item !== null);
         setCandidateData(processed);
 
-    }, [globalData]);
+    }, [joiningFmsData]);
 
     const fetchCandidateData = () => {
         // Placeholder to keep logic if needed, but effect handles it now.

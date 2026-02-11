@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Filter, Search, Clock, CheckCircle, ImageIcon, X } from "lucide-react";
-import useDataStore from "../store/dataStore";
+
 import toast from "react-hot-toast";
 
 const Employee = () => {
@@ -37,7 +37,7 @@ const Employee = () => {
   };
 
   // Fetch global data from store (still needed only for refreshing data after submit)
-  const { fetchGlobalData } = useDataStore();
+
 
   // Helper to normalize IDs for consistent comparison
   // Removes all non-alphanumeric characters and lowercases
@@ -262,7 +262,7 @@ const Employee = () => {
         setSelectedItem(null);
 
         // Refresh global data to reflect changes if necessary
-        fetchGlobalData(true);
+        // fetchData();
         // Refresh local data
         fetchData();
       } else {
@@ -356,48 +356,6 @@ const Employee = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Candidate Photo
                     </th>
-                    {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Address
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date of Birth
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Gender
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Mobile No
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Family No
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Relationship
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Account No
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      IFSC
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Branch
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Passbook
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email Id
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Department
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Equipment
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Aadhar No
-                    </th> */}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -417,7 +375,7 @@ const Employee = () => {
                       <td colSpan="21" className="px-6 py-12 text-center">
                         <p className="text-red-500">Error: {error}</p>
                         <button
-                          onClick={fetchGlobalData}
+                          onClick={fetchData}
                           className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                         >
                           Retry
@@ -483,59 +441,6 @@ const Employee = () => {
                             "-"
                           )}
                         </td>
-                        {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.address || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.dateOfBirth
-                            ? formatDOB(item.dateOfBirth)
-                            : "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.gender || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.mobileNo}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.familyNo || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.relationshipWithFamily || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.accountNo || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.ifsc || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.branch || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.passbook ? (
-                            <a
-                              href={item.passbook}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-navy hover:text-indigo-800"
-                            ><ImageIcon size={20} /></a>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.emailId || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.department}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.equipment || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.aadharNo || "-"}
-                        </td> */}
                       </tr>
                     ))
                   )}

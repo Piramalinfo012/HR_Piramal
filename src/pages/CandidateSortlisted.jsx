@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, Clock, History as HistoryIcon, CheckCircle, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
-import useDataStore from "../store/dataStore";
+
 
 const CandidateSortlisted = () => {
     const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
@@ -48,7 +48,36 @@ const CandidateSortlisted = () => {
         indentNumber: "",
     });
 
-    const { candidateSelectionData, isLoading: storeLoading, refreshData } = useDataStore();
+    // Local State Replacement for Store
+    const [candidateSelectionData, setCandidateSelectionData] = useState([]);
+    const [globalFmsData, setGlobalFmsData] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(true);
+
+    const fetchData = async () => {
+        setStoreLoading(true);
+        try {
+            const cb = `&_=${Date.now()}`;
+            const [candidateRes, fmsRes] = await Promise.all([
+                fetch(`${FETCH_URL}?sheet=Canidate_Selection&action=fetch${cb}`).then(res => res.json()),
+                fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json())
+            ]);
+
+            if (candidateRes.success) setCandidateSelectionData(candidateRes.data);
+            if (fmsRes.success) setGlobalFmsData(fmsRes.data);
+
+        } catch (error) {
+            console.error("CandidateSortlisted Data Fetch Error:", error);
+            toast.error("Failed to load data");
+        } finally {
+            setStoreLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const refreshData = fetchData;
 
     useEffect(() => {
         setTableLoading(storeLoading);
@@ -71,20 +100,20 @@ const CandidateSortlisted = () => {
                 candidateName: row[4], // Column E
                 contactNo: row[5], // Column F
                 mail: row[6], // Column G
-                 age: row[7],                        // H
-  highestQualification: row[8],       // I
-  nativePlace: row[9],                // J
-  currentWorkingLocation: row[10],    // K
-  currentEmploymentStatus: row[11],   // L
-  currentCompany: row[12],            // M
-  currentDesignation: row[13],        // N
-  tenureWithCurrentCompany: row[14],  // O
-  totalWorkExperience: row[15],       // P
-  currentCTC: row[16],                // Q
-  expectedCTC: row[17],               // R
-  noticePeriod: row[18],              // S
-  interviewDate: row[19],             // T
-  resumeUrl: row[20],                 // U
+                age: row[7],                        // H
+                highestQualification: row[8],       // I
+                nativePlace: row[9],                // J
+                currentWorkingLocation: row[10],    // K
+                currentEmploymentStatus: row[11],   // L
+                currentCompany: row[12],            // M
+                currentDesignation: row[13],        // N
+                tenureWithCurrentCompany: row[14],  // O
+                totalWorkExperience: row[15],       // P
+                currentCTC: row[16],                // Q
+                expectedCTC: row[17],               // R
+                noticePeriod: row[18],              // S
+                interviewDate: row[19],             // T
+                resumeUrl: row[20],                 // U
                 indentId: row[41], // Column AP (index 41)
                 planned: row[21], // Column V
                 actual: row[22], // Column W
@@ -97,13 +126,12 @@ const CandidateSortlisted = () => {
     }, [candidateSelectionData]);
 
     useEffect(() => {
-        if (!useDataStore.getState().fmsData || useDataStore.getState().fmsData.length < 2) {
+        if (!globalFmsData || globalFmsData.length < 2) {
             setIndentOptions([]);
             setFmsDataMap({});
             return;
         }
 
-        const globalFmsData = useDataStore.getState().fmsData;
         const dataRows = globalFmsData.slice(1);
         const openRows = dataRows.filter(row => {
             if (!row) return false;
@@ -120,9 +148,7 @@ const CandidateSortlisted = () => {
 
         setIndentOptions([...new Set(options)]);
         setFmsDataMap(mapping);
-    }, [useDataStore.getState().fmsData]);
-
-    // fetchCandidateData replaced by useEffect reacting to global store
+    }, [globalFmsData]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -217,7 +243,7 @@ const CandidateSortlisted = () => {
             rowData[19] = formData.interviewDate;
             rowData[20] = formData.resumeUrl;
             rowData[0] = timestamp;
-            
+
 
             const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
                 method: "POST",
@@ -298,15 +324,15 @@ const CandidateSortlisted = () => {
             const timestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             // 1. Submit to DATA RESPONSE
-          const responseData = [];
+            const responseData = [];
 
-const safeIndent = (candidate.indentId || "").trim();
-const safeName = (candidate.candidateName || "").trim();
+            const safeIndent = (candidate.indentId || "").trim();
+            const safeName = (candidate.candidateName || "").trim();
 
-responseData[0] = `${safeIndent}`; // Column A ✅ IN-45_pooja
-responseData[1] = "CS-1";                      // Column B
-responseData[2] = timestamp;                   // Column C
-responseData[3] = status;                      // Column D
+            responseData[0] = `${safeIndent}`; // Column A ✅ IN-45_pooja
+            responseData[1] = "CS-1";                      // Column B
+            responseData[2] = timestamp;                   // Column C
+            responseData[3] = status;                      // Column D
 
             const insertResponse = await fetch(getSubmitUrl(), {
                 method: "POST",
@@ -466,12 +492,12 @@ responseData[3] = status;                      // Column D
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                   
-{activeTab === "new" && (
-  <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-    Action
-  </th>
-)}
+
+                                    {activeTab === "new" && (
+                                        <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                                            Action
+                                        </th>
+                                    )}
 
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
@@ -479,20 +505,20 @@ responseData[3] = status;                      // Column D
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider uppercase tracking-wider">Designation</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider uppercase tracking-wider">Contact</th>
                                     <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Mail ID</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Age</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Highest Qualification</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Native Place</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Current Location</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Employment Status</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Current Company</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Current Designation</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Tenure</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total Experience</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Current CTC</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Expected CTC</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Notice Period</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Interview Date</th>
-<th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Resume</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Age</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Highest Qualification</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Native Place</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Current Location</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Employment Status</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Current Company</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Current Designation</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Tenure</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Total Experience</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Current CTC</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Expected CTC</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Notice Period</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Interview Date</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Resume</th>
 
                                 </tr>
                             </thead>
@@ -500,32 +526,32 @@ responseData[3] = status;                      // Column D
                                 {tableLoading ? (
                                     <tr>
                                         <td
-  colSpan={activeTab === "new" ? 21 : 20}
-  className="px-6 py-12 text-center text-gray-500"
->
-Loading...</td>
+                                            colSpan={activeTab === "new" ? 21 : 20}
+                                            className="px-6 py-12 text-center text-gray-500"
+                                        >
+                                            Loading...</td>
                                     </tr>
                                 ) : filteredData.length === 0 ? (
                                     <tr>
                                         <td
-  colSpan={activeTab === "new" ? 21 : 20}
-  className="px-6 py-12 text-center text-gray-500"
->
-No candidates found.</td>
+                                            colSpan={activeTab === "new" ? 21 : 20}
+                                            className="px-6 py-12 text-center text-gray-500"
+                                        >
+                                            No candidates found.</td>
                                     </tr>
                                 ) : (
                                     filteredData.map((item, index) => (
                                         <tr key={index} className="hover:bg-gray-50">
- {activeTab === "new" && (
-  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-    <button
-      onClick={() => handleActionClick(item)}
-      className="px-3 py-1.5 bg-navy text-white rounded-md hover:bg-navy-dark transition-colors"
-    >
-      Action
-    </button>
-  </td>
-)}
+                                            {activeTab === "new" && (
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                    <button
+                                                        onClick={() => handleActionClick(item)}
+                                                        className="px-3 py-1.5 bg-navy text-white rounded-md hover:bg-navy-dark transition-colors"
+                                                    >
+                                                        Action
+                                                    </button>
+                                                </td>
+                                            )}
 
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
@@ -533,31 +559,31 @@ No candidates found.</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.contactNo}</td>
                                             <td className="px-6 py-4 text-sm text-gray-500">{item.mail}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.age}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.highestQualification}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.nativePlace}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.currentWorkingLocation}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.currentEmploymentStatus}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.currentCompany}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.currentDesignation}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.tenureWithCurrentCompany}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.totalWorkExperience}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.currentCTC}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.expectedCTC}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.noticePeriod}</td>
-<td className="px-6 py-4 text-sm text-gray-500">{item.interviewDate}</td>
-<td className="px-6 py-4 text-sm">
-  {item.resumeUrl ? (
-    <a
-      href={item.resumeUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-blue-600 underline"
-    >
-      View
-    </a>
-  ) : "—"}
-</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.age}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.highestQualification}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.nativePlace}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.currentWorkingLocation}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.currentEmploymentStatus}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.currentCompany}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.currentDesignation}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.tenureWithCurrentCompany}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.totalWorkExperience}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.currentCTC}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.expectedCTC}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.noticePeriod}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.interviewDate}</td>
+                                            <td className="px-6 py-4 text-sm">
+                                                {item.resumeUrl ? (
+                                                    <a
+                                                        href={item.resumeUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-600 underline"
+                                                    >
+                                                        View
+                                                    </a>
+                                                ) : "—"}
+                                            </td>
 
                                         </tr>
                                     ))
@@ -779,7 +805,7 @@ No candidates found.</td>
                                         >
                                             <option value="Yes">Selected</option>
                                             <option value="No">Rejected</option>
-                                           
+
                                         </select>
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">

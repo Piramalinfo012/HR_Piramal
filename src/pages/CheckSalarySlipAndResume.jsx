@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import toast from "react-hot-toast";
-import useDataStore from "../store/dataStore";
+
 
 const CheckSalarySlipAndResume = () => {
     const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
@@ -21,12 +21,35 @@ const CheckSalarySlipAndResume = () => {
     });
     const [submitting, setSubmitting] = useState(false);
 
-    const { joiningFmsData, isLoading: storeLoading, refreshData } = useDataStore();
+    // Local State Replacement for Store
+    const [joiningFmsData, setJoiningFmsData] = useState([]);
+    const [storeLoading, setStoreLoading] = useState(true);
 
-    // Refresh data on mount to ensure latest data is fetched
+    const fetchData = async () => {
+        setStoreLoading(true);
+        setTableLoading(true);
+        try {
+            const cb = `&_=${Date.now()}`;
+            const res = await fetch(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS${cb}`);
+            const json = await res.json();
+
+            if (json.success) {
+                setJoiningFmsData(json.data);
+            }
+        } catch (error) {
+            console.error("CheckSalarySlipAndResume Data Fetch Error:", error);
+            toast.error("Failed to load data");
+        } finally {
+            setStoreLoading(false);
+            setTableLoading(false);
+        }
+    };
+
     useEffect(() => {
-        refreshData();
-    }, [refreshData]);
+        fetchData();
+    }, []);
+
+    const refreshData = fetchData;
 
     useEffect(() => {
         setTableLoading(storeLoading);
@@ -287,7 +310,7 @@ const CheckSalarySlipAndResume = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Candidate Name
                                     </th>
-                                 
+
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Designation
                                     </th>
@@ -341,7 +364,7 @@ const CheckSalarySlipAndResume = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                 {item.candidateName}
                                             </td>
-                                         
+
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {item.designation}
                                             </td>
