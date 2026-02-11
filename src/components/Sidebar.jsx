@@ -32,6 +32,7 @@ import {
   Video,
   Inbox,
   CheckCircle,
+  UserCog,
 } from "lucide-react";
 
 import useAuthStore from "../store/authStore";
@@ -610,7 +611,7 @@ const Sidebar = ({ onClose }) => {
       icon: Clock,
       label: "Joining Follow Up",
     },
-
+    
     { path: "/joining", icon: NotebookPen, label: "Joining" },
     {
       path: "/check-salary-slip-and-resume",
@@ -634,18 +635,19 @@ const Sidebar = ({ onClose }) => {
       label: "Asset Assignment (IT Team)",
     },
     // {
-    //   path: "/after-joining-work",
-    //   icon: UserCheck,
-    //   label: "After Joining Work",
-    // },
-    // { path: "/leaving", icon: UserX, label: "Leaving" },
-    // {
+      //   path: "/after-joining-work",
+      //   icon: UserCheck,
+      //   label: "After Joining Work",
+      // },
+      // { path: "/leaving", icon: UserX, label: "Leaving" },
+      // {
     //   path: "/after-leaving-work",
     //   icon: UserMinus,
     //   label: "After Leaving Work",
     // },
     { path: "/employee", icon: Users, label: "Employee" },
     { path: "/leaving", icon: Users, label: "Leaving" },
+    { path: "/user-management", icon: UserCog, label: "User Management" },
     // { path: "/leave-management", icon: BookPlus, label: "Leave Management" },
     // { path: "/gate-pass", icon: DoorOpen, label: "Gate Pass" },
     // {

@@ -51,6 +51,7 @@ import CandidateSortlisted from "./pages/CandidateSortlisted";
 import VerificationBeforeInterview from "./pages/VerificationBeforeInterview";
 import InterviewSelection from "./pages/InterviewSelection";
 import JoiningFollowUp from "./pages/JoiningFollowUp";
+import UserManagement from "./pages/UserManagement";
 function App() {
   return (
     <div className="gradient-bg min-h-screen">
@@ -112,6 +113,7 @@ function App() {
             <Route path="video" element={<Videos />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="hrleads" element={<HrLeads />} />
+            <Route path="user-management" element={<UserManagement />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
