@@ -118,13 +118,10 @@ const UserManagement = () => {
 
         try {
             if (mode === 'add') {
-                // Add New User
                 const pageAccessString = currentUser.admin === 'Yes'
                     ? pageOptions.join(', ')
                     : currentUser.selectedPages.join(', ');
 
-                // Construct row data according to requested mapping
-                // A:0 (Username), B:1 (Password), C:2 (Name), D:3 (Admin), E:4 (Empty), F:5 (Page Access), ..., K:10 (Status)
                 const newRow = new Array(11).fill("");
                 newRow[0] = currentUser.username;
                 newRow[1] = currentUser.password;
@@ -158,8 +155,6 @@ const UserManagement = () => {
                 }
 
             } else {
-                // Update Existing User
-                // 1. Fetch fresh data to get the correct row index (Concurreny check)
                 const cb = `&_=${Date.now()}`;
                 const response = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch${cb}`);
                 const result = await response.json();
@@ -169,17 +164,12 @@ const UserManagement = () => {
                 }
 
                 const allData = result.data;
-                // Find row index by Username (Column A / Index 0)
-                // Use originalUsername
                 const rowIndex = allData.findIndex(row => row[0] === currentUser.originalUsername);
 
                 if (rowIndex === -1) {
                     throw new Error("User not found in the latest sheet data. Has it been deleted?");
                 }
-
-                // Preserve existing data, update specific columns
                 let rowData = [...allData[rowIndex]];
-                // Ensure array has enough columns
                 while (rowData.length < 11) rowData.push("");
 
                 rowData[0] = currentUser.username;
@@ -191,15 +181,7 @@ const UserManagement = () => {
                 const payload = {
                     sheetName: "USER",
                     action: "update",
-                    rowIndex: rowIndex + 1, // 1-based index (Row 1 is header, data starts at 0 in array? No. 
-                    // API implementation: `rowIndex` usually matches Sheet Row Number.
-                    // standard array index + 1 = Sheet Row? 
-                    // Wait. `allData` usually includes header at index 0 (Row 1).
-                    // So `rowIndex` in `allData` is 0-based.
-                    // If Header is Row 1 (index 0). 
-                    // User is at index 5. Use Row 6.
-                    // So rowIndex + 1 is correct.
-                    rowIndex: rowIndex + 1,
+                    rowIndex: rowIndex + 1, // 1-based index (Row 1 is header, data starts at index 0 in array)
                     rowData: JSON.stringify(rowData)
                 };
 
@@ -271,11 +253,6 @@ const UserManagement = () => {
         setIsDeleting(true);
 
         try {
-            // Using updateCell to mark as Deleted
-            // We need the rowIndex. 
-            // We can trust user.rowIndex calculated in fetchUsers if data hasn't shifted too much.
-            // Or ideally fetch fresh to be safe, but for delete we might risk it or doing a quick lookup.
-            // Let's do a quick lookup by username to be safe.
 
             const cb = `&_=${Date.now()}`;
             const response = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch${cb}`);
@@ -300,13 +277,6 @@ const UserManagement = () => {
                 value: "Deleted",
                 // Also update Status/Access? No, just mark deleted.
             };
-
-            // Note: If 'updateCell' is not supported by backend, we might need 'update' (row).
-            // Let's try 'updateCell' first as it's cleaner. 
-            // If the script doesn't support 'updateCell', we fallback to updating the whole row.
-            // But let's assume standard GAS backend usually supports it if well written.
-            // If unsure, full row update is safest.
-            // Let's do full row update to be safe, modifying only Column K.
 
             const rowData = [...allData[rowIndex]];
             rowData[10] = "Deleted"; // Index 10 is Column K ? (0-based: A=0, K=10) YES.

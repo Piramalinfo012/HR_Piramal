@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Search, Clock, History as HistoryIcon, CheckCircle, Plus, X } from "lucide-react";
+import { Search, Clock, History as HistoryIcon, CheckCircle, Plus, X, Image } from "lucide-react";
 import toast from "react-hot-toast";
 
 
@@ -44,11 +44,11 @@ const CandidateSortlisted = () => {
         expectedCTC: "",
         noticePeriod: "",
         interviewDate: "",
+        entryBy: "",
         resumeUrl: "",
         indentNumber: "",
     });
 
-    // Local State Replacement for Store
     const [candidateSelectionData, setCandidateSelectionData] = useState([]);
     const [globalFmsData, setGlobalFmsData] = useState([]);
     const [storeLoading, setStoreLoading] = useState(true);
@@ -117,6 +117,7 @@ const CandidateSortlisted = () => {
                 indentId: row[41], // Column AP (index 41)
                 planned: row[21], // Column V
                 actual: row[22], // Column W
+                entryBy: row[42], // Column AQ
 
             };
             return item;
@@ -242,6 +243,7 @@ const CandidateSortlisted = () => {
             rowData[18] = formData.noticePeriod;
             rowData[19] = formData.interviewDate;
             rowData[20] = formData.resumeUrl;
+            rowData[22] = formData.entryBy; // Column W (index 22)
             rowData[0] = timestamp;
 
 
@@ -279,6 +281,7 @@ const CandidateSortlisted = () => {
                     noticePeriod: "",
                     interviewDate: "",
                     resumeUrl: "",
+                    entryBy: "",
                 });
                 refreshData();
             } else {
@@ -518,6 +521,7 @@ const CandidateSortlisted = () => {
                                     <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Expected CTC</th>
                                     <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Notice Period</th>
                                     <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Interview Date</th>
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Entry By</th>
                                     <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Resume</th>
 
                                 </tr>
@@ -572,6 +576,7 @@ const CandidateSortlisted = () => {
                                             <td className="px-6 py-4 text-sm text-gray-500">{item.expectedCTC}</td>
                                             <td className="px-6 py-4 text-sm text-gray-500">{item.noticePeriod}</td>
                                             <td className="px-6 py-4 text-sm text-gray-500">{item.interviewDate}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-500">{item.entryBy}</td>
                                             <td className="px-6 py-4 text-sm">
                                                 {item.resumeUrl ? (
                                                     <a
@@ -580,7 +585,7 @@ const CandidateSortlisted = () => {
                                                         rel="noopener noreferrer"
                                                         className="text-blue-600 underline"
                                                     >
-                                                        View
+                                                        <Image size={24} />
                                                     </a>
                                                 ) : "—"}
                                             </td>
@@ -747,6 +752,10 @@ const CandidateSortlisted = () => {
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">Interview Date with HR SPOC</label>
                                             <input type="date" name="interviewDate" value={formData.interviewDate} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Entry by</label>
+                                            <input type="text" name="entryBy" value={formData.entryBy} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                                         </div>
                                         <div className="md:col-span-3">
                                             <label className="block text-sm font-medium text-gray-700">Resume/cv</label>

@@ -20,6 +20,8 @@ const Employee = () => {
   const [error, setError] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [joiningPlaceFilter, setJoiningPlaceFilter] = useState("");
+  const [joiningPlaces, setJoiningPlaces] = useState([]);
 
   const formatDOB = (dateString) => {
     if (!dateString) return "";
@@ -94,6 +96,7 @@ const Employee = () => {
           reasonOfLeaving: row[8] || "",
           salary: row[9] || "",
           dateOfJoining: "",
+          joiningPlace: "",
           department: "",
           fatherName: "",
 
@@ -128,6 +131,7 @@ const Employee = () => {
           emailId: row[idxEmail] || "",
           fatherName: row[11] || "",
           dateOfJoining: row[12] || "",
+          joiningPlace: row[13] || "",
           aadharPhoto: row[16] || "",
           candidatePhoto: row[18] || "",
           status: row[idxStatus] || "",
@@ -147,6 +151,21 @@ const Employee = () => {
       }
 
       setJoiningData(processedJoining);
+
+      // Extract unique joining places for the filter dropdown case-insensitively
+      const placesMap = new Map();
+      processedJoining.forEach(item => {
+        const place = item.joiningPlace && item.joiningPlace.toString().trim();
+        if (place) {
+          const lowerPlace = place.toLowerCase();
+          if (!placesMap.has(lowerPlace)) {
+            // Store the first occurrence as the display name
+            placesMap.set(lowerPlace, place);
+          }
+        }
+      });
+      const places = Array.from(placesMap.values()).sort();
+      setJoiningPlaces(places);
 
     } catch (err) {
       console.error("Fetch Data Error:", err);
@@ -170,7 +189,10 @@ const Employee = () => {
       item.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.emailId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.mobileNo?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesJoiningPlace = !joiningPlaceFilter ||
+      (item.joiningPlace && item.joiningPlace.toString().trim().toLowerCase() === joiningPlaceFilter.toString().trim().toLowerCase());
+
+    return matchesSearch && matchesJoiningPlace;
   });
 
   const filteredLeavingData = leavingData.filter((item) => {
@@ -298,6 +320,33 @@ const Employee = () => {
             />
           </div>
         </div>
+
+        {activeTab === "joining" && (
+          <div className="flex items-center space-x-2">
+            <Filter size={20} className="text-gray-500" />
+            <select
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white text-gray-500 text-sm"
+              value={joiningPlaceFilter}
+              onChange={(e) => setJoiningPlaceFilter(e.target.value)}
+            >
+              <option value="">All Joining Places</option>
+              {joiningPlaces.map((place, index) => (
+                <option key={index} value={place}>
+                  {place}
+                </option>
+              ))}
+            </select>
+            {joiningPlaceFilter && (
+              <button
+                onClick={() => setJoiningPlaceFilter("")}
+                className="p-2 text-gray-500 hover:text-red-500"
+                title="Clear filter"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -346,6 +395,9 @@ const Employee = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date Of Joining
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Joining Place
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Designation
@@ -409,6 +461,9 @@ const Employee = () => {
                           {item.dateOfJoining
                             ? formatDOB(item.dateOfJoining)
                             : "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.joiningPlace}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {item.designation}
@@ -527,6 +582,9 @@ const Employee = () => {
                           {item.dateOfJoining
                             ? formatDOB(item.dateOfJoining)
                             : "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.joiningPlace}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {item.dateOfLeaving
