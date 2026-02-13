@@ -144,7 +144,14 @@ const CandidateSortlisted = () => {
         const mapping = {};
         openRows.forEach(row => {
             const id = (row[4] || "").toString();
-            if (id) mapping[id] = (row[6] || "").toString();
+            if (id) {
+                // Column M (index 12) => Department
+                // Column G (index 6) => Designation
+                mapping[id] = {
+                    department: (row[12] || "").toString(),
+                    designation: (row[6] || "").toString(),
+                };
+            }
         });
 
         setIndentOptions([...new Set(options)]);
@@ -154,10 +161,12 @@ const CandidateSortlisted = () => {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         if (name === "indentNumber") {
+            const selectedData = fmsDataMap[value];
             setFormData((prev) => ({
                 ...prev,
                 indentNumber: value,
-                openPositionDepartment: fmsDataMap[value] || prev.openPositionDepartment,
+                openPositionDepartment: selectedData ? selectedData.department : prev.openPositionDepartment,
+                designation: selectedData ? selectedData.designation : prev.designation,
             }));
         } else {
             setFormData((prev) => ({
@@ -359,10 +368,23 @@ const CandidateSortlisted = () => {
                 }),
             });
 
+            // 3. Update Column X in appsheet db with Status
+            const statusCellResponse = await fetch(getSubmitUrl(), {
+                method: "POST",
+                body: new URLSearchParams({
+                    sheetName: "appsheet db",
+                    action: "updateCell",
+                    rowIndex: candidate.rowIndex,
+                    columnIndex: 24,
+                    value: status
+                }),
+            });
+
             const res1 = await insertResponse.json();
             const res2 = await updateResponse.json();
+            const res3 = await statusCellResponse.json();
 
-            if (res1.success && res2.success) {
+            if (res1.success && res2.success && res3.success) {
                 toast.success(`Candidate ${status} successfully!`);
                 setShowActionModal(false);
                 refreshData();
@@ -812,8 +834,8 @@ const CandidateSortlisted = () => {
                                             className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                                             required
                                         >
-                                            <option value="Yes">Selected</option>
-                                            <option value="No">Rejected</option>
+                                            <option value="Selected">Selected</option>
+                                            <option value="Rejected">Rejected</option>
 
                                         </select>
                                     </div>

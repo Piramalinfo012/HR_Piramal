@@ -150,15 +150,19 @@ const Joining = () => {
       const idxExpectedCTC = getCIndex("Expected (LPA)", 17);
       const idxStatus = getCIndex("Status", 36);
       const idxActualAJ = getCIndex("Actual", 35); // Column AJ
+      const idxStatusX = 23; // Column X (0-indexed)
 
       const processed = cRows
         .filter((row, index) => {
           if (!row || row.length === 0) return false;
           const actualAJ = row[idxActualAJ];
           const id = row[idxEnquiry];
+          const statusX = row[idxStatusX];
 
           // ✅ AJ must be filled (not null, not empty)
           if (actualAJ === undefined || actualAJ === null || actualAJ.toString().trim() === "") return false;
+          // ❌ Skip if Rejected in Column X
+          if (statusX === "Rejected") return false;
           // ❌ Skip if already planned in JOINING_FMS
           if (id && blockedIds.has(id.toString().trim())) return false;
 
