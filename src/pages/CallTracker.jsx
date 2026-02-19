@@ -138,6 +138,15 @@ const CallTracker = () => {
     );
   };
 
+  const formatDateDisplay = (ts) => {
+    const d = parseTimestamp(ts);
+    if (!d) return ts; // fallback to original string if parse fails
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const loadData = async () => {
     setTableLoading(true);
     let result = { success: false, data: [] };
@@ -575,6 +584,9 @@ const CallTracker = () => {
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr className="bg-gray-50">
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Timestamp
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                   Task ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
@@ -617,7 +629,7 @@ const CallTracker = () => {
                 tableLoading ? (
                   <tr>
                     <td
-                      colSpan="12"
+                      colSpan="13"
                       className="px-6 py-12 text-center text-gray-500"
                     >
                       Loading data...
@@ -626,7 +638,7 @@ const CallTracker = () => {
                 ) : (
                   <tr>
                     <td
-                      colSpan="12"
+                      colSpan="13"
                       className="px-6 py-12 text-center text-gray-500"
                     >
                       No data found
@@ -636,6 +648,9 @@ const CallTracker = () => {
               ) : (
                 displayData.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDateDisplay(item.timestamp)}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">
                       {item.taskId}
                     </td>
