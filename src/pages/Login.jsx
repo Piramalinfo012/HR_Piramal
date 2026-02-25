@@ -7,7 +7,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUsers } from "@fortawesome/free-solid-svg-icons";
 
 const SHEET_API_URL = `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`;
-const LEAVING_API_URL = "https://script.google.com/macros/s/AKfycbx7_8IiGXsVplVge8Fi8PIsxL1Ub_QqQI77x1flWxkl2KlyunmnVheG7yA6safW20yZ/exec?sheet=LEAVING&action=fetch";
+const LEAVING_API_URL = `${import.meta.env.VITE_LEAVING_SHEET_URL}?sheet=LEAVING&action=fetch`;
 
 localStorage.removeItem("hasSeenLanguageHint");
 
@@ -24,20 +24,40 @@ const Login = () => {
     setSubmitting(true);
 
     try {
-      const [userRes, leavingRes] = await Promise.all([
-        fetch(`${SHEET_API_URL}&_t=${Date.now()}`),
-        fetch(`${LEAVING_API_URL}&_t=${Date.now()}`),
-      ]);
+      let userRes, leavingRes;
+      let userJson, leavingJson;
 
-      const userJson = await userRes.json();
-      const leavingJson = await leavingRes.json();
-
-      // Final Check
-      if (!userJson?.success || !leavingJson?.success) {
-        console.error("Fetch Error Details:", { userJson, leavingJson });
-        toast.error("Error fetching data");
+      // Fetch User Data
+      try {
+        userRes = await fetch(`${SHEET_API_URL}&_t=${Date.now()}`);
+        userJson = await userRes.json();
+      } catch (err) {
+        console.error("User Fetch Error:", err);
+        toast.error("Network error fetching user data");
         setSubmitting(false);
         return;
+      }
+
+      // Fetch Leaving Data (Don't let CORS/404 block login)
+      try {
+        leavingRes = await fetch(`${LEAVING_API_URL}&_t=${Date.now()}`);
+        leavingJson = await leavingRes.json();
+      } catch (err) {
+        console.warn("Leaving Fetch Error (Gracefully skipped):", err);
+        leavingJson = { success: true, data: [] };
+      }
+
+      // Final Check for User data
+      if (!userJson?.success) {
+        console.error("Fetch User Error Details:", userJson);
+        toast.error("Error fetching user data");
+        setSubmitting(false);
+        return;
+      }
+
+      // Normalize leavingJson if it failed
+      if (!leavingJson?.success) {
+        leavingJson = { success: true, data: [] };
       }
 
       const userRows = userJson.data;
@@ -45,21 +65,26 @@ const Login = () => {
       const users = userRows.slice(1).map((row) => {
         let obj = {};
         userHeaders.forEach((h, i) => (obj[h] = row[i]));
+        // Column A (index 0) = Username, Column B (index 1) = Password
+        obj._authUsername = row[0] ? row[0].toString().trim() : "";
+        obj._authPassword = row[1] ? row[1].toString().trim() : "";
         // Add explicit status check from Column K (index 10)
         obj.isDeleted = row[10] === "Deleted";
         return obj;
       });
 
-      const leavingRows = leavingJson.data;
-      const leavingHeaders = leavingRows[5];
-      const leavingData = leavingRows.slice(6).map((row) => {
-        let obj = {};
-        leavingHeaders.forEach((h, i) => (obj[h] = row[i]));
-        return obj;
-      });
+      const leavingRows = leavingJson.data || [];
+      const leavingHeaders = leavingRows.length > 5 ? leavingRows[5] : [];
+      const leavingData = leavingRows.length > 6
+        ? leavingRows.slice(6).map((row) => {
+          let obj = {};
+          leavingHeaders.forEach((h, i) => (obj[h] = row[i]));
+          return obj;
+        })
+        : [];
 
       const matchedUser = users.find(
-        (u) => u.Username === username && u.Password === password && !u.isDeleted
+        (u) => u._authUsername === username && u._authPassword === password && !u.isDeleted
       );
 
       if (!matchedUser) {
