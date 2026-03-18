@@ -586,11 +586,11 @@ const Sidebar = ({ onClose }) => {
     },
     { path: "/whatsapp", icon: Phone, label: "Whatsapp" },
     { path: "/call-tracker", icon: Phone, label: "Call Tracker" },
-    // {
-    //   path: "/candidate_shortlisted",
-    //   icon: Users,
-    //   label: "Interview Schedule",
-    // },
+    {
+      path: "/interview-scheduled",
+      icon: Users,
+      label: "Interview Scheduled",
+    },
     {
       path: "/candidate_sortlisted",
       icon: Users,

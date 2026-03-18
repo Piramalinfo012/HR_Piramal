@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import {
   BarChart,
@@ -446,6 +447,13 @@ const Dashboard = () => {
     <div className="space-y-6 page-content p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">HR Dashboard</h1>
+        <Link 
+          to="/joining_calendar" 
+          className="flex items-center bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors shadow-sm"
+        >
+          <Calendar size={18} className="mr-2" />
+          Calendar
+        </Link>
       </div>
 
       {/* Summary Stats */}

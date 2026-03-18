@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Search, Clock, History as HistoryIcon, CheckCircle, Plus, X, Image } from "lucide-react";
+import { Search, Clock, History as HistoryIcon, CheckCircle, Plus, X, Image, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 
 
@@ -21,6 +21,7 @@ const CandidateSortlisted = () => {
         status: "",
     });
     const [showModal, setShowModal] = useState(false);
+    const [editingId, setEditingId] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [fileUploading, setFileUploading] = useState(false);
     const [indentOptions, setIndentOptions] = useState([]);
@@ -52,6 +53,33 @@ const CandidateSortlisted = () => {
     const [candidateSelectionData, setCandidateSelectionData] = useState([]);
     const [globalFmsData, setGlobalFmsData] = useState([]);
     const [storeLoading, setStoreLoading] = useState(true);
+    const [users, setUsers] = useState([]);
+
+    const fetchUsers = async () => {
+        try {
+            const res = await fetch(
+                `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`,
+            );
+            const json = await res.json();
+
+            if (json.success && json.data) {
+                // Column I = index 8
+                const entryByList = json.data
+                    .slice(1) // remove header
+                    .map((row) => row[8]) // column I
+                    .filter(Boolean); // remove empty values
+
+                setUsers([...new Set(entryByList)]);
+            }
+        } catch (err) {
+            console.error("Failed to fetch users", err);
+            toast.error("Failed to load Entry By users");
+        }
+    };
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
 
     const fetchData = async () => {
         setStoreLoading(true);
@@ -253,22 +281,36 @@ const CandidateSortlisted = () => {
             rowData[19] = formData.interviewDate;
             rowData[20] = formData.resumeUrl;
             rowData[22] = formData.entryBy; // Column W (index 22)
-            rowData[0] = timestamp;
+            let response;
 
-
-            const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
-                method: "POST",
-                body: new URLSearchParams({
-                    sheetName: "appsheet db",
-                    action: "bulkInsert",
-                    rowsData: JSON.stringify([rowData]),
-                }),
-            });
+            if (editingId) {
+                rowData[0] = ""; // Do not overwrite original timestamp on edit
+                response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+                    method: "POST",
+                    body: new URLSearchParams({
+                        sheetName: "appsheet db",
+                        action: "update",
+                        rowIndex: editingId,
+                        rowData: JSON.stringify(rowData),
+                    }),
+                });
+            } else {
+                rowData[0] = timestamp;
+                response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+                    method: "POST",
+                    body: new URLSearchParams({
+                        sheetName: "appsheet db",
+                        action: "bulkInsert",
+                        rowsData: JSON.stringify([rowData]),
+                    }),
+                });
+            }
 
             const result = await response.json();
             if (result.success) {
-                toast.success("Candidate shortlisted successfully!");
+                toast.success(editingId ? "Candidate updated successfully!" : "Candidate shortlisted successfully!");
                 setShowModal(false);
+                setEditingId(null);
                 setFormData({
                     indentNumber: "",
                     openPositionDepartment: "",
@@ -302,6 +344,34 @@ const CandidateSortlisted = () => {
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const handleEditClick = (candidate) => {
+        setEditingId(candidate.rowIndex);
+        setFormData({
+            openPositionDepartment: candidate.department || "",
+            designation: candidate.designation || "",
+            nameOfCandidate: candidate.candidateName || "",
+            contactNo: candidate.contactNo || "",
+            mailID: candidate.mail || "",
+            age: candidate.age || "",
+            highestQualification: candidate.highestQualification || "",
+            nativePlace: candidate.nativePlace || "",
+            currentWorkingLocation: candidate.currentWorkingLocation || "",
+            currentEmploymentStatus: candidate.currentEmploymentStatus || "",
+            currentCompany: candidate.currentCompany || "",
+            currentDesignation: candidate.currentDesignation || "",
+            tenureWithCurrentCompany: candidate.tenureWithCurrentCompany || "",
+            totalWorkExperience: candidate.totalWorkExperience || "",
+            currentCTC: candidate.currentCTC || "",
+            expectedCTC: candidate.expectedCTC || "",
+            noticePeriod: candidate.noticePeriod || "",
+            interviewDate: candidate.interviewDate || "",
+            entryBy: candidate.entryBy || "",
+            resumeUrl: candidate.resumeUrl || "",
+            indentNumber: candidate.id?.split('_')[0] || candidate.indentId || "",
+        });
+        setShowModal(true);
     };
 
     const handleActionClick = (candidate) => {
@@ -430,13 +500,49 @@ const CandidateSortlisted = () => {
         <div className="space-y-6 page-content p-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-800 uppercase">CANDIDATE SORTLISTED</h1>
+                <div className="flex items-center gap-3">
                 <button
-                    onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark transition-colors"
+                    onClick={refreshData}
+                    className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
+                    title="Refresh data"
+                >
+                    <RefreshCw size={18} />
+                    Refresh
+                </button>
+                <button
+                    onClick={() => {
+                        setEditingId(null);
+                        setFormData({
+                            indentNumber: "",
+                            openPositionDepartment: "",
+                            designation: "",
+                            nameOfCandidate: "",
+                            contactNo: "",
+                            mailID: "",
+                            age: "",
+                            highestQualification: "",
+                            nativePlace: "",
+                            currentWorkingLocation: "",
+                            currentEmploymentStatus: "",
+                            currentCompany: "",
+                            currentDesignation: "",
+                            tenureWithCurrentCompany: "",
+                            totalWorkExperience: "",
+                            currentCTC: "",
+                            expectedCTC: "",
+                            noticePeriod: "",
+                            interviewDate: "",
+                            resumeUrl: "",
+                            entryBy: "",
+                        });
+                        setShowModal(true);
+                    }}
+                    className="flex items-center gap-2 bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors"
                 >
                     <Plus size={20} />
                     Add New Candidate
                 </button>
+                </div>
             </div>
 
             <div className="bg-white p-4 rounded-lg shadow">
@@ -518,11 +624,9 @@ const CandidateSortlisted = () => {
                             <thead className="bg-gray-50">
                                 <tr>
 
-                                    {activeTab === "new" && (
-                                        <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                                            Action
-                                        </th>
-                                    )}
+                                    <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                                        Action
+                                    </th>
 
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
@@ -552,7 +656,7 @@ const CandidateSortlisted = () => {
                                 {tableLoading ? (
                                     <tr>
                                         <td
-                                            colSpan={activeTab === "new" ? 21 : 20}
+                                            colSpan={22}
                                             className="px-6 py-12 text-center text-gray-500"
                                         >
                                             Loading...</td>
@@ -560,7 +664,7 @@ const CandidateSortlisted = () => {
                                 ) : filteredData.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={activeTab === "new" ? 21 : 20}
+                                            colSpan={22}
                                             className="px-6 py-12 text-center text-gray-500"
                                         >
                                             No candidates found.</td>
@@ -568,16 +672,22 @@ const CandidateSortlisted = () => {
                                 ) : (
                                     filteredData.map((item, index) => (
                                         <tr key={index} className="hover:bg-gray-50">
-                                            {activeTab === "new" && (
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                {activeTab === "new" && (
                                                     <button
                                                         onClick={() => handleActionClick(item)}
-                                                        className="px-3 py-1.5 bg-navy text-white rounded-md hover:bg-navy-dark transition-colors"
+                                                        className="px-3 py-1.5 bg-navy text-white rounded-md hover:bg-navy-dark transition-colors mr-2"
                                                     >
                                                         Action
                                                     </button>
-                                                </td>
-                                            )}
+                                                )}
+                                                <button
+                                                    onClick={() => handleEditClick(item)}
+                                                    className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                                >
+                                                    Edit
+                                                </button>
+                                            </td>
 
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.id}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
@@ -682,8 +792,11 @@ const CandidateSortlisted = () => {
                         <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
                             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                                 <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl font-bold text-gray-900">Shortlist New Candidate</h3>
-                                    <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-500">
+                                    <h3 className="text-xl font-bold text-gray-900">{editingId ? "Edit Candidate" : "Shortlist New Candidate"}</h3>
+                                    <button onClick={() => {
+                                        setShowModal(false);
+                                        setEditingId(null);
+                                    }} className="text-gray-400 hover:text-gray-500">
                                         <X size={24} />
                                     </button>
                                 </div>
@@ -694,7 +807,9 @@ const CandidateSortlisted = () => {
                                             <select name="indentNumber" value={formData.indentNumber} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
                                                 <option value="">Select Indent</option>
                                                 {indentOptions.map((opt, i) => (
-                                                    <option key={i} value={opt}>{opt}</option>
+                                                    <option key={i} value={opt}>
+                                                        {opt} {fmsDataMap[opt]?.designation ? `- ${fmsDataMap[opt].designation}` : ""}
+                                                    </option>
                                                 ))}
                                             </select>
                                         </div>
@@ -777,7 +892,12 @@ const CandidateSortlisted = () => {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">Entry by</label>
-                                            <input type="text" name="entryBy" value={formData.entryBy} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                                            <select name="entryBy" value={formData.entryBy} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
+                                                <option value="">Select Entry By</option>
+                                                {users.map((user, i) => (
+                                                    <option key={i} value={user}>{user}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                         <div className="md:col-span-3">
                                             <label className="block text-sm font-medium text-gray-700">Resume/cv</label>
@@ -789,9 +909,12 @@ const CandidateSortlisted = () => {
                                         </div>
                                     </div>
                                     <div className="mt-8 flex justify-end gap-3">
-                                        <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
+                                        <button type="button" onClick={() => {
+                                            setShowModal(false);
+                                            setEditingId(null);
+                                        }} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
                                         <button type="submit" disabled={submitting || fileUploading} className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark disabled:opacity-50 flex items-center gap-2">
-                                            {submitting ? "Submitting..." : "Submit Candidate"}
+                                            {submitting ? "Submitting..." : (editingId ? "Update Candidate" : "Submit Candidate")}
                                         </button>
                                     </div>
                                 </form>

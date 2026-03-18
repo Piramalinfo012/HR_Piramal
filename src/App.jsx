@@ -22,6 +22,7 @@ import MyAttendance from "./pages/MyAttendance";
 import LeaveRequest from "./pages/LeaveRequest";
 import MySalary from "./pages/MySalary";
 import CompanyCalendar from "./pages/CompanyCalendar";
+import JoiningCalendar from "./pages/JoiningCalendar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Attendance from "./pages/Attendance";
 import LeaveManagement from "./pages/LeaveManagement";
@@ -50,6 +51,7 @@ import CandidateShortlisted from "./pages/CandidateShortlisted";
 import CandidateSortlisted from "./pages/CandidateSortlisted";
 import VerificationBeforeInterview from "./pages/VerificationBeforeInterview";
 import InterviewSelection from "./pages/InterviewSelection";
+import InterviewScheduled from "./pages/InterviewScheduled";
 import JoiningFollowUp from "./pages/JoiningFollowUp";
 import UserManagement from "./pages/UserManagement";
 function App() {
@@ -88,6 +90,7 @@ function App() {
             <Route path="leave-request" element={<LeaveRequest />} />
             <Route path="my-salary" element={<MySalary />} />
             <Route path="company-calendar" element={<CompanyCalendar />} />
+            <Route path="joining_calendar" element={<JoiningCalendar />} />
             <Route path="leave-management" element={<LeaveManagement />} />
             <Route path="gate-pass" element={<GatePass />} />
             <Route path="gate-pass-request" element={<GatePassRequest />} />
@@ -105,6 +108,7 @@ function App() {
             <Route path="candidate_shortlisted" element={<CandidateShortlisted />} />
             <Route path="candidate_sortlisted" element={<CandidateSortlisted />} />
             <Route path="verification_before_interview" element={<VerificationBeforeInterview />} />
+            <Route path="interview-scheduled" element={<InterviewScheduled />} />
             <Route path="interview_final_selection" element={<InterviewSelection />} />
             <Route path="joining_follow_up" element={<JoiningFollowUp />} />
 

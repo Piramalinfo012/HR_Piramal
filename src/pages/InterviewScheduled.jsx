@@ -3,13 +3,14 @@ import React, { useState, useEffect } from "react";
 import { Search, X, Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-const CallTracker = () => {
+const InterviewScheduled = () => {
   const isSubmittingRef = React.useRef(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [entryByFilter, setEntryByFilter] = useState("all");
+  const [interviewStatusFilter, setInterviewStatusFilter] = useState("all");
   const [tableLoading, setTableLoading] = useState(false);
   const [displayData, setDisplayData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,7 +114,7 @@ const CallTracker = () => {
       loadData();
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchTerm, dateFilter, currentPage, fromDate, toDate, entryByFilter]);
+  }, [searchTerm, dateFilter, currentPage, fromDate, toDate, entryByFilter, interviewStatusFilter]);
 
   const parseTimestamp = (ts) => {
     if (!ts) return null;
@@ -158,8 +159,7 @@ const CallTracker = () => {
       const cb = `&_=${Date.now()}`;
       
       
-      // Check if we need client-side filtering (Custom Date OR Entry By)
-      const needsClientSide = (dateFilter === 'custom' && fromDate && toDate) || (entryByFilter !== 'all');
+      const needsClientSide = true; // Force client side to handle Interview Scheduling filter
 
       if (needsClientSide) {
         // Client-side filtering
@@ -167,7 +167,15 @@ const CallTracker = () => {
         const json = await res.json();
         
         if (json.success && json.data) {
-          let filtered = json.data.slice(1); // skip header
+          let filtered = json.data.slice(1).filter(row => {
+            const statusStr = String(row[12] || "").trim();
+            if(!statusStr || statusStr === "") return false;
+            
+            if (interviewStatusFilter !== "all" && statusStr !== interviewStatusFilter) {
+               return false;
+            }
+            return true;
+          });
 
           // 1. Date Filter
           const now = new Date();
@@ -532,7 +540,7 @@ const CallTracker = () => {
   return (
     <div className="space-y-6 page-content p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Call Tracker Data</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Interview Scheduled</h1>
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => setShowModal(true)}
@@ -589,6 +597,22 @@ const CallTracker = () => {
           </select>
 
           <select
+            value={interviewStatusFilter}
+            onChange={(e) => {
+              setInterviewStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm outline-none"
+          >
+            <option value="all">All Interviews</option>
+            <option value="Interview Schedule">Interview Schedule</option>
+            <option value="Pending">Pending</option>
+            <option value="Reschedule">Reschedule</option>
+            <option value="Done">Done</option>
+            <option value="Hold">Hold</option>
+          </select>
+
+          <select
             value={dateFilter}
             onChange={(e) => {
               setDateFilter(e.target.value);
@@ -630,6 +654,7 @@ const CallTracker = () => {
               setSearchTerm("");
               setDateFilter("all");
               setEntryByFilter("all");
+              setInterviewStatusFilter("all");
               setFromDate("");
               setToDate("");
               setCurrentPage(1);
@@ -1129,4 +1154,4 @@ const CallTracker = () => {
   );
 };
 
-export default CallTracker;
+export default InterviewScheduled;
