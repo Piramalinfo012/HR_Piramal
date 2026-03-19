@@ -12,6 +12,7 @@ const CandidateSortlisted = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [deptFilter, setDeptFilter] = useState("");
     const [desigFilter, setDesigFilter] = useState("");
+    const [statusFilter, setStatusFilter] = useState("");
     const [tableLoading, setTableLoading] = useState(false);
     const [actionSubmitting, setActionSubmitting] = useState(false);
     const [showActionModal, setShowActionModal] = useState(false);
@@ -48,12 +49,15 @@ const CandidateSortlisted = () => {
         entryBy: "",
         resumeUrl: "",
         indentNumber: "",
+        candidateStatus: "",
+        references: [],
     });
 
     const [candidateSelectionData, setCandidateSelectionData] = useState([]);
     const [globalFmsData, setGlobalFmsData] = useState([]);
     const [storeLoading, setStoreLoading] = useState(true);
     const [users, setUsers] = useState([]);
+    const [candidateStatusOptions, setCandidateStatusOptions] = useState([]);
 
     const fetchUsers = async () => {
         try {
@@ -70,6 +74,14 @@ const CandidateSortlisted = () => {
                     .filter(Boolean); // remove empty values
 
                 setUsers([...new Set(entryByList)]);
+
+                // Column L = index 11
+                const statusList = json.data
+                    .slice(1) // remove header
+                    .map((row) => row[11]) // column L
+                    .filter(Boolean); // remove empty values
+
+                setCandidateStatusOptions([...new Set(statusList)]);
             }
         } catch (err) {
             console.error("Failed to fetch users", err);
@@ -145,8 +157,8 @@ const CandidateSortlisted = () => {
                 indentId: row[41], // Column AP (index 41)
                 planned: row[21], // Column V
                 actual: row[22], // Column W
-                entryBy: row[42], // Column AQ
-
+                entryBy: row[22], // Column W
+                candidateStatus: row[23], // Column X
             };
             return item;
         }).filter(item => item.id || item.candidateName);
@@ -280,7 +292,19 @@ const CandidateSortlisted = () => {
             rowData[18] = formData.noticePeriod;
             rowData[19] = formData.interviewDate;
             rowData[20] = formData.resumeUrl;
-            rowData[22] = formData.entryBy; // Column W (index 22)
+            rowData[22] = formData.entryBy || ""; // Column W (index 22)
+            rowData[23] = formData.candidateStatus || ""; // Column X (index 23)
+            
+            // Pad array with empty strings to avoid nulls which break Google Sheets setValues
+            for (let i = 0; i <= 23; i++) {
+                if (rowData[i] === undefined || rowData[i] === null) {
+                    rowData[i] = "";
+                }
+            }
+            
+            // If the user had other data pushed into higher indices manually, we can keep the array length if needed, 
+            // but we map the two requested fields properly above.
+            
             let response;
 
             if (editingId) {
@@ -308,6 +332,32 @@ const CandidateSortlisted = () => {
 
             const result = await response.json();
             if (result.success) {
+                // Submit references
+                if (formData.references && formData.references.length > 0) {
+                    const validRefs = formData.references.filter(r => r.refName || r.refNumber);
+                    if (validRefs.length > 0) {
+                        const refRows = validRefs.map(r => [
+                            timestamp, // A: DATE
+                            formData.nameOfCandidate, // B: CANDIDATE NAME
+                            r.refName, // C: REFERENCE PERSON NAME
+                            r.refNumber // D: NUMBER
+                        ]);
+                        // Fire and forget or await
+                        try {
+                            await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+                                method: "POST",
+                                body: new URLSearchParams({
+                                    sheetName: "reference",
+                                    action: "bulkInsert",
+                                    rowsData: JSON.stringify(refRows),
+                                }),
+                            });
+                        } catch (e) {
+                            console.error("Failed to submit references", e);
+                        }
+                    }
+                }
+
                 toast.success(editingId ? "Candidate updated successfully!" : "Candidate shortlisted successfully!");
                 setShowModal(false);
                 setEditingId(null);
@@ -333,6 +383,8 @@ const CandidateSortlisted = () => {
                     interviewDate: "",
                     resumeUrl: "",
                     entryBy: "",
+                    candidateStatus: "",
+                    references: [],
                 });
                 refreshData();
             } else {
@@ -369,6 +421,8 @@ const CandidateSortlisted = () => {
             interviewDate: candidate.interviewDate || "",
             entryBy: candidate.entryBy || "",
             resumeUrl: candidate.resumeUrl || "",
+            candidateStatus: candidate.candidateStatus || "",
+            references: [],
             indentNumber: candidate.id?.split('_')[0] || candidate.indentId || "",
         });
         setShowModal(true);
@@ -482,15 +536,17 @@ const CandidateSortlisted = () => {
 
         const matchesDept = !deptFilter || item.department === deptFilter;
         const matchesDesig = !desigFilter || item.designation === desigFilter;
+        const matchesStatus = !statusFilter || item.candidateStatus === statusFilter;
 
         const matchesSearch = (
             (item.candidateName || "").toLowerCase().includes(term) ||
             (item.id || "").toLowerCase().includes(term) ||
             (item.designation || "").toLowerCase().includes(term) ||
-            (item.department || "").toLowerCase().includes(term)
+            (item.department || "").toLowerCase().includes(term) ||
+            (item.candidateStatus || "").toLowerCase().includes(term)
         );
 
-        return matchesTab && matchesSearch && matchesDept && matchesDesig;
+        return matchesTab && matchesSearch && matchesDept && matchesDesig && matchesStatus;
     });
 
     const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
@@ -601,11 +657,24 @@ const CandidateSortlisted = () => {
                                     ))}
                                 </select>
                             </div>
+                            <div className="w-40">
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                                >
+                                    <option value="">All Statuses</option>
+                                    {candidateStatusOptions.map(st => (
+                                        <option key={st} value={st}>{st}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <button
                                 onClick={() => {
                                     setSearchTerm("");
                                     setDeptFilter("");
                                     setDesigFilter("");
+                                    setStatusFilter("");
                                 }}
                                 className="p-2 text-gray-400 hover:text-navy transition-colors"
                                 title="Clear Filters"
@@ -898,6 +967,67 @@ const CandidateSortlisted = () => {
                                                     <option key={i} value={user}>{user}</option>
                                                 ))}
                                             </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Candidate Status</label>
+                                            <select name="candidateStatus" value={formData.candidateStatus} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                                                <option value="">Select Status</option>
+                                                {candidateStatusOptions.map((statusItem, i) => (
+                                                    <option key={i} value={statusItem}>{statusItem}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="md:col-span-3 mt-4 border-t pt-4">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="block text-sm font-medium text-gray-700">References</label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData(prev => ({ ...prev, references: [...(prev.references || []), { refName: "", refNumber: "" }] }))}
+                                                    className="flex items-center text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200"
+                                                >
+                                                    <Plus size={14} className="mr-1" /> Add Reference
+                                                </button>
+                                            </div>
+                                            {(formData.references || []).map((ref, idx) => (
+                                                <div key={idx} className="flex flex-wrap gap-2 mb-2 items-end">
+                                                    <div className="flex-1">
+                                                        <label className="block text-xs text-gray-500 mb-1">Person Name</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={ref.refName} 
+                                                            onChange={(e) => {
+                                                                const newRefs = [...formData.references];
+                                                                newRefs[idx].refName = e.target.value;
+                                                                setFormData(prev => ({ ...prev, references: newRefs }));
+                                                            }} 
+                                                            className="w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm" 
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="block text-xs text-gray-500 mb-1">Number</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={ref.refNumber} 
+                                                            onChange={(e) => {
+                                                                const newRefs = [...formData.references];
+                                                                newRefs[idx].refNumber = e.target.value;
+                                                                setFormData(prev => ({ ...prev, references: newRefs }));
+                                                            }} 
+                                                            className="w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm" 
+                                                        />
+                                                    </div>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newRefs = formData.references.filter((_, i) => i !== idx);
+                                                            setFormData(prev => ({ ...prev, references: newRefs }));
+                                                        }}
+                                                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                                                    >
+                                                        <X size={20} />
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
                                         <div className="md:col-span-3">
                                             <label className="block text-sm font-medium text-gray-700">Resume/cv</label>

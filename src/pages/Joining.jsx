@@ -140,13 +140,13 @@ const Joining = () => {
         return idx !== -1 ? idx : fallbackIndex;
       };
 
-      const idxEnquiry = getCIndex("Candidate Enquiry No", 1);
-      const idxName = getCIndex("Candidate Name", 4);
-      const idxMobile = getCIndex("Mobile No", 5);
-      const idxEmail = getCIndex("Email Id", 6);
-      const idxResume = getCIndex("Resume/CV", 20);
-      const idxQual = getCIndex("Highest Qualification", 8);
-      const idxCurrentCTC = getCIndex("Current CTC (LPA)", 16);
+      const idxEnquiry = 1;
+      const idxName = 4;
+      const idxMobile = 5;
+      const idxEmail = 6;
+      const idxResume = 20; // Strictly matching Column U
+      const idxQual = 8;
+      const idxCurrentCTC = 16;
       const idxExpectedCTC = getCIndex("Expected (LPA)", 17);
       const idxStatus = getCIndex("Status", 36);
       const idxActualAJ = getCIndex("Actual", 35); // Column AJ
