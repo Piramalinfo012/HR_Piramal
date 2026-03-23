@@ -9,6 +9,8 @@ const CandidateSortlisted = () => {
 
     const [activeTab, setActiveTab] = useState("all");
     const [candidateData, setCandidateData] = useState([]);
+    const [referenceData, setReferenceData] = useState([]);
+    const [refLoading, setRefLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [deptFilter, setDeptFilter] = useState("");
     const [desigFilter, setDesigFilter] = useState("");
@@ -95,21 +97,34 @@ const CandidateSortlisted = () => {
 
     const fetchData = async () => {
         setStoreLoading(true);
+        setRefLoading(true);
         try {
             const cb = `&_=${Date.now()}`;
-            const [candidateRes, fmsRes] = await Promise.all([
+            const [candidateRes, fmsRes, refRes] = await Promise.all([
                 fetch(`${FETCH_URL}?sheet=Canidate_Selection&action=fetch${cb}`).then(res => res.json()),
-                fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json())
+                fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json()),
+                fetch(`${FETCH_URL}?sheet=reference&action=fetch${cb}`).then(res => res.json())
             ]);
 
             if (candidateRes.success) setCandidateSelectionData(candidateRes.data);
             if (fmsRes.success) setGlobalFmsData(fmsRes.data);
+            if (refRes.success && refRes.data) {
+                // Remove header and map to objects
+                const data = refRes.data.slice(1).map(row => ({
+                    date: row[0],
+                    candidateName: row[1],
+                    refPersonName: row[2],
+                    number: row[3]
+                }));
+                setReferenceData(data);
+            }
 
         } catch (error) {
             console.error("CandidateSortlisted Data Fetch Error:", error);
             toast.error("Failed to load data");
         } finally {
             setStoreLoading(false);
+            setRefLoading(false);
         }
     };
 
@@ -549,6 +564,18 @@ const CandidateSortlisted = () => {
         return matchesTab && matchesSearch && matchesDept && matchesDesig && matchesStatus;
     });
 
+    const filteredReferenceData = referenceData.filter((item) => {
+        const term = searchTerm.toLowerCase();
+        if (!term) return true;
+
+        return (
+            (item.candidateName || "").toLowerCase().includes(term) ||
+            (item.refPersonName || "").toLowerCase().includes(term) ||
+            (item.number || "").toString().toLowerCase().includes(term) ||
+            (item.date || "").toLowerCase().includes(term)
+        );
+    });
+
     const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
     const designations = [...new Set(candidateData.map(item => item.designation))].filter(Boolean).sort();
 
@@ -618,6 +645,13 @@ const CandidateSortlisted = () => {
                             <Clock size={18} />
                             Pending Candidates
                         </button>
+                        <button
+                            onClick={() => setActiveTab("reference")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "reference" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        >
+                            <Plus size={18} />
+                            Reference
+                        </button>
                     </div>
 
                     <div className="flex flex-col md:flex-row items-end gap-3 flex-1 justify-end">
@@ -685,6 +719,46 @@ const CandidateSortlisted = () => {
                     </div>
                 </div>
             </div>
+
+            {activeTab === "reference" ? (
+                <div className="bg-white shadow rounded-lg overflow-hidden">
+                    <div className="p-6">
+                        <div className="overflow-x-auto table-container">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference Person Name</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Number</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {refLoading ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-12 text-center text-gray-500">Loading...</td>
+                                        </tr>
+                                    ) : filteredReferenceData.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-12 text-center text-gray-500">No reference data found matching your search.</td>
+                                        </tr>
+                                    ) : (
+                                        filteredReferenceData.map((ref, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{ref.date}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{ref.candidateName}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ref.refPersonName}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{ref.number}</td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+
 
             <div className="bg-white shadow rounded-lg overflow-hidden">
                 <div className="p-6">
@@ -799,7 +873,7 @@ const CandidateSortlisted = () => {
                     </div>
                 </div>
             </div>
-
+            )}
             {showActionModal && (
                 <div className="fixed inset-0 z-50 overflow-y-auto">
                     <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">

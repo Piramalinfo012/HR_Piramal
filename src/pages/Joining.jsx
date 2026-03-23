@@ -280,7 +280,7 @@ const Joining = () => {
       addressAsPerAadhar: "",
       dobAsPerAadhar: "",
       gender: "",
-      mobileNo: candidateSelectionInfo ? (candidateSelectionInfo[5] || candidate.contactNo || "") : (candidate.contactNo || ""), // Column F of Canidate_Selection
+      mobileNo: "", 
       familyMobileNo: "",
       twoReferenceNo: "",
       pastPfId: "",
@@ -288,7 +288,7 @@ const Joining = () => {
       ifscCode: "",
       branchName: "",
       bankPassbookPhoto: null,
-      personalEmail: candidateSelectionInfo ? (candidateSelectionInfo[6] || candidate.mail || "") : (candidate.mail || ""), // Column G of Canidate_Selection
+      personalEmail: "", 
       esicNo: "",
       highestQualification: "",
       aadharCardNo: "",
