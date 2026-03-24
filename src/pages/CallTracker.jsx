@@ -159,7 +159,8 @@ const CallTracker = () => {
       
       
       // Check if we need client-side filtering (Custom Date OR Entry By)
-      const needsClientSide = (dateFilter === 'custom' && fromDate && toDate) || (entryByFilter !== 'all');
+      // Forced client-side for global sorting by Task ID
+      const needsClientSide = true;
 
       if (needsClientSide) {
         // Client-side filtering
@@ -217,6 +218,13 @@ const CallTracker = () => {
               row.some(cell => String(cell).toLowerCase().includes(lowerSearch))
             );
           }
+
+          // Sort by Task ID descending (Column B, index 1)
+          filtered.sort((a, b) => {
+            const idA = String(a[1] || "");
+            const idB = String(b[1] || "");
+            return idB.localeCompare(idA, undefined, { numeric: true, sensitivity: 'base' });
+          });
 
           const total = filtered.length;
           const startIdx = (currentPage - 1) * recordsPerPage;
