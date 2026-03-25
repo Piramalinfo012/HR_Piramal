@@ -85,6 +85,7 @@ const CallTracker = () => {
     notes: "",
     feedback: "",
     status: "",
+    attachment: null,
   });
 
   const handleInputChange = (e) => {
@@ -104,6 +105,42 @@ const CallTracker = () => {
       notes: "",
       feedback: "",
       status: "",
+      attachment: null,
+    });
+  };
+
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    if (files && files[0]) {
+      setFormData((prev) => ({ ...prev, [name]: files[0] }));
+    }
+  };
+
+  const uploadFileLink = async (file) => {
+    if (!file) return "";
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64Data = e.target.result;
+          const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+            method: "POST",
+            body: new URLSearchParams({
+              action: "uploadFile",
+              base64Data: base64Data,
+              fileName: file.name,
+              mimeType: file.type,
+              folderId: "1wofoM_7jVDj61UV1R5QoxSdQeJhZTOgJMaAOKEqrbvqO-5HUis6qoc3z65K2e2JDIPMZpC7q", // Using generic folder
+            }),
+          });
+          const result = await response.json();
+          resolve(result.success ? result.fileUrl : "");
+        } catch (error) {
+          console.error("Upload error:", error);
+          resolve("");
+        }
+      };
+      reader.readAsDataURL(file);
     });
   };
 
@@ -263,6 +300,7 @@ const CallTracker = () => {
         status: row[11] || "",
         interviewStatus: row[12] || "",
         interviewDate: row[13] || "",
+        attachmentUrl: row[14] || "",
       }));
       setDisplayData(processed);
       setTotalRecords(result.totalRows || 0);
@@ -332,6 +370,14 @@ const CallTracker = () => {
     setSubmitting(true);
     
     try {
+      let attachmentUrl = editingId ? (displayData.find(d => d.taskId === editingId)?.attachmentUrl || "") : "";
+      
+      if (formData.attachment) {
+        toast.loading("Uploading attachment...", { id: "upload" });
+        attachmentUrl = await uploadFileLink(formData.attachment);
+        toast.dismiss("upload");
+      }
+
       let rowData;
       let action = "bulkInsert";
       let rowIndex = -1;
@@ -372,6 +418,7 @@ const CallTracker = () => {
         rowData[11] = formData.status;
         rowData[12] = formData.interviewStatus;
         rowData[13] = formData.interviewDate;
+        rowData[14] = attachmentUrl; // Column O
       } else {
         // Add Mode
         const now = new Date();
@@ -392,7 +439,8 @@ const CallTracker = () => {
           formData.feedback,    // Column K
           formData.status,      // Column L
           formData.interviewStatus, // Column M
-          formData.interviewDate    // Column N
+          formData.interviewDate,    // Column N
+          attachmentUrl             // Column O (index 14)
         ];
       }
 
@@ -450,6 +498,7 @@ const CallTracker = () => {
     setFormData(prev => ({ ...prev, contactNo: item.contactName || "" })); 
     
     setEditingId(item.taskId);
+    setFormData(prev => ({ ...prev, attachmentUrl: item.attachmentUrl || "", attachment: null }));
     setShowModal(true);
   };
 
@@ -694,6 +743,9 @@ const CallTracker = () => {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Attachment
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                   Actions
                 </th>
               </tr>
@@ -703,7 +755,7 @@ const CallTracker = () => {
                 tableLoading ? (
                   <tr>
                     <td
-                      colSpan="13"
+                      colSpan="15"
                       className="px-6 py-12 text-center text-gray-500"
                     >
                       Loading data...
@@ -712,7 +764,7 @@ const CallTracker = () => {
                 ) : (
                   <tr>
                     <td
-                      colSpan="13"
+                      colSpan="15"
                       className="px-6 py-12 text-center text-gray-500"
                     >
                       No data found
@@ -785,6 +837,29 @@ const CallTracker = () => {
                       >
                         {item.status}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.attachmentUrl ? (
+                        <div className="flex items-center gap-3">
+                          <a
+                            href={item.attachmentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            View
+                          </a>
+                          <a
+                            href={item.attachmentUrl.replace("/view", "/download").replace("usp=sharing", "export=download")}
+                            download
+                            className="text-green-600 hover:text-green-800 font-medium"
+                          >
+                            Download
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">No file</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex items-center gap-2">
@@ -1047,6 +1122,24 @@ const CallTracker = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy h-20"
                   placeholder="Enter feedback..."
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Attachment (Audio/Image)
+                </label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="file"
+                    name="attachment"
+                    onChange={handleFileChange}
+                    accept="image/*,audio/*"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {formData.attachmentUrl && !formData.attachment && (
+                    <a href={formData.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline whitespace-nowrap">Current File</a>
+                  )}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">Leave empty to keep existing file during edit</p>
               </div>
               <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4 border-t">
                 <button
