@@ -11,6 +11,7 @@ const InterviewScheduled = () => {
   const [toDate, setToDate] = useState("");
   const [entryByFilter, setEntryByFilter] = useState("all");
   const [interviewStatusFilter, setInterviewStatusFilter] = useState("all");
+  const [interviewDateFilter, setInterviewDateFilter] = useState("");
   const [tableLoading, setTableLoading] = useState(false);
   const [displayData, setDisplayData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,7 +115,7 @@ const InterviewScheduled = () => {
       loadData();
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchTerm, dateFilter, currentPage, fromDate, toDate, entryByFilter, interviewStatusFilter]);
+  }, [searchTerm, dateFilter, currentPage, fromDate, toDate, entryByFilter, interviewStatusFilter, interviewDateFilter]);
 
   const parseTimestamp = (ts) => {
     if (!ts) return null;
@@ -173,6 +174,13 @@ const InterviewScheduled = () => {
             
             if (interviewStatusFilter !== "all" && statusStr !== interviewStatusFilter) {
                return false;
+            }
+
+            if (interviewDateFilter) {
+              const rowDate = String(row[13] || "").trim(); // Column N is index 13
+              if (rowDate !== interviewDateFilter) {
+                return false;
+              }
             }
             return true;
           });
@@ -613,6 +621,19 @@ const InterviewScheduled = () => {
             <option value="Hold">Hold</option>
           </select>
 
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500 whitespace-nowrap">Interview Date:</span>
+            <input 
+              type="date" 
+              value={interviewDateFilter}
+              onChange={(e) => {
+                setInterviewDateFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-2 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm outline-none"
+            />
+          </div>
+
           <select
             value={dateFilter}
             onChange={(e) => {
@@ -656,6 +677,7 @@ const InterviewScheduled = () => {
               setDateFilter("all");
               setEntryByFilter("all");
               setInterviewStatusFilter("all");
+              setInterviewDateFilter("");
               setFromDate("");
               setToDate("");
               setCurrentPage(1);
