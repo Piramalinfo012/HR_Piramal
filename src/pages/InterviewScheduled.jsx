@@ -294,6 +294,7 @@ const InterviewScheduled = () => {
       
       const rowIndex = index + 1;
       let rowData = [...allData[index]];
+      rowData[1] = ""; // Blank out Task ID during interview status update
       rowData[12] = inlineInterviewStatus;
       rowData[13] = inlineInterviewDate;
       
