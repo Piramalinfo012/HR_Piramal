@@ -423,7 +423,7 @@ const CallTracker = () => {
         // Add Mode
         const now = new Date();
         const timestamp = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
-        const taskId = nextTaskId;
+        const taskId = ""; // Sending blank as per user request (formula-based generation in sheet)
         
         rowData = [
           timestamp,            // Column A
