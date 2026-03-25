@@ -784,7 +784,11 @@ const CallTracker = () => {
                         className="w-full text-left px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-md transition-colors group"
                         title="Update Interview Status"
                       >
-                        <span className="font-medium text-navy block group-hover:text-indigo-600 transition-colors">
+                        <span className={`font-medium block transition-colors px-2 py-0.5 rounded ${
+                          (item.interviewStatus || "Pending") === "Pending" 
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "text-navy group-hover:text-indigo-600"
+                        }`}>
                           {item.interviewStatus || "Pending"}
                         </span>
                         {item.interviewStatus === "Done" && item.interviewDate && (
