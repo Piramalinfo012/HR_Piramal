@@ -14,7 +14,7 @@ const CallTracker = () => {
   const [displayData, setDisplayData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [nextTaskId, setNextTaskId] = useState("TI-001");
+  const [editingId, setEditingId] = useState(null);
   const [users, setUsers] = useState([]);
 
   const recordsPerPage = 100;
@@ -304,7 +304,6 @@ const CallTracker = () => {
       }));
       setDisplayData(processed);
       setTotalRecords(result.totalRows || 0);
-      if (result.nextTaskId) setNextTaskId(result.nextTaskId);
     } else {
       toast.error(result.error || "Failed to load data");
       setDisplayData([]);
@@ -370,7 +369,7 @@ const CallTracker = () => {
     setSubmitting(true);
     
     try {
-      let attachmentUrl = editingId ? (displayData.find(d => d.taskId === editingId)?.attachmentUrl || "") : "";
+      let attachmentUrl = (editingId !== null) ? (displayData.find(d => d.taskId === editingId)?.attachmentUrl || "") : "";
       
       if (formData.attachment) {
         toast.loading("Uploading attachment...", { id: "upload" });
@@ -382,7 +381,7 @@ const CallTracker = () => {
       let action = "bulkInsert";
       let rowIndex = -1;
 
-      if (editingId) {
+      if (editingId !== null) {
         // Update Mode - First find the row index
         const cb = `&_=${Date.now()}`;
         const resAll = await fetch(`${FETCH_URL}?sheet=Calling Tracking&action=fetch${cb}`);
@@ -474,7 +473,7 @@ const CallTracker = () => {
     }
   };
 
-  const [editingId, setEditingId] = useState(null);
+
 
   const handleEdit = (item) => {
     setFormData({
