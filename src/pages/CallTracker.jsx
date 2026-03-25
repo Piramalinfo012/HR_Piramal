@@ -267,7 +267,7 @@ const CallTracker = () => {
           const startIdx = (currentPage - 1) * recordsPerPage;
           const paginated = filtered.slice(startIdx, startIdx + recordsPerPage);
           
-          result = { success: true, data: paginated, totalRows: total };
+          result = { success: true, data: paginated, totalRows: total, nextTaskId: json.nextTaskId };
         } else {
            result = { success: false, error: json.error || "Failed to fetch data" };
         }
