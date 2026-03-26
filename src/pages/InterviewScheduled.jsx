@@ -368,7 +368,8 @@ const InterviewScheduled = () => {
         action = "update";
         rowData = [...allData[index]];
         
-        // Update fields (retain Timestamp [0] and TaskID [1])
+        // Update fields (blank TaskID [1] as per user request for all conditions)
+        rowData[1] = ""; 
         rowData[2] = formData.entryBy;
         rowData[3] = formData.applicantName;
         rowData[4] = formData.contactNo;
@@ -385,7 +386,7 @@ const InterviewScheduled = () => {
         // Add Mode
         const now = new Date();
         const timestamp = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
-        const taskId = nextTaskId;
+        const taskId = ""; // Blank Task ID for new tasks as per user request
         
         rowData = [
           timestamp,            // Column A
