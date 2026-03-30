@@ -500,13 +500,13 @@ const Joining = () => {
                   <th className="px-6 py-3 text-left">Action</th>
                   <th className="px-6 py-3">Indent No</th>
 
+                  <th className="px-6 py-3">Joining Date</th>
                   <th className="px-6 py-3">Resume/CV</th>
                   <th className="px-6 py-3">Highest Qualification</th>
                   <th className="px-6 py-3">Candidate Name</th>
                   <th className="px-6 py-3">Current CTC (LPA)</th>
                   <th className="px-6 py-3">Expected (LPA)</th>
                   <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3">Joining Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y text-gray-500 text-sm">
@@ -544,6 +544,8 @@ const Joining = () => {
                         {item.indentNumber}
                       </td>
 
+                      <td className="px-6 py-3">{item.joiningDate}</td>
+
                       <td className="px-6 py-3">
                         {item.resume ? (
                           <a
@@ -561,7 +563,6 @@ const Joining = () => {
                       <td className="px-6 py-3">{item.currentCTC}</td>
                       <td className="px-6 py-3">{item.expectedCTC}</td>
                       <td className="px-6 py-3">{item.status}</td>
-                      <td className="px-6 py-3">{item.joiningDate}</td>
                     </tr>
                   )))}
               </tbody>
