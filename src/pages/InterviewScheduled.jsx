@@ -234,12 +234,11 @@ const InterviewScheduled = () => {
             );
           }
 
-          // Sort by Task ID (Column B, index 1) in descending order
+          // Sort by Timestamp (Column A, index 0) in descending order
           filtered.sort((a, b) => {
-            const idA = String(a[1] || "");
-            const idB = String(b[1] || "");
-            // Use numeric: true to handle TI-1, TI-10 correctly
-            return idB.localeCompare(idA, undefined, { numeric: true, sensitivity: 'base' });
+            const dateA = parseTimestamp(a[0]);
+            const dateB = parseTimestamp(b[0]);
+            return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
           });
 
           const total = filtered.length;
