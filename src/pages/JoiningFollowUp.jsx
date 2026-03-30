@@ -323,22 +323,9 @@ const JoiningFollowUp = () => {
                 }),
             });
 
-            // 2. Update Column AJ in appsheet db (index 35)
-            const updateResponse = await fetch(getSubmitUrl(), {
-                method: "POST",
-                body: new URLSearchParams({
-                    sheetName: "appsheet db",
-                    action: "updateCell",
-                    rowIndex: candidate.rowIndex,
-                    columnIndex: 36, // Column AJ is 36th column (1-indexed)
-                    value: timestamp
-                }),
-            });
-
             const res1 = await insertResponse.json();
-            const res2 = await updateResponse.json();
 
-            if (res1.success && res2.success) {
+            if (res1.success) {
                 toast.success(`Submission ${status} successfully!`);
                 setShowActionModal(false);
                 setShowActionModal(false);

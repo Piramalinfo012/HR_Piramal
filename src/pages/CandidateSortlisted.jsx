@@ -494,36 +494,9 @@ const CandidateSortlisted = () => {
                 }),
             });
 
-            // 2. Update Column W in appsheet db
-            // Using Column W (index 22) for the Status Marker timestamp
-            const updateResponse = await fetch(getSubmitUrl(), {
-                method: "POST",
-                body: new URLSearchParams({
-                    sheetName: "appsheet db",
-                    action: "updateCell",
-                    rowIndex: candidate.rowIndex,
-                    columnIndex: 23,
-                    value: timestamp
-                }),
-            });
-
-            // 3. Update Column X in appsheet db with Status
-            const statusCellResponse = await fetch(getSubmitUrl(), {
-                method: "POST",
-                body: new URLSearchParams({
-                    sheetName: "appsheet db",
-                    action: "updateCell",
-                    rowIndex: candidate.rowIndex,
-                    columnIndex: 24,
-                    value: status
-                }),
-            });
-
             const res1 = await insertResponse.json();
-            const res2 = await updateResponse.json();
-            const res3 = await statusCellResponse.json();
 
-            if (res1.success && res2.success && res3.success) {
+            if (res1.success) {
                 toast.success(`Candidate ${status} successfully!`);
                 setShowActionModal(false);
                 refreshData();
