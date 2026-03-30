@@ -234,6 +234,14 @@ const InterviewScheduled = () => {
             );
           }
 
+          // Sort by Task ID (Column B, index 1) in descending order
+          filtered.sort((a, b) => {
+            const idA = String(a[1] || "");
+            const idB = String(b[1] || "");
+            // Use numeric: true to handle TI-1, TI-10 correctly
+            return idB.localeCompare(idA, undefined, { numeric: true, sensitivity: 'base' });
+          });
+
           const total = filtered.length;
           const startIdx = (currentPage - 1) * recordsPerPage;
           const paginated = filtered.slice(startIdx, startIdx + recordsPerPage);
