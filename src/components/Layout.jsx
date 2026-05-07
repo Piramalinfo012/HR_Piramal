@@ -56,17 +56,9 @@ const Layout = () => {
         </main>
 
         {/* Fixed Footer */}
-        <footer className="bg-white bg-opacity-10 backdrop-blur-md border-t border-white border-opacity-10 py-3 px-4 flex-shrink-0 shadow-2xl">
-          <div className="container mx-auto text-center text-sm text-white text-opacity-80">
-            Powered by{' '}
-            <a
-              href="https://www.botivate.in"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white hover:text-indigo-200 font-bold underline transition-colors"
-            >
-              Botivate
-            </a>
+        <footer className="bg-white border-t border-gray-200 py-3 px-4 flex-shrink-0 z-50">
+          <div className="container mx-auto text-center text-sm text-gray-500 font-medium">
+            Developed By <span className="text-indigo-600 font-bold">deepak Sahu</span>
           </div>
         </footer>
       </div>

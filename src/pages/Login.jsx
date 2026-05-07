@@ -195,7 +195,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-100 via-purple-100 to-white">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-100 via-purple-100 to-white relative pb-16">
       <div className="max-w-md w-full p-8 rounded-2xl shadow-xl border border-white/20 bg-white/60 backdrop-blur-lg space-y-8 transition-transform hover:scale-[1.01] duration-200">
         {/* Logo Section */}
         <div className="text-center">
@@ -314,6 +314,11 @@ const Login = () => {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Fixed Footer */}
+      <div className="absolute bottom-4 left-0 w-full text-center text-sm text-gray-500 font-medium">
+        Developed By <span className="text-indigo-600 font-bold">deepak Sahu</span>
       </div>
     </div>
   );
