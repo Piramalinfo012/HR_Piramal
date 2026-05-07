@@ -118,6 +118,26 @@ const Login = () => {
       localStorage.setItem("user", JSON.stringify(matchedUser));
       login(matchedUser);
 
+      // Pre-fetch critical sheets in the background to make the app ultra-fast
+      try {
+        const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
+        const JOIN_URL = import.meta.env.VITE_JOINING_SHEET_URL;
+        const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
+        
+        // Fire and forget (the global cache will intercept and store the promises)
+        if (FETCH_URL) {
+          fetch(`${FETCH_URL}?sheet=FMS&action=fetch`);
+          fetch(`${FETCH_URL}?sheet=Calling Tracking&action=fetch`);
+          fetch(`${FETCH_URL}?sheet=USER&action=fetch`);
+        }
+        if (JOIN_URL) {
+          fetch(`${JOIN_URL}?action=read&sheet=JOINING_FMS`);
+        }
+        fetch(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING ENTRY FORM`);
+      } catch (e) {
+        console.error("Prefetch error", e);
+      }
+
       const adminStatus = matchedUser.Admin
         ? matchedUser.Admin.trim().toLowerCase()
         : "no";

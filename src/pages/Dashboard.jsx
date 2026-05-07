@@ -22,7 +22,9 @@ import {
   TrendingUp,
   FileText,
   Calendar,
-  CheckCircle
+  CheckCircle,
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -42,8 +44,19 @@ const Dashboard = () => {
 
   const [indentData, setIndentData] = useState([]);
   const [filterStatus, setFilterStatus] = useState("All");
+  
+  const [pendingTasks, setPendingTasks] = useState([]);
 
   const [tableLoading, setTableLoading] = useState(false);
+  
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Parse DD/MM/YYYY format date
   const parseSheetDate = (dateStr) => {
@@ -160,8 +173,32 @@ const Dashboard = () => {
     const headers = globalFmsData[headerRowIndex].map(h => h ? h.trim() : "");
 
     // SLICE 9 Logic as requested (Data starts from Row 10)
-    // We use the whole array for indices, but slice for data processing
     const dataRows = globalFmsData.slice(9);
+
+    // Calculate Pending Stage Tasks
+    let onlinePostingCount = 0;
+    let jobConsultancyCount = 0;
+    let whatsappCount = 0;
+
+    dataRows.forEach(row => {
+      const p1 = row[17]?.toString().trim() || "";
+      const a1 = row[18]?.toString().trim() || "";
+      if (p1 !== "" && a1 === "") onlinePostingCount++;
+
+      const p2 = row[23]?.toString().trim() || "";
+      const a2 = row[24]?.toString().trim() || "";
+      if (p2 !== "" && a2 === "") jobConsultancyCount++;
+
+      const p3 = row[30]?.toString().trim() || "";
+      const a3 = row[31]?.toString().trim() || "";
+      if (p3 !== "" && a3 === "") whatsappCount++;
+    });
+
+    setPendingTasks([
+      { title: "Online Posting", pending: onlinePostingCount, link: "/online_posting", color: { text: "text-blue-600", bg: "bg-blue-50", hoverText: "group-hover:text-blue-700", border: "border-blue-100", hoverBorder: "hover:border-blue-300", iconText: "text-blue-500", hoverBg: "group-hover:bg-blue-100" } },
+      { title: "Calling Job Agencies", pending: jobConsultancyCount, link: "/calling_for_job_agencies", color: { text: "text-purple-600", bg: "bg-purple-50", hoverText: "group-hover:text-purple-700", border: "border-purple-100", hoverBorder: "hover:border-purple-300", iconText: "text-purple-500", hoverBg: "group-hover:bg-purple-100" } },
+      { title: "Whatsapp Status", pending: whatsappCount, link: "/whatsapp", color: { text: "text-emerald-600", bg: "bg-emerald-50", hoverText: "group-hover:text-emerald-700", border: "border-emerald-100", hoverBorder: "hover:border-emerald-300", iconText: "text-emerald-500", hoverBg: "group-hover:bg-emerald-100" } },
+    ]);
 
     const findIdx = (names) => headers.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
 
@@ -444,58 +481,131 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="space-y-6 page-content p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">HR Dashboard</h1>
-        <Link 
-          to="/joining_calendar" 
-          className="flex items-center bg-navy text-white px-4 py-2 rounded-lg hover:bg-navy-dark transition-colors shadow-sm"
-        >
-          <Calendar size={18} className="mr-2" />
-          Calendar
-        </Link>
+    <div className="space-y-8 page-content p-6 md:p-8 bg-gradient-to-br from-slate-50 to-indigo-50/30 min-h-screen font-sans">
+      <style>{`
+        @keyframes gradient-x {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animate-gradient-x {
+          background-size: 200% 200%;
+          animation: gradient-x 3s ease infinite;
+        }
+      `}</style>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-6 border-b border-gray-200/60 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <div>
+            <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 animate-gradient-x drop-shadow-sm pb-1">
+              HR Dashboard
+            </h1>
+            <p className="text-sm text-gray-500 mt-1 font-medium">Overview of company indents and reporting</p>
+          </div>
+          
+          {/* Clock Widget */}
+          <div className="hidden sm:flex items-center space-x-3 bg-white/60 backdrop-blur-md px-4 py-2 rounded-xl border border-gray-200 shadow-sm ml-2">
+            <div className="p-2 bg-indigo-50 rounded-lg">
+              <Clock size={18} className="text-indigo-600" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-gray-800">
+                {currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+              </span>
+              <span className="text-xs font-semibold text-gray-500">
+                {currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Mobile Clock */}
+          <div className="sm:hidden flex items-center bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm text-sm font-bold text-indigo-700">
+             {currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+          </div>
+          <Link 
+            to="/joining_calendar" 
+            className="flex items-center bg-gradient-to-r from-indigo-600 to-blue-700 text-white px-5 py-2.5 rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all duration-300 font-medium"
+          >
+            <Calendar size={18} className="mr-2" />
+            Joining Calendar
+          </Link>
+        </div>
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-lg border p-6 flex items-start">
-          <div className="p-3 rounded-full bg-blue-100 mr-4">
-            <Users size={24} className="text-blue-600" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center hover:shadow-md hover:border-indigo-100 transition-all duration-300 group">
+          <div className="p-4 rounded-2xl bg-indigo-50 group-hover:bg-indigo-600 transition-colors duration-500 mr-5">
+            <Users size={28} className="text-indigo-600 group-hover:text-white transition-colors duration-500" />
           </div>
           <div>
-            <p className="text-sm text-gray-600 font-medium">Total Indents</p>
-            <h3 className="text-2xl font-bold text-gray-800">{totalEmployee}</h3>
+            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Total Indents</p>
+            <h3 className="text-3xl font-black text-gray-800">{totalEmployee}</h3>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg border p-6 flex items-start">
-          <div className="p-3 rounded-full bg-green-100 mr-4">
-            <UserCheck size={24} className="text-green-600" />
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center hover:shadow-md hover:border-rose-100 transition-all duration-300 group">
+          <div className="p-4 rounded-2xl bg-rose-50 group-hover:bg-rose-500 transition-colors duration-500 mr-5">
+            <Clock size={28} className="text-rose-500 group-hover:text-white transition-colors duration-500" />
           </div>
           <div>
-            <p className="text-sm text-gray-600 font-medium">Active Employees</p>
-            <h3 className="text-2xl font-bold text-gray-800">{activeEmployee}</h3>
+            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Total Open</p>
+            <h3 className="text-3xl font-black text-gray-800">{openCount}</h3>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg border p-6 flex items-start">
-          <div className="p-3 rounded-full bg-red-100 mr-4">
-            <Clock size={24} className="text-red-600" />
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center hover:shadow-md hover:border-emerald-100 transition-all duration-300 group">
+          <div className="p-4 rounded-2xl bg-emerald-50 group-hover:bg-emerald-500 transition-colors duration-500 mr-5">
+            <CheckCircle size={28} className="text-emerald-500 group-hover:text-white transition-colors duration-500" />
           </div>
           <div>
-            <p className="text-sm text-gray-600 font-medium">Total Open</p>
-            <h3 className="text-2xl font-bold text-gray-800">{openCount}</h3>
+            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Total Close</p>
+            <h3 className="text-3xl font-black text-gray-800">{closeCount}</h3>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white rounded-xl shadow-lg border p-6 flex items-start">
-          <div className="p-3 rounded-full bg-green-100 mr-4">
-            <CheckCircle size={24} className="text-green-600" />
-          </div>
-          <div>
-            <p className="text-sm text-gray-600 font-medium">Total Close</p>
-            <h3 className="text-2xl font-bold text-gray-800">{closeCount}</h3>
-          </div>
+      {/* Pending Tasks Report Section */}
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-orange-100/50 p-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-50 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2"></div>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center">
+            <div className="p-2 bg-orange-100 rounded-lg mr-3 shadow-inner">
+              <AlertCircle size={20} className="text-orange-600" />
+            </div>
+            Pending Actions Report
+          </h2>
+          <span className="bg-orange-100 text-orange-800 text-xs font-bold px-3 py-1 rounded-full border border-orange-200 shadow-sm">
+            Requires Attention
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {pendingTasks.map((task, idx) => (
+            <Link 
+              key={idx} 
+              to={task.link}
+              className={`block bg-white rounded-xl border ${task.color.border} p-5 shadow-sm hover:shadow-md hover:-translate-y-1 ${task.color.hoverBorder} transition-all duration-300 group`}
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-2">{task.title}</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-3xl font-black ${task.color.text} ${task.color.hoverText} transition-colors`}>
+                      {task.pending}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-500">pending</span>
+                  </div>
+                </div>
+                <div className={`p-2.5 ${task.color.bg} rounded-full ${task.color.hoverBg} transition-colors`}>
+                  <ArrowRight size={20} className={`${task.color.iconText}`} />
+                </div>
+              </div>
+              <div className={`mt-4 pt-4 border-t border-gray-100 flex items-center text-xs font-semibold text-gray-400 ${task.color.hoverText} transition-colors`}>
+                Click to view and manage tasks
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
 
@@ -536,179 +646,204 @@ const Dashboard = () => {
       </div> */}
 
       {/* reporting table */}
-      <div className="flex flex-col md:flex-row justify-between items-center mt-8 mb-4">
-        <h2 className="text-lg font-bold text-gray-800 flex items-center">
-          <FileText size={20} className="mr-2" />
-          Reporting Table
-        </h2>
-        <div className="relative">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="appearance-none bg-white border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
-          >
-            <option value="All">All</option>
-            <option value="Open">Open</option>
-            <option value="Close">Close</option>
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mt-8">
+        <div className="flex flex-col md:flex-row justify-between items-center p-5 sm:p-6 border-b border-gray-100 bg-gray-50/50">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center">
+            <div className="p-2 bg-indigo-50 rounded-lg mr-3 shadow-inner">
+              <FileText size={20} className="text-indigo-600" />
+            </div>
+            Reporting Table
+          </h2>
+          <div className="relative mt-4 md:mt-0 w-full md:w-auto">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="appearance-none w-full md:w-48 bg-white border border-gray-200 text-gray-700 py-2.5 px-5 pr-10 rounded-xl leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm hover:border-gray-300 transition-colors font-medium text-sm"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Open">Open</option>
+              <option value="Close">Close</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="overflow-x-auto">
-        {/* Add max-height and overflow-y to the table container */}
-        <div className="max-h-[calc(100vh-300px)] overflow-y-auto table-container">
-          <table className="min-w-full divide-y divide-gray-200 shadow">
-            <thead className="bg-gray-50 sticky top-0 z-10">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Indent Number
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Post
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Department
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Prefer
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  No. of Post
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Completion Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Indenter Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Join
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Enquiry
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Pending Joining
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {tableLoading ? (
+        
+        <div className="overflow-x-auto">
+          <div className="max-h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto custom-scrollbar">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <td colSpan="12" className="px-6 py-12 text-center">
-                    <div className="flex justify-center flex-col items-center">
-                      <div className="w-6 h-6 border-4 border-navy border-dashed rounded-full animate-spin mb-2"></div>
-                      <span className="text-gray-600 text-sm">
-                        Loading indent data...
-                      </span>
-                    </div>
-                  </td>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Indent Number</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Post</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Department</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Prefer</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">No. of Post</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Completion Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Indenter Name</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total Join</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total Enquiry</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Pending Joining</th>
                 </tr>
-              ) : indentData.length === 0 ? (
-                <tr>
-                  <td colSpan="12" className="px-6 py-12 text-center">
-                    <p className="text-gray-500">No indent data found.</p>
-                  </td>
-                </tr>
-              ) : (
-                indentData.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${(item.filterKey || "").toString().toLowerCase().includes("close")
-                        ? "bg-green-100 text-green-800"
-                        : (item.filterKey || "").toString().toLowerCase().includes("open")
-                          ? "bg-red-100 text-red-800"
-                          : "bg-gray-100 text-gray-800"
-                        }`}>
-                        {item.filterKey}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {item.indentNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.post}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.department}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.prefer}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.noOfPost}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="text-sm text-gray-900 break-words">
-                        {item.completionDate
-                          ? (() => {
-                            const date = new Date(item.completionDate);
-                            if (!date || isNaN(date.getTime())) return "Invalid date";
-                            return date.toLocaleDateString('en-GB');
-                          })()
-                          : "—"}
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {tableLoading ? (
+                  <tr>
+                    <td colSpan="11" className="px-6 py-20 text-center">
+                      <div className="flex justify-center flex-col items-center">
+                        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4 shadow-sm"></div>
+                        <span className="text-gray-500 font-medium tracking-wide">Loading reporting data...</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.indenterName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.totaljoining || 0}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.totalenquiry || 0}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-bold text-navy">
-                      {item.pendingJoining}
+                  </tr>
+                ) : indentData.length === 0 ? (
+                  <tr>
+                    <td colSpan="11" className="px-6 py-20 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="p-5 bg-gray-50 rounded-full mb-4 shadow-inner">
+                          <FileText size={36} className="text-gray-300" />
+                        </div>
+                        <p className="text-gray-500 font-medium text-lg">No indent data found.</p>
+                      </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  indentData.map((item, index) => (
+                    <tr key={index} className="hover:bg-indigo-50/40 transition-colors duration-200 group">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-md shadow-sm ${(item.filterKey || "").toString().toLowerCase().includes("close")
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : (item.filterKey || "").toString().toLowerCase().includes("open")
+                            ? "bg-rose-50 text-rose-700 border border-rose-200"
+                            : "bg-gray-50 text-gray-700 border border-gray-200"
+                          }`}>
+                          {item.filterKey}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                        {item.indentNumber}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
+                        {item.post}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className="px-2.5 py-1 bg-gray-100 rounded-md text-gray-700 text-xs font-semibold">{item.department}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.prefer}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-center">
+                        {item.noOfPost}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.completionDate ? (
+                          <div className="flex items-center">
+                            <Calendar size={14} className="mr-2 text-indigo-400" />
+                            <span className="font-medium text-gray-600">
+                              {(() => {
+                                const date = new Date(item.completionDate);
+                                if (!date || isNaN(date.getTime())) return "Invalid date";
+                                return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                              })()}
+                            </span>
+                          </div>
+                        ) : "—"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
+                        {item.indenterName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold text-sm border border-emerald-100">
+                          {item.totaljoining || 0}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold text-sm border border-blue-100">
+                          {item.totalenquiry || 0}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm shadow-sm ring-2 ring-white">
+                          {item.pendingJoining}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {/* Designation-wise Employee Count */}
-      <div className="bg-white rounded-xl shadow-lg border p-6">
-        <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center">
-          <UserPlus size={20} className="mr-2" />
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-8 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2"></div>
+        <h2 className="text-lg font-bold text-gray-800 mb-8 flex items-center">
+          <div className="p-2.5 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-xl mr-3 shadow-inner">
+            <UserPlus size={20} className="text-indigo-600" />
+          </div>
           Designation-wise Employee Count
         </h2>
-        <div className="h-80">
+        <div className="h-[450px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={designationData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.1)" />
+            <BarChart data={designationData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
               <XAxis
                 dataKey="designation"
-                stroke="#374151"
+                stroke="#6b7280"
                 interval={0}
-                angle={-30}
+                angle={-45}
                 textAnchor="end"
-                height={80}
+                height={100}
+                tick={{ fontSize: 12, fill: '#4b5563', fontWeight: 500 }}
+                tickMargin={15}
+                axisLine={{ stroke: '#e5e7eb' }}
               />
-              <YAxis stroke="#374151" />
+              <YAxis 
+                stroke="#6b7280" 
+                tick={{ fontSize: 12, fill: '#4b5563', fontWeight: 500 }} 
+                axisLine={false} 
+                tickLine={false}
+                tickMargin={10} 
+              />
               <Tooltip
+                cursor={{ fill: 'rgba(79, 70, 229, 0.04)' }}
                 contentStyle={{
-                  backgroundColor: 'white',
+                  backgroundColor: 'rgba(255, 255, 255, 0.98)',
                   border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  color: '#374151'
+                  borderRadius: '12px',
+                  color: '#1f2937',
+                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                  padding: '12px 16px',
+                  fontWeight: '500'
                 }}
+                itemStyle={{ color: '#4f46e5', fontWeight: 'bold' }}
               />
-              <Bar dataKey="employees" name="Employees">
+              <Bar dataKey="employees" name="Employees" radius={[8, 8, 0, 0]} maxBarSize={45}>
                 {designationData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={index % 3 === 0 ? '#EF4444' : index % 3 === 1 ? '#10B981' : '#312e81'}
+                    fill={`url(#colorGradient${index % 3})`}
                   />
                 ))}
               </Bar>
+              <defs>
+                <linearGradient id="colorGradient0" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" />
+                  <stop offset="100%" stopColor="#4338ca" />
+                </linearGradient>
+                <linearGradient id="colorGradient1" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#34d399" />
+                  <stop offset="100%" stopColor="#059669" />
+                </linearGradient>
+                <linearGradient id="colorGradient2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#fbbf24" />
+                  <stop offset="100%" stopColor="#d97706" />
+                </linearGradient>
+              </defs>
             </BarChart>
           </ResponsiveContainer>
         </div>
