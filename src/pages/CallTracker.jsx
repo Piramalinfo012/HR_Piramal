@@ -144,10 +144,19 @@ const CallTracker = () => {
     });
   };
 
+  // Add tracking for initial load
+  const [initialLoaded, setInitialLoaded] = useState(false);
+
+  // Initial fetch
+  useEffect(() => {
+    loadData(false).then(() => setInitialLoaded(true));
+  }, []);
+
   // Debounced Search and Fetch
   useEffect(() => {
+    if (!initialLoaded) return;
     const timer = setTimeout(() => {
-      loadData();
+      loadData(true); // background fetch to avoid loading flashes
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm, dateFilter, currentPage, fromDate, toDate, entryByFilter]);
@@ -188,8 +197,8 @@ const CallTracker = () => {
     return `${day}/${month}/${year}`;
   };
 
-  const loadData = async () => {
-    setTableLoading(true);
+  const loadData = async (isBackground = false) => {
+    if (!isBackground) setTableLoading(true);
     let result = { success: false, data: [] };
     try {
       const cb = `&_=${Date.now()}`;
@@ -308,7 +317,7 @@ const CallTracker = () => {
       toast.error(result.error || "Failed to load data");
       setDisplayData([]);
     }
-    setTableLoading(false);
+    if (!isBackground) setTableLoading(false);
   };
 
   const handleInlineInterviewSubmit = async () => {
@@ -350,8 +359,16 @@ const CallTracker = () => {
       const result = await res.json();
       if (result.success) {
         toast.success("Interview info updated!");
+        
+        // Optimistic UI update
+        setDisplayData(prev => prev.map(item => 
+          item.taskId === inlineInterviewItem.taskId 
+            ? { ...item, interviewStatus: inlineInterviewStatus, interviewDate: inlineInterviewDate } 
+            : item
+        ));
+        
         setInlineInterviewItem(null);
-        loadData();
+        loadData(true);
       } else {
         toast.error("Failed to save: " + (result.error || "Unknown"));
       }
@@ -459,10 +476,37 @@ const CallTracker = () => {
       const json = await res.json();
       if (json.success) {
         toast.success(editingId ? "Task updated!" : "Task added!");
+        
+        // Optimistic UI update
+        const newItem = {
+          id: editingId ? displayData.find(d => d.taskId === editingId)?.id : Date.now(),
+          timestamp: editingId ? displayData.find(d => d.taskId === editingId)?.timestamp : `${new Date().getMonth() + 1}/${new Date().getDate()}/${new Date().getFullYear()}`,
+          taskId: editingId || "Pending...",
+          entryBy: formData.entryBy,
+          applicantName: formData.applicantName,
+          contactName: formData.contactNo,
+          role: formData.role,
+          portalUsed: formData.portalUsed,
+          location: formData.location,
+          stage: formData.stage,
+          notes: formData.notes,
+          feedback: formData.feedback,
+          status: formData.status,
+          interviewStatus: formData.interviewStatus,
+          interviewDate: formData.interviewDate,
+          attachmentUrl: attachmentUrl
+        };
+
+        if (editingId) {
+          setDisplayData(prev => prev.map(item => item.taskId === editingId ? { ...item, ...newItem } : item));
+        } else {
+          setDisplayData(prev => [newItem, ...prev]);
+        }
+
         setShowModal(false);
         resetForm();
         setEditingId(null);
-        loadData(); // Refresh current page
+        loadData(true); // Background refresh
       } else {
         toast.error("Submit failed: " + (json.error || "Unknown error"));
       }

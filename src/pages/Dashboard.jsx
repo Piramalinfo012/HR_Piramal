@@ -27,6 +27,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+import { usePendingCounts } from '../hooks/usePendingCounts';
+
 const Dashboard = () => {
   const [totalEmployee, setTotalEmployee] = useState(0);
   const [activeEmployee, setActiveEmployee] = useState(0);
@@ -45,7 +47,21 @@ const Dashboard = () => {
   const [indentData, setIndentData] = useState([]);
   const [filterStatus, setFilterStatus] = useState("All");
   
-  const [pendingTasks, setPendingTasks] = useState([]);
+  const pendingCounts = usePendingCounts();
+
+  const pendingTasks = [
+    { title: "Online Posting", pending: pendingCounts?.onlinePostingCount || 0, link: "/online_posting", color: { text: "text-blue-600", bg: "bg-blue-50", hoverText: "group-hover:text-blue-700", border: "border-blue-100", hoverBorder: "hover:border-blue-300", iconText: "text-blue-500", hoverBg: "group-hover:bg-blue-100" } },
+    { title: "Calling Job Agencies", pending: pendingCounts?.jobConsultancyCount || 0, link: "/calling_for_job_agencies", color: { text: "text-purple-600", bg: "bg-purple-50", hoverText: "group-hover:text-purple-700", border: "border-purple-100", hoverBorder: "hover:border-purple-300", iconText: "text-purple-500", hoverBg: "group-hover:bg-purple-100" } },
+    { title: "Whatsapp Status", pending: pendingCounts?.whatsappCount || 0, link: "/whatsapp", color: { text: "text-emerald-600", bg: "bg-emerald-50", hoverText: "group-hover:text-emerald-700", border: "border-emerald-100", hoverBorder: "hover:border-emerald-300", iconText: "text-emerald-500", hoverBg: "group-hover:bg-emerald-100" } },
+    { title: "Verification Before Interview", pending: pendingCounts?.verificationCount || 0, link: "/verification_before_interview", color: { text: "text-rose-600", bg: "bg-rose-50", hoverText: "group-hover:text-rose-700", border: "border-rose-100", hoverBorder: "hover:border-rose-300", iconText: "text-rose-500", hoverBg: "group-hover:bg-rose-100" } },
+    { title: "Interview & Final Selection", pending: pendingCounts?.interviewSelectionCount || 0, link: "/interview_final_selection", color: { text: "text-amber-600", bg: "bg-amber-50", hoverText: "group-hover:text-amber-700", border: "border-amber-100", hoverBorder: "hover:border-amber-300", iconText: "text-amber-500", hoverBg: "group-hover:bg-amber-100" } },
+    { title: "Joining Follow Up", pending: pendingCounts?.joiningFollowUpCount || 0, link: "/joining_follow_up", color: { text: "text-teal-600", bg: "bg-teal-50", hoverText: "group-hover:text-teal-700", border: "border-teal-100", hoverBorder: "hover:border-teal-300", iconText: "text-teal-500", hoverBg: "group-hover:bg-teal-100" } },
+    { title: "Joining Management", pending: pendingCounts?.joiningManagementCount || 0, link: "/joining", color: { text: "text-cyan-600", bg: "bg-cyan-50", hoverText: "group-hover:text-cyan-700", border: "border-cyan-100", hoverBorder: "hover:border-cyan-300", iconText: "text-cyan-500", hoverBg: "group-hover:bg-cyan-100" } },
+    { title: "Check Salary Slip & Resume", pending: pendingCounts?.checkSalarySlipCount || 0, link: "/check-salary-slip-and-resume", color: { text: "text-violet-600", bg: "bg-violet-50", hoverText: "group-hover:text-violet-700", border: "border-violet-100", hoverBorder: "hover:border-violet-300", iconText: "text-violet-500", hoverBg: "group-hover:bg-violet-100" } },
+    { title: "Joining Letter Release", pending: pendingCounts?.joiningLetterCount || 0, link: "/joining-letter-release", color: { text: "text-pink-600", bg: "bg-pink-50", hoverText: "group-hover:text-pink-700", border: "border-pink-100", hoverBorder: "hover:border-pink-300", iconText: "text-pink-500", hoverBg: "group-hover:bg-pink-100" } },
+    { title: "Induction Training", pending: pendingCounts?.inductionTrainingCount || 0, link: "/induction-or-training", color: { text: "text-orange-600", bg: "bg-orange-50", hoverText: "group-hover:text-orange-700", border: "border-orange-100", hoverBorder: "hover:border-orange-300", iconText: "text-orange-500", hoverBg: "group-hover:bg-orange-100" } },
+    { title: "Asset Assignment", pending: pendingCounts?.assetAssignmentCount || 0, link: "/asset-assignment", color: { text: "text-lime-600", bg: "bg-lime-50", hoverText: "group-hover:text-lime-700", border: "border-lime-100", hoverBorder: "hover:border-lime-300", iconText: "text-lime-500", hoverBg: "group-hover:bg-lime-100" } }
+  ];
 
   const [tableLoading, setTableLoading] = useState(false);
   
@@ -175,30 +191,7 @@ const Dashboard = () => {
     // SLICE 9 Logic as requested (Data starts from Row 10)
     const dataRows = globalFmsData.slice(9);
 
-    // Calculate Pending Stage Tasks
-    let onlinePostingCount = 0;
-    let jobConsultancyCount = 0;
-    let whatsappCount = 0;
-
-    dataRows.forEach(row => {
-      const p1 = row[17]?.toString().trim() || "";
-      const a1 = row[18]?.toString().trim() || "";
-      if (p1 !== "" && a1 === "") onlinePostingCount++;
-
-      const p2 = row[23]?.toString().trim() || "";
-      const a2 = row[24]?.toString().trim() || "";
-      if (p2 !== "" && a2 === "") jobConsultancyCount++;
-
-      const p3 = row[30]?.toString().trim() || "";
-      const a3 = row[31]?.toString().trim() || "";
-      if (p3 !== "" && a3 === "") whatsappCount++;
-    });
-
-    setPendingTasks([
-      { title: "Online Posting", pending: onlinePostingCount, link: "/online_posting", color: { text: "text-blue-600", bg: "bg-blue-50", hoverText: "group-hover:text-blue-700", border: "border-blue-100", hoverBorder: "hover:border-blue-300", iconText: "text-blue-500", hoverBg: "group-hover:bg-blue-100" } },
-      { title: "Calling Job Agencies", pending: jobConsultancyCount, link: "/calling_for_job_agencies", color: { text: "text-purple-600", bg: "bg-purple-50", hoverText: "group-hover:text-purple-700", border: "border-purple-100", hoverBorder: "hover:border-purple-300", iconText: "text-purple-500", hoverBg: "group-hover:bg-purple-100" } },
-      { title: "Whatsapp Status", pending: whatsappCount, link: "/whatsapp", color: { text: "text-emerald-600", bg: "bg-emerald-50", hoverText: "group-hover:text-emerald-700", border: "border-emerald-100", hoverBorder: "hover:border-emerald-300", iconText: "text-emerald-500", hoverBg: "group-hover:bg-emerald-100" } },
-    ]);
+    // Calculate Pending Stage Tasks (Now handled by usePendingCounts hook)
 
     const findIdx = (names) => headers.findIndex(h => names.some(n => h.toLowerCase().includes(n.toLowerCase())));
 
@@ -298,14 +291,6 @@ const Dashboard = () => {
     // Wait, let me check original code fetchJoiningCount:
     // "let activeCount = 0 ... if (statusIndex !== -1) activeCount = ..."
     // "setActiveEmployee(dataRows.length);"  <-- It sets activeEmployee to TOTAL. 
-    // "return { total: dataRows.length, active: activeCount ... }"
-    // "setTotalEmployee(fmsTotalIndents);" -> Wait, Total Indents in stats is set from FMS. 
-    // "Active Employees" title in stat card uses matches "activeEmployee" state. 
-    // So "Active employees" stat shows TOTAL rows in Joining sheet? That seems wrong but that's what the code did.
-    // "setTotalEmployee(fmsTotalIndents)" -> in `fetchData`.
-    // The stat card says "Active Employees" -> {activeEmployee}.
-    // If original code `setActiveEmployee(dataRows.length)`, then it displays count of all joined.
-    // I should replicate exactly.
     setActiveEmployee(dataRows.length); // Replicating logic.
 
     // Monthly Hiring

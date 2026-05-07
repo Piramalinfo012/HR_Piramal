@@ -38,8 +38,11 @@ const OnlinePosting = () => {
 
   const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 
-  const fetchData = async () => {
-    setStoreLoading(true);
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground) {
+      setStoreLoading(true);
+      setTableLoading(true);
+    }
     try {
       const cb = `&_=${Date.now()}`;
       const [masterRes, fmsRes, dataRes] = await Promise.all([
@@ -56,7 +59,10 @@ const OnlinePosting = () => {
       console.error("OnlinePosting Data Fetch Error:", error);
       toast.error("Failed to load data");
     } finally {
-      setStoreLoading(false);
+      if (!isBackground) {
+        setStoreLoading(false);
+        setTableLoading(false);
+      }
     }
   };
 
@@ -274,13 +280,21 @@ const OnlinePosting = () => {
 
       if (result.success) {
         toast.success("Post data submitted successfully!");
+        
+        // Optimistic UI update to make system feel instantly fast
+        setIndentData(prev => prev.filter(item => item.indentNumber !== selectedIndent.indentNumber));
+        setHistoryIndentData(prev => [{
+          ...selectedIndent,
+          actual: timestamp,
+          siteStatus: postFormData.status,
+          socialSiteTypes: postFormData.socialSiteTypes.join(", ")
+        }, ...prev]);
+
         setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", selectedFile: null, status: "Yes" });
         setShowPostModal(false);
 
-        // Refresh table data
-        setTableLoading(true);
-        await refreshData();
-        setTableLoading(false);
+        // Fetch data silently in background
+        fetchData(true);
       } else {
         toast.error("Failed to submit: " + (result.error || "Unknown error"));
       }

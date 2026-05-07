@@ -54,9 +54,11 @@ const CallingForJobAgencies = () => {
   const [dataResponseData, setDataResponseData] = useState([]);
   const [storeLoading, setStoreLoading] = useState(true);
 
-  const fetchData = async () => {
-    setStoreLoading(true);
-    setTableLoading(true);
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground) {
+      setStoreLoading(true);
+      setTableLoading(true);
+    }
     try {
       const cb = `&_=${Date.now()}`;
       const [resMaster, resFMS, resUser, resDR] = await Promise.all([
@@ -80,8 +82,10 @@ const CallingForJobAgencies = () => {
       console.error("CallingForJobAgencies Data Fetch Error:", error);
       toast.error("Failed to load data");
     } finally {
-      setStoreLoading(false);
-      setTableLoading(false);
+      if (!isBackground) {
+        setStoreLoading(false);
+        setTableLoading(false);
+      }
     }
   };
 
@@ -403,6 +407,18 @@ const CallingForJobAgencies = () => {
       const result = await response.json();
       if (result.success) {
         toast.success("Posted successfully!");
+        
+        // Optimistic UI update for instant feedback
+        setIndentData(prev => prev.filter(item => item.indentNumber !== formData.indentNumber));
+        setHistoryIndentData(prev => [{
+            ...formData, 
+            columnX: timestamp, 
+            columnY: timestamp, 
+            jobConsultancyDR: consultancyNames,
+            contactPersonDR: contactPersons,
+            contactNumberDR: contactNumbers
+        }, ...prev]);
+
         setFormData((prev) => ({
           ...prev,
           jobConsultancyNames: [],
@@ -411,7 +427,7 @@ const CallingForJobAgencies = () => {
         }));
         setShowModal(false);
 
-        refreshData();
+        fetchData(true);
       } else {
         toast.error("Failed to submit: " + (result.error || "Unknown error"));
       }

@@ -52,8 +52,8 @@ const Joining = () => {
   const [candidateData, setCandidateData] = useState([]);
 
   // Fetch data from Canidate_Selection and filter by JOINING_FMS
-  const fetchData = async () => {
-    setTableLoading(true);
+  const fetchData = async (isBackground = false) => {
+    if (!isBackground) setTableLoading(true);
     try {
       // 1. Fetch Canidate_Selection
       console.log("📥 Fetching from Canidate_Selection...");
@@ -147,9 +147,9 @@ const Joining = () => {
       const idxResume = 20; // Strictly matching Column U
       const idxQual = 8;
       const idxCurrentCTC = 16;
-      const idxExpectedCTC = getCIndex("Expected (LPA)", 17);
-      const idxStatus = getCIndex("Status", 36);
-      const idxActualAJ = getCIndex("Actual", 35); // Column AJ
+      const idxExpectedCTC = 17; // Column R
+      const idxStatus = 36; // Column AK (Joining Follow Up Status)
+      const idxActualAJ = 35; // Column AJ
       const idxStatusX = 23; // Column X (0-indexed)
 
       const processed = cRows
@@ -450,8 +450,17 @@ const Joining = () => {
 
       if (result.success) {
         toast.success("Joining details submitted successfully!");
+        
+        // Optimistic UI Update: immediately remove from pending list
+        setCandidateData(prev => prev.filter(c => c.indentNumber !== formData.candidateEnquiryNo));
+        
         handleCloseModal();
-        fetchData(); // Refresh via local fetch
+        
+        // Background refresh to keep in sync
+        fetchData(true);
+        
+        // Refresh global pending counts for Navbar
+        window.dispatchEvent(new Event('refresh-pending-counts'));
       } else {
         toast.error(result.error || "Failed to submit joining details");
       }

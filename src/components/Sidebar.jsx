@@ -38,6 +38,7 @@ import {
 import useAuthStore from "../store/authStore";
 import logo from "../assets/logo.png";
 
+import { usePendingCounts } from "../hooks/usePendingCounts";
 
 // ... imports remain the same
 
@@ -51,10 +52,25 @@ const SidebarContent = ({
   toggleLanguage,
   showLanguageHint,
   handleLogout,
-  setIsOpen
+  setIsOpen,
+  pendingCounts
 }) => {
   // We can use navigate inside here if needed, or pass it. 
   // NavLink uses context so it's fine.
+
+  const badgeMap = {
+    "/online_posting": pendingCounts?.onlinePostingCount,
+    "/calling_for_job_agencies": pendingCounts?.jobConsultancyCount,
+    "/whatsapp": pendingCounts?.whatsappCount,
+    "/verification_before_interview": pendingCounts?.verificationCount,
+    "/interview_final_selection": pendingCounts?.interviewSelectionCount,
+    "/joining_follow_up": pendingCounts?.joiningFollowUpCount,
+    "/joining": pendingCounts?.joiningManagementCount,
+    "/check-salary-slip-and-resume": pendingCounts?.checkSalarySlipCount,
+    "/joining-letter-release": pendingCounts?.joiningLetterCount,
+    "/induction-or-training": pendingCounts?.inductionTrainingCount,
+    "/asset-assignment": pendingCounts?.assetAssignmentCount
+  };
 
   return (
     <div
@@ -150,12 +166,14 @@ const SidebarContent = ({
             );
           }
 
+          const pendingCount = badgeMap[item.path] || 0;
+
           return (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center py-2.5 px-4 rounded-xl transition-all duration-300 border border-transparent mb-1 group ${isActive
+                `flex items-center justify-between py-2.5 px-4 rounded-xl transition-all duration-300 border border-transparent mb-1 group ${isActive
                   ? "bg-white bg-opacity-20 text-white border-white border-opacity-30 shadow-lg scale-[1.02]"
                   : "text-indigo-100 hover:bg-white hover:bg-opacity-10 hover:text-white hover:translate-x-1"
                 }`
@@ -164,11 +182,18 @@ const SidebarContent = ({
                 onClose?.();
               }}
             >
-              <item.icon
-                className={isCollapsed ? "mx-auto" : "mr-3"}
-                size={20}
-              />
-              {!isCollapsed && <span>{item.label}</span>}
+              <div className="flex items-center">
+                <item.icon
+                  className={isCollapsed ? "mx-auto" : "mr-3"}
+                  size={20}
+                />
+                {!isCollapsed && <span>{item.label}</span>}
+              </div>
+              {!isCollapsed && pendingCount > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
+                  {pendingCount}
+                </span>
+              )}
             </NavLink>
           );
         })}
@@ -215,6 +240,7 @@ const Sidebar = ({ onClose }) => {
   const [currentLang, setCurrentLang] = useState("en");
   const [showLanguageHint, setShowLanguageHint] = useState(false);
   const [isTranslateReady, setIsTranslateReady] = useState(false);
+  const pendingCounts = usePendingCounts();
 
   // ... (rest of the state and effects in Sidebar)
 
@@ -762,6 +788,7 @@ const Sidebar = ({ onClose }) => {
           showLanguageHint={showLanguageHint}
           handleLogout={handleLogout}
           setIsOpen={setIsOpen}
+          pendingCounts={pendingCounts}
         />
       </div>
 
@@ -787,6 +814,7 @@ const Sidebar = ({ onClose }) => {
             showLanguageHint={showLanguageHint}
             handleLogout={handleLogout}
             setIsOpen={setIsOpen}
+            pendingCounts={pendingCounts}
           />
         </div>
       </div>
@@ -813,6 +841,7 @@ const Sidebar = ({ onClose }) => {
             showLanguageHint={showLanguageHint}
             handleLogout={handleLogout}
             setIsOpen={setIsOpen}
+            pendingCounts={pendingCounts}
           />
         </div>
       </div>
