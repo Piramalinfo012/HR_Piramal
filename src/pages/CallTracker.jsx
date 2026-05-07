@@ -1,4 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+
+// Module-level cache — survives re-renders and page navigation
+// (React re-creates state on every mount, but module vars persist)
+let _cachedCallTrackerData = null; // raw full data from sheet
 
 import { Search, X, Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -198,23 +202,48 @@ const CallTracker = () => {
   };
 
   const loadData = async (isBackground = false) => {
-    if (!isBackground) setTableLoading(true);
+    // Serve from module cache instantly (no spinner) while we refresh in background
+    if (_cachedCallTrackerData && !isBackground) {
+      // Apply filters on cached data immediately, show instantly
+      applyFiltersAndSet(_cachedCallTrackerData);
+      setTableLoading(false);
+      // Still refresh in background
+      isBackground = true;
+    } else if (!isBackground) {
+      setTableLoading(true);
+    }
+
     let result = { success: false, data: [] };
     try {
       const cb = `&_=${Date.now()}`;
-      
-      
-      // Check if we need client-side filtering (Custom Date OR Entry By)
-      // Forced client-side for global sorting by Task ID
-      const needsClientSide = true;
+      const res = await fetch(`${FETCH_URL}?sheet=Calling Tracking&action=fetch${cb}`);
+      const json = await res.json();
 
-      if (needsClientSide) {
-        // Client-side filtering
-        const res = await fetch(`${FETCH_URL}?sheet=Calling Tracking&action=fetch${cb}`);
-        const json = await res.json();
-        
-        if (json.success && json.data) {
-          let filtered = json.data.slice(1); // skip header
+      if (json.success && json.data) {
+        // Store raw data in module cache
+        _cachedCallTrackerData = { raw: json.data, nextTaskId: json.nextTaskId };
+        applyFiltersAndSet(_cachedCallTrackerData, result);
+      } else {
+        result = { success: false, error: json.error || 'Failed to fetch data' };
+        if (!_cachedCallTrackerData) {
+          toast.error(result.error);
+          setDisplayData([]);
+        }
+      }
+    } catch (error) {
+      console.error('Pagination Fetch Error:', error);
+      if (!_cachedCallTrackerData) {
+        toast.error(error.message);
+        setDisplayData([]);
+      }
+    }
+    if (!isBackground) setTableLoading(false);
+  };
+
+  const applyFiltersAndSet = (cached, _result) => {
+    if (!cached) return;
+    const allData = cached.raw;
+    let filtered = allData.slice(1); // skip header
 
           // 1. Date Filter
           const now = new Date();
@@ -275,49 +304,28 @@ const CallTracker = () => {
           const total = filtered.length;
           const startIdx = (currentPage - 1) * recordsPerPage;
           const paginated = filtered.slice(startIdx, startIdx + recordsPerPage);
-          
-          result = { success: true, data: paginated, totalRows: total, nextTaskId: json.nextTaskId };
-        } else {
-           result = { success: false, error: json.error || "Failed to fetch data" };
-        }
-      } else {
-        // Server-side filtering for standard options (when Entry By is All and Date is not Custom)
-        const url = `${FETCH_URL}?sheet=${encodeURIComponent("Calling Tracking")}&action=fetchPaginated&page=${currentPage}&limit=${recordsPerPage}&search=${encodeURIComponent(searchTerm)}&dateFilter=${encodeURIComponent(dateFilter)}${cb}`;
-        const res = await fetch(url);
-        result = await res.json();
-      }
-    } catch (error) {
-      console.error("Pagination Fetch Error:", error);
-      result = { success: false, error: error.message };
-    }
 
-    if (result.success && result.data) {
-      // Map data (Assuming server returns array of arrays)
-      const processed = result.data.map((row, idx) => ({
-        id: (currentPage - 1) * recordsPerPage + idx,
-        timestamp: row[0] || "",
-        taskId: row[1] || "",
-        entryBy: row[2] || "",
-        applicantName: row[3] || "",
-        contactName: row[4] || "",
-        role: row[5] || "",
-        portalUsed: row[6] || "",
-        location: row[7] || "",
-        stage: row[8] || "",
-        notes: row[9] || "",
-        feedback: row[10] || "",
-        status: row[11] || "",
-        interviewStatus: row[12] || "",
-        interviewDate: row[13] || "",
-        attachmentUrl: row[14] || "",
-      }));
-      setDisplayData(processed);
-      setTotalRecords(result.totalRows || 0);
-    } else {
-      toast.error(result.error || "Failed to load data");
-      setDisplayData([]);
-    }
-    if (!isBackground) setTableLoading(false);
+          const processed = paginated.map((row, idx) => ({
+            id: (currentPage - 1) * recordsPerPage + idx,
+            timestamp: row[0] || '',
+            taskId: row[1] || '',
+            entryBy: row[2] || '',
+            applicantName: row[3] || '',
+            contactName: row[4] || '',
+            role: row[5] || '',
+            portalUsed: row[6] || '',
+            location: row[7] || '',
+            stage: row[8] || '',
+            notes: row[9] || '',
+            feedback: row[10] || '',
+            status: row[11] || '',
+            interviewStatus: row[12] || '',
+            interviewDate: row[13] || '',
+            attachmentUrl: row[14] || '',
+          }));
+          setDisplayData(processed);
+          setTotalRecords(total);
+          if (cached?.nextTaskId) setNextTaskId?.(cached.nextTaskId);
   };
 
   const handleInlineInterviewSubmit = async () => {
