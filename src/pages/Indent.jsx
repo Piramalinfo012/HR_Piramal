@@ -8,6 +8,7 @@ const Indent = () => {
   const [posts, setPosts] = useState([{
     post: "",
     gender: "",
+    priority: "",
     department: "",
     prefer: "",
     numberOfPost: "",
@@ -254,6 +255,7 @@ const Indent = () => {
     setPosts([...posts, {
       post: "",
       gender: "",
+      priority: "",
       department: "",
       prefer: "",
       numberOfPost: "",
@@ -339,6 +341,9 @@ const Indent = () => {
           p.qualifications || "",      // N (13): Required Qualifications
         ];
 
+        row.push("");                 // O (14): For Which Location
+        row.push(p.priority || "");   // P (15): Priority
+
         console.log(`Post #${idx + 1} finalized row:`, row);
         return row;
       });
@@ -368,6 +373,7 @@ const Indent = () => {
         setPosts([{
           post: "",
           gender: "",
+          priority: "",
           department: "",
           prefer: "",
           numberOfPost: "",
@@ -410,6 +416,7 @@ const Indent = () => {
       indenterName: "",
       post: "",
       gender: "",
+      priority: "",
       department: "",
       prefer: "",
       numberOfPost: "",
@@ -580,6 +587,22 @@ const Indent = () => {
                           <option value="Male">Male</option>
                           <option value="Female">Female</option>
                           <option value="Any">Any</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Priority
+                        </label>
+                        <select
+                          name="priority"
+                          value={postField.priority}
+                          onChange={(e) => handlePostInputChange(index, e)}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-navy text-sm"
+                        >
+                          <option value="">Select</option>
+                          <option value="High">High</option>
+                          <option value="Medium">Medium</option>
+                          <option value="Low">Low</option>
                         </select>
                       </div>
                       <div>

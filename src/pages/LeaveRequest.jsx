@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, X, Calendar, Clock, CheckCircle, AlertCircle, Filter, Search } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 
@@ -12,6 +12,7 @@ const LeaveRequest = () => {
   const employeeId = localStorage.getItem("employeeId");
   const rawUser = localStorage.getItem("user");
   const user = rawUser ? JSON.parse(rawUser) : {};
+  const isAdmin = (user.Admin || user.admin || '').toString().trim().toLowerCase() === 'yes';
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
   const [leavesData, setLeavesData] = useState([]);
@@ -20,7 +21,7 @@ const LeaveRequest = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
-  const [requestedByFilter, setRequestedByFilter] = useState('all');
+  const [requestedByFilter, setRequestedByFilter] = useState(isAdmin ? 'all' : (user.Name || ''));
   const [employees, setEmployees] = useState([]);
   const [hodNames, setHodNames] = useState([]);
   const [formData, setFormData] = useState({
@@ -301,6 +302,13 @@ const LeaveRequest = () => {
     return date.getMonth() === parseInt(monthIndex) && date.getFullYear() === parseInt(year);
   };
 
+  const isDateInSelectedYear = (dateStr, year) => {
+    if (!dateStr) return false;
+    const date = parseDate(dateStr);
+    if (!date) return false;
+    return date.getFullYear() === parseInt(year);
+  };
+
   const getLeaveFetchUrl = () =>
     `${LEAVE_API_URL}?sheet=${encodeURIComponent(LEAVE_SHEET_NAME)}&action=fetch`;
 
@@ -401,6 +409,7 @@ const LeaveRequest = () => {
       const processedData = dataRows
         .map(mapLeaveRow)
         .filter(item =>
+          isAdmin ||
           item.employeeName?.toString().trim().toLowerCase() === user.Name?.toString().trim().toLowerCase()
         );
 
@@ -529,13 +538,20 @@ const LeaveRequest = () => {
 
   const yearOptions = getYearOptions();
 
-  const requestedByOptions = [...new Set(leavesData
-    .map((leave) => leave.requestedBy || leave.employeeName)
-    .filter(Boolean)
-  )].sort();
+  const requestedByOptions = useMemo(() => [...new Set(
+    leavesData
+      .map((leave) => leave.requestedBy || leave.employeeName)
+      .filter(Boolean)
+  )].sort(), [leavesData]);
 
   const matchesRequestedByFilter = (leave) =>
     requestedByFilter === 'all' || (leave.requestedBy || leave.employeeName) === requestedByFilter;
+
+  const visibleLeaves = useMemo(() => (
+    isAdmin
+      ? leavesData
+      : leavesData.filter((leave) => leave.employeeName === user.Name)
+  ), [isAdmin, leavesData, user.Name]);
 
   const parseLeaveDaysValue = (value) => {
     if (value === null || value === undefined) return 0;
@@ -567,9 +583,8 @@ const LeaveRequest = () => {
   // Calculate leave counts based on selected month and year
   const calculateLeaveCounts = () => {
     // Filter for approved leaves for this specific employee
-    const approvedLeaves = leavesData.filter(leave =>
+    const approvedLeaves = visibleLeaves.filter(leave =>
       leave.status && leave.status.toLowerCase() === 'approved' &&
-      leave.employeeName === user.Name &&
       matchesRequestedByFilter(leave)
     );
 
@@ -588,9 +603,8 @@ const LeaveRequest = () => {
     const currentYear = new Date().getFullYear();
 
     // Filter for approved leaves for this specific employee in the current year
-    const approvedLeaves = leavesData.filter(leave =>
+    const approvedLeaves = visibleLeaves.filter(leave =>
       leave.status && leave.status.toLowerCase() === 'approved' &&
-      leave.employeeName === user.Name &&
       matchesRequestedByFilter(leave)
     );
 
@@ -618,11 +632,10 @@ const LeaveRequest = () => {
 
   // ✅ Approved leave counts (only number of requests)
   const calculateApprovedLeaveCounts = () => {
-    const approvedLeaves = leavesData.filter(
+    const approvedLeaves = visibleLeaves.filter(
       leave =>
         leave.status &&
         leave.status.toLowerCase() === 'approved' &&
-        leave.employeeName === user.Name &&
         matchesRequestedByFilter(leave) &&
         (selectedMonth === 'all' ||
           isDateInSelectedPeriod(leave.startDate, selectedMonth, selectedYear) ||
@@ -639,7 +652,7 @@ const LeaveRequest = () => {
     };
   };
 
-  const approvedCounts = calculateApprovedLeaveCounts();
+  const approvedCounts = useMemo(() => calculateApprovedLeaveCounts(), [visibleLeaves, selectedMonth, selectedYear, requestedByFilter]);
 
   // Generate month options for the dropdown
   const monthOptions = [
@@ -658,29 +671,38 @@ const LeaveRequest = () => {
     { value: '11', label: 'December' }
   ];
 
-  const remainingLeaves = calculateRemainingLeaves();
-  const filteredLeaveRequests = leavesData.filter(leave =>
-    matchesRequestedByFilter(leave) &&
-    (selectedMonth === 'all' ||
-      isDateInSelectedPeriod(leave.startDate, selectedMonth, selectedYear) ||
-      isDateInSelectedPeriod(leave.endDate, selectedMonth, selectedYear))
-  );
-  const totalLeaveDays = filteredLeaveRequests.reduce((sum, leave) => sum + getLeaveDayCount(leave), 0);
-  const approvedLeaveDays = filteredLeaveRequests
+  const remainingLeaves = useMemo(() => calculateRemainingLeaves(), [visibleLeaves, selectedMonth, selectedYear, requestedByFilter]);
+  const filteredLeaveRequests = useMemo(() => visibleLeaves.filter(leave => {
+    const requestedByMatch = matchesRequestedByFilter(leave);
+    const matchesYear = selectedMonth === 'all'
+      ? (
+        isDateInSelectedYear(leave.startDate, selectedYear) ||
+        isDateInSelectedYear(leave.endDate, selectedYear) ||
+        (!leave.startDate && !leave.endDate)
+      )
+      : (
+        isDateInSelectedPeriod(leave.startDate, selectedMonth, selectedYear) ||
+        isDateInSelectedPeriod(leave.endDate, selectedMonth, selectedYear)
+      );
+
+    return requestedByMatch && matchesYear;
+  }), [visibleLeaves, selectedMonth, selectedYear, requestedByFilter]);
+  const totalLeaveDays = useMemo(() => filteredLeaveRequests.reduce((sum, leave) => sum + getLeaveDayCount(leave), 0), [filteredLeaveRequests]);
+  const approvedLeaveDays = useMemo(() => filteredLeaveRequests
     .filter((leave) => leave.status?.toString().toLowerCase() === 'approved')
-    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0);
-  const pendingLeaveDays = filteredLeaveRequests
+    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0), [filteredLeaveRequests]);
+  const pendingLeaveDays = useMemo(() => filteredLeaveRequests
     .filter((leave) => leave.status?.toString().toLowerCase() === 'pending')
-    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0);
-  const rejectedLeaveDays = filteredLeaveRequests
+    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0), [filteredLeaveRequests]);
+  const rejectedLeaveDays = useMemo(() => filteredLeaveRequests
     .filter((leave) => leave.status?.toString().toLowerCase() === 'rejected')
-    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0);
-  const leaveSummaryCards = [
+    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0), [filteredLeaveRequests]);
+  const leaveSummaryCards = useMemo(() => ([
     { label: 'Paid Leave', value: totalLeaveDays, subtext: 'Total leave days', icon: Calendar, iconClass: 'text-navy', bgClass: 'bg-indigo-100' },
     { label: 'Approved Leave', value: approvedLeaveDays, subtext: 'Approved leave days', icon: CheckCircle, iconClass: 'text-green-600', bgClass: 'bg-green-100' },
     { label: 'Pending Leave', value: pendingLeaveDays, subtext: 'Pending leave days', icon: Clock, iconClass: 'text-yellow-600', bgClass: 'bg-yellow-100' },
     { label: 'Rejected Leave', value: rejectedLeaveDays, subtext: 'Rejected leave days', icon: AlertCircle, iconClass: 'text-red-600', bgClass: 'bg-red-100' },
-  ];
+  ]), [totalLeaveDays, approvedLeaveDays, pendingLeaveDays, rejectedLeaveDays]);
 
   const getStatusMeta = (status) => {
     const value = status?.toString().trim().toLowerCase();

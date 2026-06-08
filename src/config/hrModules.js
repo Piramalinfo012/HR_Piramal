@@ -98,28 +98,6 @@ export const adminNavigationItems = [
   },
   {
     type: "dropdown",
-    icon: "CheckCircle",
-    label: "Performance Management",
-    items: [
-      { path: "/kpi-management", label: "KPI Management", placeholder: true },
-      { path: "/kra-management", label: "KRA Management", placeholder: true },
-      { path: "/performance-review", label: "Performance Review", placeholder: true },
-      { path: "/appraisal-management", label: "Appraisal Management", placeholder: true },
-    ],
-  },
-  {
-    type: "dropdown",
-    icon: "Book",
-    label: "Training & Development",
-    items: [
-      { path: "/employee-training", label: "Employee Training", placeholder: true },
-      { path: "/skill-development", label: "Skill Development", placeholder: true },
-      { path: "/training-calendar", label: "Training Calendar", placeholder: true },
-      { path: "/training-feedback", label: "Training Feedback", placeholder: true },
-    ],
-  },
-  {
-    type: "dropdown",
     icon: "UserX",
     label: "Exit Management",
     items: [
