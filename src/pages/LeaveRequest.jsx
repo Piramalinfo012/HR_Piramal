@@ -4,6 +4,10 @@ import useAuthStore from '../store/authStore';
 
 import toast from 'react-hot-toast';
 
+const LEAVE_API_URL = import.meta.env.VITE_LEAVE_REQUEST_SHEET_URL;
+const LEAVE_SHEET_NAME = 'FMS';
+const LEAVE_DATA_START_INDEX = 6;
+
 const LeaveRequest = () => {
   const employeeId = localStorage.getItem("employeeId");
   const rawUser = localStorage.getItem("user");
@@ -16,18 +20,33 @@ const LeaveRequest = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [requestedByFilter, setRequestedByFilter] = useState('all');
   const [employees, setEmployees] = useState([]);
   const [hodNames, setHodNames] = useState([]);
   const [formData, setFormData] = useState({
     employeeId: employeeId,
     employeeName: user.Name || '',
     designation: '',
-    hodName: '',
-    leaveType: '',
+    department: '',
+    jobLocation: '',
     fromDate: '',
     toDate: '',
-    reason: ''
+    reason: '',
+    remark: '',
+    imageUrl: ''
   });
+
+  const getJoiningFetchUrl = () =>
+    `${import.meta.env.VITE_JOINING_SHEET_URL}?action=read&sheet=JOINING_FMS`;
+
+  const getColumnIndex = (headers, names, fallbackIndex) => {
+    const normalizedNames = names.map((name) => name.toLowerCase());
+    const index = headers.findIndex((header) => {
+      const value = header?.toString().trim().toLowerCase();
+      return value && normalizedNames.some((name) => value === name || value.includes(name));
+    });
+    return index !== -1 ? index : fallbackIndex;
+  };
 
   const fetchHodNames = async () => {
     try {
@@ -64,9 +83,7 @@ const LeaveRequest = () => {
   // Fetch employee data including designation
   const fetchEmployeeData = async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING&action=fetch`
-      );
+      const response = await fetch(getJoiningFetchUrl());
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -84,22 +101,29 @@ const LeaveRequest = () => {
         throw new Error('Expected array data not received');
       }
 
-      // Data starts from row 7 (index 6)
-      // Column C (index 2) contains Employee Name
-      // Column B (index 1) contains Employee ID
-      // Column F (index 5) contains Designation
-      const employeeRow = rawData.slice(6).find(row =>
-        row[2]?.toString().trim().toLowerCase() === user.Name?.toString().trim().toLowerCase()
+      const headers = rawData[6] || [];
+      const idIndex = getColumnIndex(headers, ['Joining ID', 'Indent Number', 'ID'], 5);
+      const nameIndex = getColumnIndex(headers, ['Candidate Name', 'Name As Per Aadhar', 'Employee Name'], 10);
+      const designationIndex = getColumnIndex(headers, ['Designation'], 14);
+      const jobLocationIndex = getColumnIndex(headers, ['Joining Place', 'Job Location', 'Location'], 13);
+      const departmentIndex = getColumnIndex(headers, ['Department'], 2);
+
+      const employeeRow = rawData.slice(7).find(row =>
+        row[nameIndex]?.toString().trim().toLowerCase() === user.Name?.toString().trim().toLowerCase()
       );
 
       if (employeeRow) {
-        const employeeId = employeeRow[1] || '';
-        const designation = employeeRow[5] || '';
+        const employeeId = employeeRow[idIndex] || '';
+        const designation = employeeRow[designationIndex] || '';
+        const jobLocation = employeeRow[jobLocationIndex] || '';
+        const department = employeeRow[departmentIndex] || '';
 
         setFormData(prev => ({
           ...prev,
           employeeId: employeeId,
-          designation: designation
+          designation: designation,
+          department: department,
+          jobLocation: jobLocation
         }));
       }
     } catch (error) {
@@ -107,12 +131,10 @@ const LeaveRequest = () => {
     }
   };
 
-  // Fetch employees from JOINING sheet
+  // Fetch employees from JOINING_FMS sheet
   const fetchEmployees = async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=JOINING&action=fetch`
-      );
+      const response = await fetch(getJoiningFetchUrl());
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -130,16 +152,21 @@ const LeaveRequest = () => {
         throw new Error('Expected array data not received');
       }
 
-      // Data starts from row 7 (index 6)
-      // Column C is index 2 (Employee Name)
-      // Column B is index 1 (Employee ID)
-      // Column F is index 5 (Designation)
-      const employeeData = rawData.slice(6).map((row, index) => ({
-        id: row[1] || '', // Column B (Employee ID)
-        name: row[2] || '', // Column C (Employee Name)
-        designation: row[5] || '', // Column F (Designation)
-        rowIndex: index + 7 // Actual row number in sheet
-      })).filter(emp => emp.name && emp.id); // Filter out empty entries
+      const headers = rawData[6] || [];
+      const idIndex = getColumnIndex(headers, ['Joining ID', 'Indent Number', 'ID'], 5);
+      const nameIndex = getColumnIndex(headers, ['Candidate Name', 'Name As Per Aadhar', 'Employee Name'], 10);
+      const designationIndex = getColumnIndex(headers, ['Designation'], 14);
+      const jobLocationIndex = getColumnIndex(headers, ['Joining Place', 'Job Location', 'Location'], 13);
+      const departmentIndex = getColumnIndex(headers, ['Department'], 2);
+
+      const employeeData = rawData.slice(7).map((row, index) => ({
+        id: row[idIndex] || '',
+        name: row[nameIndex] || '',
+        designation: row[designationIndex] || '',
+        jobLocation: row[jobLocationIndex] || '',
+        department: row[departmentIndex] || '',
+        rowIndex: index + 8
+      })).filter(emp => emp.name && emp.id);
 
       setEmployees(employeeData);
     } catch (error) {
@@ -164,25 +191,59 @@ const LeaveRequest = () => {
     setSelectedYear(e.target.value);
   };
 
+  const handleRequestedByChange = (e) => {
+    setRequestedByFilter(e.target.value);
+  };
+
+  const formatDateToDDMMYYYY = (dateValue) => {
+    if (!dateValue) return '';
+
+    if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+      const day = String(dateValue.getDate()).padStart(2, '0');
+      const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+      return `${day}/${month}/${dateValue.getFullYear()}`;
+    }
+
+    const rawValue = dateValue.toString().trim();
+    if (!rawValue) return '';
+
+    const datePart = rawValue.split(/[ T]/)[0];
+    const isoMatch = datePart.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+      return `${isoMatch[3].padStart(2, '0')}/${isoMatch[2].padStart(2, '0')}/${isoMatch[1]}`;
+    }
+
+    if (datePart.includes('/')) {
+      const [first, second, year] = datePart.split('/');
+      if (first && second && year) {
+        const firstNumber = Number(first);
+        const secondNumber = Number(second);
+        const day = secondNumber > 12 && firstNumber <= 12 ? second : first;
+        const month = secondNumber > 12 && firstNumber <= 12 ? first : second;
+        return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+      }
+    }
+
+    const parsedDate = new Date(rawValue);
+    if (isNaN(parsedDate.getTime())) return rawValue;
+
+    const day = String(parsedDate.getDate()).padStart(2, '0');
+    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}/${parsedDate.getFullYear()}`;
+  };
+
+  const parseSheetDate = (dateValue) => {
+    const formattedDate = formatDateToDDMMYYYY(dateValue);
+    if (!formattedDate || !formattedDate.includes('/')) return null;
+    const [day, month, year] = formattedDate.split('/').map(Number);
+    const date = new Date(year, month - 1, day);
+    return isNaN(date.getTime()) ? null : date;
+  };
+
   const calculateDays = (startDateStr, endDateStr) => {
-    if (!startDateStr || !endDateStr) return 0;
-
-    let startDate, endDate;
-
-    // Handle different date formats
-    if (startDateStr.includes('/')) {
-      const [startDay, startMonth, startYear] = startDateStr.split('/').map(Number);
-      startDate = new Date(startYear, startMonth - 1, startDay);
-    } else {
-      startDate = new Date(startDateStr);
-    }
-
-    if (endDateStr.includes('/')) {
-      const [endDay, endMonth, endYear] = endDateStr.split('/').map(Number);
-      endDate = new Date(endYear, endMonth - 1, endDay);
-    } else {
-      endDate = new Date(endDateStr);
-    }
+    const startDate = parseSheetDate(startDateStr);
+    const endDate = parseSheetDate(endDateStr);
+    if (!startDate || !endDate) return 0;
 
     const diffTime = endDate - startDate;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
@@ -195,22 +256,9 @@ const LeaveRequest = () => {
       return calculateDays(startDateStr, endDateStr);
     }
 
-    let startDate, endDate;
-
-    // Handle different date formats
-    if (startDateStr.includes('/')) {
-      const [startDay, startMonth, startYear] = startDateStr.split('/').map(Number);
-      startDate = new Date(startYear, startMonth - 1, startDay);
-    } else {
-      startDate = new Date(startDateStr);
-    }
-
-    if (endDateStr.includes('/')) {
-      const [endDay, endMonth, endYear] = endDateStr.split('/').map(Number);
-      endDate = new Date(endYear, endMonth - 1, endDay);
-    } else {
-      endDate = new Date(endDateStr);
-    }
+    const startDate = parseSheetDate(startDateStr);
+    const endDate = parseSheetDate(endDateStr);
+    if (!startDate || !endDate) return 0;
 
     // If the leave doesn't fall in the selected month and year at all, return 0
     const selectedMonthStart = new Date(year, parseInt(month), 1);
@@ -234,42 +282,13 @@ const LeaveRequest = () => {
   };
 
 
-  const formatDOB = (dateString) => {
-    if (!dateString) return '';
-
-    // If already in dd/mm/yyyy format, return as-is
-    if (typeof dateString === 'string' && dateString.includes('/')) {
-      const parts = dateString.split('/');
-      if (parts.length === 3 && parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
-        return dateString;
-      }
-    }
-
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return dateString; // Return as-is if not a valid date
-    }
-
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-
-    return `${day}/${month}/${year}`;
-  };
+  const formatDOB = (dateString) => formatDateToDDMMYYYY(dateString);
 
   // Function to parse date string in DD/MM/YYYY format
   const parseDate = (dateStr) => {
     if (!dateStr) return null;
 
-    // Handle different date formats that might come from the API
-    if (dateStr.includes('/')) {
-      const [day, month, year] = dateStr.split('/').map(Number);
-      return new Date(year, month - 1, day);
-    } else if (dateStr.includes('-')) {
-      return new Date(dateStr);
-    }
-
-    return null;
+    return parseSheetDate(dateStr);
   };
 
   // Check if a date falls within a specific month and year
@@ -282,6 +301,76 @@ const LeaveRequest = () => {
     return date.getMonth() === parseInt(monthIndex) && date.getFullYear() === parseInt(year);
   };
 
+  const getLeaveFetchUrl = () =>
+    `${LEAVE_API_URL}?sheet=${encodeURIComponent(LEAVE_SHEET_NAME)}&action=fetch`;
+
+  const formatSheetTimestamp = () => formatDateToDDMMYYYY(new Date());
+
+  const formatLeaveDays = (fromDate, toDate) => {
+    const days = calculateDays(fromDate, toDate);
+    if (!days) return '';
+    return `${days} ${days === 1 ? 'day' : 'days'}`;
+  };
+
+  const hasSheetValue = (value) =>
+    value !== null && value !== undefined && value.toString().trim() !== '';
+
+  const normalizeApprovalStatus = (status) => {
+    const value = status?.toString().trim().toLowerCase();
+    if (value === 'approved' || value === 'approve') return 'approved';
+    if (value === 'rejected' || value === 'reject') return 'rejected';
+    return '';
+  };
+
+  const getApprovalStatus = (row) => {
+    const approvalStatus = normalizeApprovalStatus(row[15]);
+    if (approvalStatus) return approvalStatus;
+    if (hasSheetValue(row[11]) && !hasSheetValue(row[12])) return 'Pending';
+    return '';
+  };
+
+  const getNextLeaveRequestNo = (rows) => {
+    const maxNo = rows
+      .slice(LEAVE_DATA_START_INDEX)
+      .reduce((max, row) => {
+        const match = row[1]?.toString().match(/LR-?(\d+)/i);
+        return match ? Math.max(max, Number(match[1])) : max;
+      }, 0);
+
+    return `LR-${String(maxNo + 1).padStart(2, '0')}`;
+  };
+
+  const mapLeaveRow = (row, index) => ({
+    id: index + 1,
+    timestamp: row[0] || '',
+    leaveRequestId: row[1] || '',
+    requestedBy: row[2] || '',
+    department: row[3] || '',
+    totalLeaves: row[4] || '',
+    jobLocation: row[5] || '',
+    leaveFromDate: row[6] || '',
+    leaveToDate: row[7] || '',
+    leaveReason: row[8] || '',
+    remark: row[9] || '',
+    imageUrl: row[10] || '',
+    approvalPlanned: row[11] || '',
+    approvalActual: row[12] || '',
+    approvalDelay: row[13] || '',
+    approvedBy: row[14] || '',
+    approvalStatus: row[15] || '',
+    approvalRemarks: row[16] || '',
+    serialNo: row[1] || '',
+    employeeId: row[1] || '',
+    employeeName: row[2] || '',
+    startDate: row[6] || '',
+    endDate: row[7] || '',
+    reason: row[8] || '',
+    days: row[4] || formatLeaveDays(row[6], row[7]),
+    status: getApprovalStatus(row),
+    approvalPending: hasSheetValue(row[11]) && !hasSheetValue(row[12]),
+    appliedDate: row[0] || '',
+  });
+
   const fetchLeaveData = async () => {
     setLoading(true);
     setTableLoading(true);
@@ -289,7 +378,7 @@ const LeaveRequest = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Leave Management&action=fetch`
+        getLeaveFetchUrl()
       );
 
       if (!response.ok) {
@@ -303,38 +392,18 @@ const LeaveRequest = () => {
       }
 
       const rawData = result.data || result;
-      console.log("Raw data from API:", rawData);
 
       if (!Array.isArray(rawData)) {
         throw new Error('Expected array data not received');
       }
 
-      const dataRows = rawData.length > 1 ? rawData.slice(1) : [];
-
-      // Process and filter data by employee name
-      // Update column indices according to your requirements:
-      // Column E (index 4) - From Date
-      // Column F (index 5) - To Date
-      // Column L (index 11) - Leave Type
+      const dataRows = rawData.length > LEAVE_DATA_START_INDEX ? rawData.slice(LEAVE_DATA_START_INDEX) : [];
       const processedData = dataRows
-        .map((row, index) => ({
-          id: index + 1,
-          timestamp: row[0] || '',
-          serialNo: row[1] || '',
-          employeeId: row[2] || '',
-          employeeName: row[3] || '',
-          startDate: row[4] || '', // Column E (index 4) - From Date
-          endDate: row[5] || '',   // Column F (index 5) - To Date
-          reason: row[6] || '',
-          days: calculateDays(row[4], row[5]),
-          status: row[7] || 'Pending',
-          leaveType: row[8] || '', // Column L (index 11) - Leave Type
-          appliedDate: row[0] || '', // Using timestamp as applied date
-          approvedBy: row[9] || '',
-        }))
-        .filter(item => item.employeeName === user.Name);
+        .map(mapLeaveRow)
+        .filter(item =>
+          item.employeeName?.toString().trim().toLowerCase() === user.Name?.toString().trim().toLowerCase()
+        );
 
-      console.log("Filtered leave data:", processedData);
       setLeavesData(processedData);
 
     } catch (error) {
@@ -349,7 +418,6 @@ const LeaveRequest = () => {
 
   useEffect(() => {
     fetchLeaveData();
-    fetchEmployees();
     fetchEmployeeData();
     fetchHodNames();
   }, []);
@@ -357,43 +425,37 @@ const LeaveRequest = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.employeeName || !formData.leaveType || !formData.fromDate || !formData.toDate || !formData.reason || !formData.hodName) {
+    if (!formData.employeeName || !formData.department || !formData.jobLocation || !formData.fromDate || !formData.toDate || !formData.reason) {
       toast.error('Please fill all required fields');
       return;
     }
 
     try {
       setSubmitting(true);
-
-      const now = new Date();
-
-      // Format timestamp as YYYY-MM-DD HH:MM:SS
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      const dataResponse = await fetch(getLeaveFetchUrl());
+      const dataResult = await dataResponse.json();
+      const existingRows = Array.isArray(dataResult.data) ? dataResult.data : [];
+      const formattedTimestamp = formatSheetTimestamp();
+      const leaveRequestNo = getNextLeaveRequestNo(existingRows);
 
       const rowData = [
-        formattedTimestamp,           // Timestamp
-        "",                          // Serial number (empty for auto-increment)
-        formData.employeeId,         // Employee ID
-        formData.employeeName,       // Employee Name
-        formatDOB(formData.fromDate), // Leave Date Start (formatted to dd/mm/yyyy)
-        formatDOB(formData.toDate),   // Leave Date End (formatted to dd/mm/yyyy)
-        formData.reason,             // Reason
-        "Pending",                   // Status
-        formData.leaveType,          // Leave Type (Column L, index 11)
-        formData.hodName,            // HOD Name
-        formData.designation,        // Designation
+        formattedTimestamp,
+        leaveRequestNo,
+        formData.employeeName,
+        formData.department || formData.designation,
+        formatLeaveDays(formData.fromDate, formData.toDate),
+        formData.jobLocation || '',
+        formatDOB(formData.fromDate),
+        formatDOB(formData.toDate),
+        formData.reason,
+        formData.remark,
+        formData.imageUrl,
       ];
 
-      const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+      const response = await fetch(LEAVE_API_URL, {
         method: 'POST',
         body: new URLSearchParams({
-          sheetName: 'Leave Management',
+          sheetName: LEAVE_SHEET_NAME,
           action: 'insert',
           rowData: JSON.stringify(rowData),
         }),
@@ -411,11 +473,13 @@ const LeaveRequest = () => {
           employeeId: employeeId,
           employeeName: user.Name || '',
           designation: formData.designation || '',
-          hodName: '',
-          leaveType: '',
+          department: formData.department || '',
+          jobLocation: formData.jobLocation || '',
           fromDate: '',
           toDate: '',
-          reason: ''
+          reason: '',
+          remark: '',
+          imageUrl: ''
         });
         setShowModal(false);
         // Refresh the data
@@ -433,7 +497,7 @@ const LeaveRequest = () => {
 
   const hasSubmittedToday = () => {
     const today = new Date();
-    const todayStr = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+    const todayStr = formatDateToDDMMYYYY(today);
 
     return leavesData.some(leave => {
       // Case-insensitive employee name comparison
@@ -443,8 +507,7 @@ const LeaveRequest = () => {
       }
 
       // Extract date part from timestamp (M/D/YYYY H:M:S format from sheet)
-      const timestampDate = leave.timestamp.split(' ')[0];
-      return timestampDate === todayStr;
+      return formatDateToDDMMYYYY(leave.timestamp) === todayStr;
     });
   };
   const leaveTypes = [
@@ -466,12 +529,48 @@ const LeaveRequest = () => {
 
   const yearOptions = getYearOptions();
 
+  const requestedByOptions = [...new Set(leavesData
+    .map((leave) => leave.requestedBy || leave.employeeName)
+    .filter(Boolean)
+  )].sort();
+
+  const matchesRequestedByFilter = (leave) =>
+    requestedByFilter === 'all' || (leave.requestedBy || leave.employeeName) === requestedByFilter;
+
+  const parseLeaveDaysValue = (value) => {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return value;
+
+    const normalized = value.toString().trim().toLowerCase();
+    if (!normalized) return 0;
+    if (/^1\s*\/\s*2/.test(normalized)) return 0.5;
+
+    const numberMatch = normalized.match(/\d+(?:\.\d+)?/);
+    let days = numberMatch ? Number(numberMatch[0]) : 0;
+    const hasHalf = /half|haf|hanf|1\s*\/\s*2/.test(normalized);
+
+    if (hasHalf && !normalized.includes('0.5')) {
+      days += 0.5;
+    }
+
+    return Number.isFinite(days) ? days : 0;
+  };
+
+  const getLeaveDayCount = (leave) => {
+    const daysFromColumnE = parseLeaveDaysValue(leave.totalLeaves || leave.days);
+    return daysFromColumnE || calculateDays(leave.startDate, leave.endDate);
+  };
+
+  const formatLeaveCount = (value) =>
+    Number.isInteger(value) ? value : Number(value.toFixed(1));
+
   // Calculate leave counts based on selected month and year
   const calculateLeaveCounts = () => {
     // Filter for approved leaves for this specific employee
     const approvedLeaves = leavesData.filter(leave =>
       leave.status && leave.status.toLowerCase() === 'approved' &&
-      leave.employeeName === user.Name
+      leave.employeeName === user.Name &&
+      matchesRequestedByFilter(leave)
     );
 
     return {
@@ -491,7 +590,8 @@ const LeaveRequest = () => {
     // Filter for approved leaves for this specific employee in the current year
     const approvedLeaves = leavesData.filter(leave =>
       leave.status && leave.status.toLowerCase() === 'approved' &&
-      leave.employeeName === user.Name
+      leave.employeeName === user.Name &&
+      matchesRequestedByFilter(leave)
     );
 
     // Calculate total days taken for each leave type in the current year
@@ -523,6 +623,7 @@ const LeaveRequest = () => {
         leave.status &&
         leave.status.toLowerCase() === 'approved' &&
         leave.employeeName === user.Name &&
+        matchesRequestedByFilter(leave) &&
         (selectedMonth === 'all' ||
           isDateInSelectedPeriod(leave.startDate, selectedMonth, selectedYear) ||
           isDateInSelectedPeriod(leave.endDate, selectedMonth, selectedYear))
@@ -558,15 +659,73 @@ const LeaveRequest = () => {
   ];
 
   const remainingLeaves = calculateRemainingLeaves();
+  const filteredLeaveRequests = leavesData.filter(leave =>
+    matchesRequestedByFilter(leave) &&
+    (selectedMonth === 'all' ||
+      isDateInSelectedPeriod(leave.startDate, selectedMonth, selectedYear) ||
+      isDateInSelectedPeriod(leave.endDate, selectedMonth, selectedYear))
+  );
+  const totalLeaveDays = filteredLeaveRequests.reduce((sum, leave) => sum + getLeaveDayCount(leave), 0);
+  const approvedLeaveDays = filteredLeaveRequests
+    .filter((leave) => leave.status?.toString().toLowerCase() === 'approved')
+    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0);
+  const pendingLeaveDays = filteredLeaveRequests
+    .filter((leave) => leave.status?.toString().toLowerCase() === 'pending')
+    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0);
+  const rejectedLeaveDays = filteredLeaveRequests
+    .filter((leave) => leave.status?.toString().toLowerCase() === 'rejected')
+    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0);
+  const leaveSummaryCards = [
+    { label: 'Paid Leave', value: totalLeaveDays, subtext: 'Total leave days', icon: Calendar, iconClass: 'text-navy', bgClass: 'bg-indigo-100' },
+    { label: 'Approved Leave', value: approvedLeaveDays, subtext: 'Approved leave days', icon: CheckCircle, iconClass: 'text-green-600', bgClass: 'bg-green-100' },
+    { label: 'Pending Leave', value: pendingLeaveDays, subtext: 'Pending leave days', icon: Clock, iconClass: 'text-yellow-600', bgClass: 'bg-yellow-100' },
+    { label: 'Rejected Leave', value: rejectedLeaveDays, subtext: 'Rejected leave days', icon: AlertCircle, iconClass: 'text-red-600', bgClass: 'bg-red-100' },
+  ];
+
+  const getStatusMeta = (status) => {
+    const value = status?.toString().trim().toLowerCase();
+    if (value === 'approved') {
+      return {
+        label: 'Approved',
+        icon: CheckCircle,
+        cardClass: 'bg-green-50 border-green-200',
+        badgeClass: 'bg-green-100 text-green-800 border-green-200',
+        iconClass: 'text-green-600',
+      };
+    }
+    if (value === 'rejected') {
+      return {
+        label: 'Rejected',
+        icon: AlertCircle,
+        cardClass: 'bg-red-50 border-red-200',
+        badgeClass: 'bg-red-100 text-red-800 border-red-200',
+        iconClass: 'text-red-600',
+      };
+    }
+    return {
+      label: 'Pending',
+      icon: Clock,
+      cardClass: 'bg-yellow-50 border-yellow-200',
+      badgeClass: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      iconClass: 'text-yellow-600',
+    };
+  };
+
+  const DetailItem = ({ label, value, className = '' }) => (
+    <div className={`min-w-0 ${className}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="mt-1 text-sm text-gray-900 break-words">{value || '-'}</p>
+    </div>
+  );
 
   return (
-    <div className="space-y-6 page-content p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 page-content p-4 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-gray-800">Leave Request</h1>
         <button
           onClick={() => setShowModal(true)}
           disabled={hasSubmittedToday()}
-          className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${hasSubmittedToday()
+          className={`inline-flex w-full items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white sm:w-auto ${hasSubmittedToday()
             ? 'bg-gray-400 cursor-not-allowed'
             : 'bg-navy hover:bg-navy-dark'
             }`}
@@ -582,8 +741,8 @@ const LeaveRequest = () => {
 
       {/* Month and Year Filter */}
       <div className="bg-white rounded-lg shadow border p-4">
-        <div className="flex items-center flex-wrap gap-4">
-          <div className="flex items-center">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Filter size={18} className="text-gray-500 mr-2" />
             <label htmlFor="monthFilter" className="text-sm font-medium text-gray-700 mr-3">
               Filter by Month:
@@ -592,7 +751,7 @@ const LeaveRequest = () => {
               id="monthFilter"
               value={selectedMonth}
               onChange={handleMonthChange}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy sm:w-auto"
             >
               {monthOptions.map(option => (
                 <option key={option.value} value={option.value}>
@@ -602,7 +761,7 @@ const LeaveRequest = () => {
             </select>
           </div>
 
-          <div className="flex items-center">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <label htmlFor="yearFilter" className="text-sm font-medium text-gray-700 mr-3">
               Year:
             </label>
@@ -610,11 +769,30 @@ const LeaveRequest = () => {
               id="yearFilter"
               value={selectedYear}
               onChange={handleYearChange}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy sm:w-auto"
             >
               {yearOptions.map(year => (
                 <option key={year} value={year}>
                   {year}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label htmlFor="requestedByFilter" className="text-sm font-medium text-gray-700 mr-3">
+              Requested By:
+            </label>
+            <select
+              id="requestedByFilter"
+              value={requestedByFilter}
+              onChange={handleRequestedByChange}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy sm:w-auto"
+            >
+              <option value="all">All</option>
+              {requestedByOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
                 </option>
               ))}
             </select>
@@ -624,116 +802,97 @@ const LeaveRequest = () => {
 
       {/* Leave Balance Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {Object.entries(calculateLeaveCounts()).map(([leaveType, days]) => (
-          <div key={leaveType} className="bg-white rounded-xl shadow-lg border p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 font-medium">{leaveType}</p>
-                <h3 className="text-2xl font-bold text-gray-800">{days}</h3>
-                <p className="text-xs text-gray-500">
-                  {selectedMonth === 'all' ? 'Total approved days' : `Days in ${monthOptions.find(m => m.value === selectedMonth)?.label || ''}`}
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-indigo-100">
-                <Calendar size={24} className="text-navy" />
-              </div>
-            </div>
-          </div>
-        ))}
+        {leaveSummaryCards.map((card) => {
+          const SummaryIcon = card.icon;
 
-        {/* Total Leave Card */}
-        <div className="bg-white rounded-xl shadow-lg border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Total Leave</p>
-              <h3 className="text-2xl font-bold text-gray-800">
-                {Object.values(calculateLeaveCounts()).reduce((sum, days) => sum + days, 0)}
-              </h3>
-              <p className="text-xs text-gray-500">
-                {selectedMonth === 'all' ? 'All approved days' : `Total days in ${monthOptions.find(m => m.value === selectedMonth)?.label || ''}`}
-              </p>
+          return (
+            <div key={card.label} className="bg-white rounded-xl shadow-lg border p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 font-medium">{card.label}</p>
+                  <h3 className="text-2xl font-bold text-gray-800">{formatLeaveCount(card.value)}</h3>
+                  <p className="text-xs text-gray-500">{card.subtext}</p>
+                </div>
+                <div className={`p-3 rounded-full ${card.bgClass}`}>
+                  <SummaryIcon size={24} className={card.iconClass} />
+                </div>
+              </div>
             </div>
-            <div className="p-3 rounded-full bg-indigo-100">
-              <Calendar size={24} className="text-navy" />
-            </div>
-          </div>
-        </div>
-
-        {/* Remaining Leaves Card */}
-        <div className="bg-white rounded-xl shadow-lg border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Remaining Leaves</p>
-              <h3 className="text-2xl font-bold text-gray-800">
-                {remainingLeaves['Casual Leave'] + remainingLeaves['Earned Leave']}
-              </h3>
-              <p className="text-xs text-gray-500">
-                Casual: {remainingLeaves['Casual Leave']} | Earned: {remainingLeaves['Earned Leave']}
-              </p>
-            </div>
-            <div className="p-3 rounded-full bg-green-100">
-              <CheckCircle size={24} className="text-green-600" />
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
-      {/* Leave Requests Table */}
-      <div className="bg-white rounded-lg shadow border overflow-hidden">
-        <div className="p-6">
+      {/* Leave Requests */}
+      <div className="bg-white rounded-lg shadow border">
+        <div className="p-4 sm:p-6">
           <h2 className="text-lg font-bold text-gray-800 mb-4">My Leave Requests</h2>
           {tableLoading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy"></div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applied Date</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {leavesData
-                    .filter(leave =>
-                      selectedMonth === 'all' ||
-                      isDateInSelectedPeriod(leave.startDate, selectedMonth, selectedYear) ||
-                      isDateInSelectedPeriod(leave.endDate, selectedMonth, selectedYear)
-                    )
-                    .map((request) => (
-                      <tr key={request.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{request.leaveType}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDOB(request.startDate)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatDOB(request.endDate)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{request.days}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">{request.reason}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs rounded-full ${request.status === 'approved'
-                            ? 'bg-green-100 text-green-800'
-                            : request.status === 'rejected'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                            {request.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {request.appliedDate}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-              {leavesData.length === 0 && (
+            <div className="space-y-4">
+              {filteredLeaveRequests.length > 0 ? (
+                filteredLeaveRequests.map((request) => {
+                  const statusMeta = getStatusMeta(request.status);
+                  const StatusIcon = statusMeta.icon;
+                  const isRejected = statusMeta.label === 'Rejected';
+
+                  return (
+                    <article key={request.id} className={`rounded-lg border p-4 ${statusMeta.cardClass}`}>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-base font-semibold text-gray-900">{request.leaveRequestId || 'Leave Request'}</h3>
+                            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.badgeClass}`}>
+                              <StatusIcon size={14} className={statusMeta.iconClass} />
+                              {statusMeta.label}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-gray-600 break-words">
+                            {formatDOB(request.startDate)} to {formatDOB(request.endDate)} | {request.days || '-'}
+                          </p>
+                        </div>
+
+                        {request.imageUrl && (
+                          <a
+                            href={request.imageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex shrink-0 items-center justify-center rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+                          >
+                            View Image
+                          </a>
+                        )}
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <DetailItem label="Department" value={request.department} />
+                        <DetailItem label="Job Location" value={request.jobLocation} />
+                        <DetailItem label="Planned" value={formatDOB(request.approvalPlanned)} />
+                        <DetailItem label="Actual" value={formatDOB(request.approvalActual)} />
+                        <DetailItem label="Approved By" value={request.approvedBy} />
+                        <DetailItem label="Applied Date" value={formatDOB(request.appliedDate)} />
+                        <DetailItem label="Delay" value={request.approvalDelay} />
+                        <DetailItem label="Request Remark" value={request.remark} />
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                        <div className="rounded-md bg-white/70 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Reason</p>
+                          <p className="mt-1 text-sm text-gray-900 break-words">{request.reason || '-'}</p>
+                        </div>
+                        <div className={`rounded-md p-3 ${isRejected ? 'bg-red-100/70' : 'bg-white/70'}`}>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                            {isRejected ? 'Rejected Reason' : 'Approval Remarks'}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-900 break-words">{request.approvalRemarks || '-'}</p>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
                 <div className="px-6 py-12 text-center">
                   <p className="text-gray-500">No leave requests found.</p>
                 </div>
@@ -754,8 +913,29 @@ const LeaveRequest = () => {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Timestamp</label>
+                  <input
+                    type="text"
+                    value="Auto generated"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">LR-Unique No.</label>
+                  <input
+                    type="text"
+                    value="Auto generated"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
+                    readOnly
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee Name (कर्मचारी का नाम) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Requested By *</label>
                 <input
                   type="text"
                   name="employeeName"
@@ -766,62 +946,32 @@ const LeaveRequest = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID (कर्मचारी आईडी)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Departments *</label>
                 <input
                   type="text"
-                  name="employeeId"
-                  value={formData.employeeId}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
-                  readOnly
+                  name="department"
+                  value={formData.department}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Designation (पद का नाम)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Job location *</label>
                 <input
                   type="text"
-                  name="designation"
-                  value={formData.designation}
+                  name="jobLocation"
+                  value={formData.jobLocation}
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                  required
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">HOD Name (एचओडी का नाम) *</label>
-                <select
-                  name="hodName"
-                  value={formData.hodName}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  required
-                >
-                  <option value="">Select HOD</option>
-                  {hodNames.map((name, index) => (
-                    <option key={index} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Leave Type *</label>
-                <select
-                  name="leaveType"
-                  value={formData.leaveType}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  required
-                >
-                  <option value="">Select Leave Type</option>
-                  {leaveTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">From Date *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of leave FROM *</label>
                   <input
                     type="date"
                     name="fromDate"
@@ -832,7 +982,7 @@ const LeaveRequest = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">To Date *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">TO *</label>
                   <input
                     type="date"
                     name="toDate"
@@ -847,13 +997,13 @@ const LeaveRequest = () => {
               {formData.fromDate && formData.toDate && (
                 <div className="bg-blue-50 p-3 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    Total Days: <span className="font-semibold">{calculateDays(formData.fromDate, formData.toDate)}</span>
+                    Total No of leaves days: <span className="font-semibold">{formatLeaveDays(formData.fromDate, formData.toDate)}</span>
                   </p>
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Taking Leave *</label>
                 <textarea
                   name="reason"
                   value={formData.reason}
@@ -862,6 +1012,30 @@ const LeaveRequest = () => {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Please provide reason for leave..."
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Remark</label>
+                <textarea
+                  name="remark"
+                  value={formData.remark}
+                  onChange={handleInputChange}
+                  rows={2}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                  placeholder="Enter remark..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                <input
+                  type="url"
+                  name="imageUrl"
+                  value={formData.imageUrl}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                  placeholder="Paste image URL..."
                 />
               </div>
 

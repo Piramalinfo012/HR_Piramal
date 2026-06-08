@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Search, X, Check, Clock, Calendar, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const LEAVE_API_URL = import.meta.env.VITE_LEAVE_REQUEST_SHEET_URL;
+const LEAVE_SHEET_NAME = 'FMS';
+const LEAVE_DATA_START_INDEX = 6;
+
 const LeaveManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [pendingLeaves, setPendingLeaves] = useState([]);
@@ -24,11 +28,13 @@ const LeaveManagement = () => {
     employeeId: '',
     employeeName: '',
     designation: '',
-    hodName: '',
-    leaveType: '',
+    department: '',
+    jobLocation: '',
     fromDate: '',
     toDate: '',
-    reason: ''
+    reason: '',
+    remark: '',
+    imageUrl: ''
   });
 
   const fetchHodNames = async () => {
@@ -66,12 +72,6 @@ const LeaveManagement = () => {
     }
   };
 
-  useEffect(() => {
-    fetchLeaveData();
-    fetchEmployees();
-    fetchHodNames(); // Fetch HOD names on component mount
-  }, []);
-
   const handleCheckboxChange = (leaveId, rowData) => {
     if (selectedRow?.serialNo === leaveId) {
       setSelectedRow(null);
@@ -79,9 +79,11 @@ const LeaveManagement = () => {
     } else {
       // Convert DD/MM/YYYY to YYYY-MM-DD for date input
       const formatForInput = (dateStr) => {
-        if (!dateStr) return '';
-        const [day, month, year] = dateStr.split('/');
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        const formattedDate = formatDOB(dateStr);
+        if (!formattedDate || !formattedDate.includes('/')) return '';
+        const [day, month, year] = formattedDate.split('/');
+        if (!day || !month || !year) return '';
+        return `${year}-${month}-${day}`;
       };
 
       setSelectedRow(rowData);
@@ -99,12 +101,22 @@ const LeaveManagement = () => {
     }));
   };
 
-  // Fetch employees from JOINING sheet
+  const getJoiningFetchUrl = () =>
+    `${import.meta.env.VITE_JOINING_SHEET_URL}?action=read&sheet=JOINING_FMS`;
+
+  const getColumnIndex = (headers, names, fallbackIndex) => {
+    const normalizedNames = names.map((name) => name.toLowerCase());
+    const index = headers.findIndex((header) => {
+      const value = header?.toString().trim().toLowerCase();
+      return value && normalizedNames.some((name) => value === name || value.includes(name));
+    });
+    return index !== -1 ? index : fallbackIndex;
+  };
+
+  // Fetch employees from JOINING_FMS sheet
   const fetchEmployees = async () => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=${encodeURIComponent('JOINING')}&action=fetch`
-      );
+      const response = await fetch(getJoiningFetchUrl());
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -122,14 +134,22 @@ const LeaveManagement = () => {
         throw new Error('Expected array data not received');
       }
 
-      // Data starts from row 7 (index 6)
-      const employeeData = rawData.slice(6).map((row, index) => ({
-        id: row[1] || '', // Column B (Joining ID)
-        name: row[2] || '', // Column C (Candidate Name)
-        designation: row[5] || '', // Column F (Designation)
-        department: row[20] || '', // Column U (Department)
-        rowIndex: index + 7 // Actual row number in sheet
-      })).filter(emp => emp.name && emp.id); // Filter out empty entries
+      const headers = rawData[6] || [];
+      const idIndex = getColumnIndex(headers, ['Joining ID', 'Indent Number', 'ID'], 5);
+      const nameIndex = getColumnIndex(headers, ['Candidate Name', 'Name As Per Aadhar', 'Employee Name'], 10);
+      const designationIndex = getColumnIndex(headers, ['Designation'], 14);
+      const jobLocationIndex = getColumnIndex(headers, ['Joining Place', 'Job Location', 'Location'], 13);
+      const departmentIndex = getColumnIndex(headers, ['Department'], 2);
+
+      // JOINING_FMS data starts from row 8 (index 7)
+      const employeeData = rawData.slice(7).map((row, index) => ({
+        id: row[idIndex] || '',
+        name: row[nameIndex] || '',
+        designation: row[designationIndex] || '',
+        jobLocation: row[jobLocationIndex] || '',
+        department: row[departmentIndex] || '',
+        rowIndex: index + 8
+      })).filter(emp => emp.name && emp.id);
 
       setEmployees(employeeData);
     } catch (error) {
@@ -147,7 +167,8 @@ const LeaveManagement = () => {
       employeeName: selectedName,
       employeeId: selectedEmployee ? selectedEmployee.id : '',
       designation: selectedEmployee ? selectedEmployee.designation : '',
-      department: selectedEmployee ? selectedEmployee.department : ''
+      department: selectedEmployee ? selectedEmployee.department : '',
+      jobLocation: selectedEmployee ? selectedEmployee.jobLocation : ''
     }));
   };
 
@@ -165,94 +186,177 @@ const LeaveManagement = () => {
     }
   };
 
+  const formatDateToDDMMYYYY = (dateValue) => {
+    if (!dateValue) return '';
+
+    if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+      const day = String(dateValue.getDate()).padStart(2, '0');
+      const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+      return `${day}/${month}/${dateValue.getFullYear()}`;
+    }
+
+    const rawValue = dateValue.toString().trim();
+    if (!rawValue) return '';
+
+    const datePart = rawValue.split(/[ T]/)[0];
+    const isoMatch = datePart.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+      return `${isoMatch[3].padStart(2, '0')}/${isoMatch[2].padStart(2, '0')}/${isoMatch[1]}`;
+    }
+
+    if (datePart.includes('/')) {
+      const [first, second, year] = datePart.split('/');
+      if (first && second && year) {
+        const firstNumber = Number(first);
+        const secondNumber = Number(second);
+        const day = secondNumber > 12 && firstNumber <= 12 ? second : first;
+        const month = secondNumber > 12 && firstNumber <= 12 ? first : second;
+        return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+      }
+    }
+
+    const parsedDate = new Date(rawValue);
+    if (isNaN(parsedDate.getTime())) return rawValue;
+
+    const day = String(parsedDate.getDate()).padStart(2, '0');
+    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}/${parsedDate.getFullYear()}`;
+  };
+
+  const parseSheetDate = (dateValue) => {
+    const formattedDate = formatDateToDDMMYYYY(dateValue);
+    if (!formattedDate || !formattedDate.includes('/')) return null;
+    const [day, month, year] = formattedDate.split('/').map(Number);
+    const date = new Date(year, month - 1, day);
+    return isNaN(date.getTime()) ? null : date;
+  };
+
   // Calculate days between dates
   const calculateDays = (startDateStr, endDateStr) => {
-    if (!startDateStr || !endDateStr) return 0;
-
-    let startDate, endDate;
-
-    // Handle different date formats
-    if (startDateStr.includes('/')) {
-      const [startDay, startMonth, startYear] = startDateStr.split('/').map(Number);
-      startDate = new Date(startYear, startMonth - 1, startDay);
-    } else {
-      startDate = new Date(startDateStr);
-    }
-
-    if (endDateStr.includes('/')) {
-      const [endDay, endMonth, endYear] = endDateStr.split('/').map(Number);
-      endDate = new Date(endYear, endMonth - 1, endDay);
-    } else {
-      endDate = new Date(endDateStr);
-    }
+    const startDate = parseSheetDate(startDateStr);
+    const endDate = parseSheetDate(endDateStr);
+    if (!startDate || !endDate) return 0;
 
     const diffTime = endDate - startDate;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return diffDays;
   };
 
-  const formatDOB = (dateString) => {
-    if (!dateString) return '';
+  const formatDOB = (dateString) => formatDateToDDMMYYYY(dateString);
 
-    // If it's already in DD/MM/YYYY format, return as-is
-    if (dateString.includes('/')) {
-      return dateString;
-    }
+  const getLeaveFetchUrl = () =>
+    `${LEAVE_API_URL}?sheet=${encodeURIComponent(LEAVE_SHEET_NAME)}&action=fetch`;
 
-    // Convert from YYYY-MM-DD to DD/MM/YYYY
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return dateString; // Return as-is if not a valid date
-    }
+  const formatSheetTimestamp = () => formatDateToDDMMYYYY(new Date());
 
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-
-    return `${day}/${month}/${year}`;
+  const formatLeaveDays = (fromDate, toDate) => {
+    const days = calculateDays(fromDate, toDate);
+    if (!days) return '';
+    return `${days} ${days === 1 ? 'day' : 'days'}`;
   };
+
+  const hasSheetValue = (value) =>
+    value !== null && value !== undefined && value.toString().trim() !== '';
+
+  const normalizeApprovalStatus = (status) => {
+    const value = status?.toString().trim().toLowerCase();
+    if (value === 'approved' || value === 'approve') return 'approved';
+    if (value === 'rejected' || value === 'reject') return 'rejected';
+    return '';
+  };
+
+  const getApprovalStatus = (row) => {
+    const approvalStatus = normalizeApprovalStatus(row[15]);
+    if (approvalStatus) return approvalStatus;
+    if (hasSheetValue(row[11]) && !hasSheetValue(row[12])) return 'Pending';
+    return '';
+  };
+
+  const getCurrentApproverName = () => {
+    try {
+      const rawUser = localStorage.getItem('user');
+      const user = rawUser ? JSON.parse(rawUser) : {};
+      return user.Name || user.name || user['Employee Name'] || user.Username || user.username || 'Admin';
+    } catch {
+      return 'Admin';
+    }
+  };
+
+  const getNextLeaveRequestNo = (rows) => {
+    const maxNo = rows
+      .slice(LEAVE_DATA_START_INDEX)
+      .reduce((max, row) => {
+        const match = row[1]?.toString().match(/LR-?(\d+)/i);
+        return match ? Math.max(max, Number(match[1])) : max;
+      }, 0);
+
+    return `LR-${String(maxNo + 1).padStart(2, '0')}`;
+  };
+
+  const mapLeaveRow = (row, index) => ({
+    timestamp: row[0] || '',
+    leaveRequestId: row[1] || '',
+    requestedBy: row[2] || '',
+    department: row[3] || '',
+    totalLeaves: row[4] || '',
+    jobLocation: row[5] || '',
+    leaveFromDate: row[6] || '',
+    leaveToDate: row[7] || '',
+    leaveReason: row[8] || '',
+    remark: row[9] || '',
+    imageUrl: row[10] || '',
+    approvalPlanned: row[11] || '',
+    approvalActual: row[12] || '',
+    approvalDelay: row[13] || '',
+    approvedBy: row[14] || '',
+    approvalStatus: row[15] || '',
+    approvalRemarks: row[16] || '',
+    serialNo: row[1] || '',
+    employeeId: row[1] || '',
+    employeeName: row[2] || '',
+    startDate: row[6] || '',
+    endDate: row[7] || '',
+    days: row[4] || formatLeaveDays(row[6], row[7]),
+    status: getApprovalStatus(row),
+    approvalPending: hasSheetValue(row[11]) && !hasSheetValue(row[12]),
+    sheetRowIndex: index + LEAVE_DATA_START_INDEX + 1,
+  });
 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.employeeName || !formData.leaveType || !formData.fromDate || !formData.toDate || !formData.reason || !formData.hodName) {
+    if (!formData.employeeName || !formData.department || !formData.jobLocation || !formData.fromDate || !formData.toDate || !formData.reason) {
       toast.error('Please fill all required fields');
       return;
     }
 
     try {
       setSubmitting(true);
-      const now = new Date();
-
-      // Format timestamp as YYYY-MM-DD HH:MM:SS for proper Date object creation in Apps Script
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-      const formattedTimestamp = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      const dataResponse = await fetch(getLeaveFetchUrl());
+      const dataResult = await dataResponse.json();
+      const existingRows = Array.isArray(dataResult.data) ? dataResult.data : [];
+      const formattedTimestamp = formatSheetTimestamp();
+      const leaveRequestNo = getNextLeaveRequestNo(existingRows);
 
       const rowData = [
-        formattedTimestamp,           // Timestamp with time for Date object creation
-        "",                          // Serial number (empty for auto-increment)
-        formData.employeeId,         // Employee ID
-        formData.employeeName,       // Employee Name
-        formatDOB(formData.fromDate), // Leave Date Start (convert to DD/MM/YYYY)
-        formatDOB(formData.toDate),   // Leave Date End (convert to DD/MM/YYYY)
-        formData.reason,             // Reason
-        "Pending",                   // Status
-        formData.leaveType,          // Leave Type
-        formData.hodName,            // HOD Name (Column J, index 9)
-        formData.designation,         // Designation (Column K, index 10)
-        formData.department          // Department (Column L, index 11)
+        formattedTimestamp,
+        leaveRequestNo,
+        formData.employeeName,
+        formData.department || formData.designation,
+        formatLeaveDays(formData.fromDate, formData.toDate),
+        formData.jobLocation || '',
+        formatDOB(formData.fromDate),
+        formatDOB(formData.toDate),
+        formData.reason,
+        formData.remark,
+        formData.imageUrl,
       ];
 
-      const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+      const response = await fetch(LEAVE_API_URL, {
         method: 'POST',
         body: new URLSearchParams({
-          sheetName: 'Leave Management',
+          sheetName: LEAVE_SHEET_NAME,
           action: 'insert',
           rowData: JSON.stringify(rowData),
         }),
@@ -266,11 +370,13 @@ const LeaveManagement = () => {
           employeeId: '',
           employeeName: '',
           designation: '',
-          hodName: '',
-          leaveType: '',
+          department: '',
+          jobLocation: '',
           fromDate: '',
           toDate: '',
-          reason: ''
+          reason: '',
+          remark: '',
+          imageUrl: ''
         });
         setShowModal(false);
         // Refresh the data
@@ -292,12 +398,18 @@ const LeaveManagement = () => {
       return;
     }
 
+    const actionStatus = action === 'accept' ? 'Approved' : 'Rejected';
+    const approvalRemark = window.prompt(`Enter remarks for ${actionStatus}`, selectedRow.approvalRemarks || '');
+    if (approvalRemark === null) {
+      return;
+    }
+
     setActionInProgress(action);
     setLoading(true);
 
     try {
       const fullDataResponse = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=${encodeURIComponent('Leave Management')}&action=fetch`
+        getLeaveFetchUrl()
       );
 
       if (!fullDataResponse.ok) {
@@ -307,64 +419,68 @@ const LeaveManagement = () => {
       const fullDataResult = await fullDataResponse.json();
       const allData = fullDataResult.data || fullDataResult;
 
-      // Find the row index by matching Column B (serial number) and Column C (employee ID)
-      const rowIndex = allData.findIndex((row, idx) =>
-        idx > 0 && // Skip header row
-        row[1]?.toString().trim() === selectedRow.serialNo?.toString().trim() &&
-        row[2]?.toString().trim() === selectedRow.employeeId?.toString().trim()
-      );
+      const rowIndex = selectedRow.sheetRowIndex || allData.findIndex((row, idx) =>
+        idx >= LEAVE_DATA_START_INDEX &&
+        row[1]?.toString().trim() === selectedRow.serialNo?.toString().trim()
+      ) + 1;
 
-      if (rowIndex === -1) {
-        throw new Error(`Leave request not found for employee ${selectedRow.employeeId}`);
+      if (!rowIndex || rowIndex < 1) {
+        throw new Error(`Leave request not found for ${selectedRow.requestedBy || selectedRow.leaveRequestId}`);
       }
 
-      let currentRow = [...allData[rowIndex]];
+      const updates = [];
 
-      const today = new Date();
-      const day = String(today.getDate()).padStart(2, '0');
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const year = today.getFullYear();
-      const formattedDate = `${day}/${month}/${year}`;
-
-      // Update dates if they were changed (Column E and F)
+      // Update dates if they were changed (Column G and H)
       if (editableDates.from && editableDates.from !== selectedRow.startDate) {
-        currentRow[4] = formatDOB(editableDates.from); // Convert to DD/MM/YYYY
+        updates.push({ columnIndex: 7, value: formatDOB(editableDates.from) });
       }
 
       if (editableDates.to && editableDates.to !== selectedRow.endDate) {
-        currentRow[5] = formatDOB(editableDates.to); // Convert to DD/MM/YYYY
+        updates.push({ columnIndex: 8, value: formatDOB(editableDates.to) });
       }
 
-      // Update timestamp (Column A) and status (Column H, index 7)
-      currentRow[0] = formattedDate;
-      currentRow[7] = action === 'accept' ? 'approved' : 'rejected';
+      const finalFromDate = editableDates.from && editableDates.from !== selectedRow.startDate
+        ? formatDOB(editableDates.from)
+        : selectedRow.startDate;
+      const finalToDate = editableDates.to && editableDates.to !== selectedRow.endDate
+        ? formatDOB(editableDates.to)
+        : selectedRow.endDate;
 
-      const payload = {
-        sheetName: "Leave Management",
-        action: "update",
-        rowIndex: rowIndex + 1, // Add 1 because Google Sheets rows are 1-indexed
-        rowData: JSON.stringify(currentRow)
-      };
+      if (updates.some((update) => update.columnIndex === 7 || update.columnIndex === 8)) {
+        updates.push({ columnIndex: 5, value: formatLeaveDays(finalFromDate, finalToDate) });
+      }
 
-      const response = await fetch(
-        import.meta.env.VITE_GOOGLE_SHEET_URL,
-        {
+      updates.push(
+        { columnIndex: 13, value: formatSheetTimestamp() },
+        { columnIndex: 15, value: getCurrentApproverName() },
+        { columnIndex: 16, value: actionStatus },
+        { columnIndex: 17, value: approvalRemark }
+      );
+
+      const results = await Promise.all(updates.map((update) =>
+        fetch(LEAVE_API_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
-          body: new URLSearchParams(payload).toString(),
-        }
-      );
+          body: new URLSearchParams({
+            sheetName: LEAVE_SHEET_NAME,
+            action: "updateCell",
+            rowIndex,
+            columnIndex: update.columnIndex,
+            value: update.value
+          }).toString(),
+        }).then((res) => res.json())
+      ));
 
-      const result = await response.json();
-      if (result.success) {
-        toast.success(`Leave ${action === 'accept' ? 'approved' : 'rejected'} for ${selectedRow.employeeName || 'employee'}`);
+      if (results.every((result) => result.success)) {
+        toast.success(`Leave ${action === 'accept' ? 'approved' : 'rejected'} for ${selectedRow.requestedBy || 'employee'}`);
         fetchLeaveData();
         setSelectedRow(null);
         setEditableDates({ from: '', to: '' });
       } else {
-        throw new Error(result.error || "Update failed");
+        const failed = results.find((result) => !result.success);
+        throw new Error(failed?.error || "Update failed");
       }
 
     } catch (error) {
@@ -383,7 +499,7 @@ const LeaveManagement = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=${encodeURIComponent('Leave Management')}&action=fetch`
+        getLeaveFetchUrl()
       );
 
       if (!response.ok) {
@@ -397,33 +513,18 @@ const LeaveManagement = () => {
       }
 
       const rawData = result.data || result;
-      console.log(rawData);
 
       if (!Array.isArray(rawData)) {
         throw new Error('Expected array data not received');
       }
 
-      const dataRows = rawData.length > 1 ? rawData.slice(1) : [];
-
-      const processedData = dataRows.map(row => ({
-        timestamp: row[0] || '',
-        serialNo: row[1] || '',
-        employeeId: row[2] || '',
-        employeeName: row[3] || '',
-        startDate: row[4] || '',
-        endDate: row[5] || '',
-        remark: row[6] || '',
-        days: calculateDays(row[4], row[5]),
-        status: row[7],
-        leaveType: row[8],
-        hodName: row[9] || '',
-        department: row[11] || '',
-      }));
+      const dataRows = rawData.length > LEAVE_DATA_START_INDEX ? rawData.slice(LEAVE_DATA_START_INDEX) : [];
+      const processedData = dataRows
+        .map(mapLeaveRow)
+        .filter((leave) => leave.serialNo || leave.employeeName || leave.startDate);
 
       // Case-insensitive filtering
-      setPendingLeaves(processedData.filter(leave =>
-        leave.status?.toString().toLowerCase() === 'pending'
-      ));
+      setPendingLeaves(processedData.filter(leave => leave.approvalPending));
       setApprovedLeaves(processedData.filter(leave =>
         leave.status?.toString().toLowerCase() === 'approved'
       ));
@@ -444,29 +545,29 @@ const LeaveManagement = () => {
   useEffect(() => {
     fetchLeaveData();
     fetchEmployees();
+    fetchHodNames();
   }, []);
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return isNaN(date.getTime()) ? dateString : date.toLocaleDateString();
+    return formatDateToDDMMYYYY(dateString) || '-';
   };
 
   const filteredPendingLeaves = pendingLeaves.filter(item => {
-    const matchesSearch = item.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = item.requestedBy?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.leaveRequestId?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
   const filteredApprovedLeaves = approvedLeaves.filter(item => {
-    const matchesSearch = item.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = item.requestedBy?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.leaveRequestId?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
   const filteredRejectedLeaves = rejectedLeaves.filter(item => {
-    const matchesSearch = item.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.employeeId?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = item.requestedBy?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.leaveRequestId?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -483,15 +584,17 @@ const LeaveManagement = () => {
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Select
           </th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LR-Unique No.</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested By</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Leaves</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Remark</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HOD Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Location</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Planned</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
         </tr>
       </thead>
@@ -507,8 +610,8 @@ const LeaveManagement = () => {
                   className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
                 />
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.employeeId}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.employeeName}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveRequestId}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.requestedBy}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {selectedRow?.serialNo === item.serialNo ? (
                   <input
@@ -539,10 +642,18 @@ const LeaveManagement = () => {
                   item.days
                 }
               </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveReason}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.remark}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveType}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.imageUrl ? (
+                  <a href={item.imageUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
+                    View
+                  </a>
+                ) : '-'}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.hodName}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.jobLocation}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(item.approvalPlanned)}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <div className="flex space-x-2">
                   <button
@@ -593,7 +704,7 @@ const LeaveManagement = () => {
           ))
         ) : (
           <tr>
-            <td colSpan="9" className="px-6 py-12 text-center">
+            <td colSpan="13" className="px-6 py-12 text-center">
               <p className="text-gray-500">No pending leave requests found.</p>
             </td>
           </tr>
@@ -606,23 +717,30 @@ const LeaveManagement = () => {
     <table className="min-w-full divide-y divide-white">
       <thead className="bg-gray-100">
         <tr>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LR-Unique No.</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested By</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Leaves</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Remark</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HOD Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Location</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Planned</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actual</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delay</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approved By</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approval Remarks</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-white">
         {filteredApprovedLeaves.length > 0 ? (
           filteredApprovedLeaves.map((item, index) => (
             <tr key={index} className="hover:bg-white">
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.employeeId}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.employeeName}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveRequestId}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.requestedBy}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {formatDate(item.startDate)}
               </td>
@@ -630,15 +748,28 @@ const LeaveManagement = () => {
                 {formatDate(item.endDate)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.days}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveReason}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.remark}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveType}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.imageUrl ? (
+                  <a href={item.imageUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
+                    View
+                  </a>
+                ) : '-'}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.hodName}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.jobLocation}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(item.approvalPlanned)}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(item.approvalActual)}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.approvalDelay}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.approvedBy}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.approvalStatus || item.status}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.approvalRemarks}</td>
             </tr>
           ))
         ) : (
           <tr>
-            <td colSpan="7" className="px-6 py-12 text-center">
+            <td colSpan="16" className="px-6 py-12 text-center">
               <p className="text-gray-500">No approved leave requests found.</p>
             </td>
           </tr>
@@ -651,23 +782,30 @@ const LeaveManagement = () => {
     <table className="min-w-full divide-y divide-white">
       <thead className="bg-gray-100">
         <tr>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LR-Unique No.</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested By</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Leaves</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Type</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Request Remark</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">HOD Name</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Location</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Planned</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actual</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delay</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approved By</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approval Remarks</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-white">
         {filteredRejectedLeaves.length > 0 ? (
           filteredRejectedLeaves.map((item, index) => (
             <tr key={index} className="hover:bg-white">
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.employeeId}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.employeeName}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveRequestId}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.requestedBy}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {formatDate(item.startDate)}
               </td>
@@ -675,15 +813,28 @@ const LeaveManagement = () => {
                 {formatDate(item.endDate)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.days}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveReason}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.remark}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveType}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {item.imageUrl ? (
+                  <a href={item.imageUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800">
+                    View
+                  </a>
+                ) : '-'}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.hodName}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.jobLocation}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(item.approvalPlanned)}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(item.approvalActual)}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.approvalDelay}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.approvedBy}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.approvalStatus || item.status}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.approvalRemarks}</td>
             </tr>
           ))
         ) : (
           <tr>
-            <td colSpan="7" className="px-6 py-12 text-center">
+            <td colSpan="16" className="px-6 py-12 text-center">
               <p className="text-gray-500">No rejected leave requests found.</p>
             </td>
           </tr>
@@ -808,8 +959,29 @@ const LeaveManagement = () => {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Timestamp</label>
+                  <input
+                    type="text"
+                    value="Auto generated"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
+                    readOnly
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">LR-Unique No.</label>
+                  <input
+                    type="text"
+                    value="Auto generated"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
+                    readOnly
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee Name (कर्मचारी का नाम) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Requested By *</label>
                 <select
                   name="employeeName"
                   value={formData.employeeName}
@@ -825,62 +997,32 @@ const LeaveManagement = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID (कर्मचारी आईडी) </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Departments *</label>
                 <input
                   type="text"
-                  name="employeeId"
-                  value={formData.employeeId}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
-                  readOnly
+                  name="department"
+                  value={formData.department}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Designation (पद का नाम) </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Job location *</label>
                 <input
                   type="text"
-                  name="designation"
-                  value={formData.designation}
+                  name="jobLocation"
+                  value={formData.jobLocation}
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                  required
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">HOD Name (एचओडी का नाम) *</label>
-                <select
-                  name="hodName"
-                  value={formData.hodName}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  required
-                >
-                  <option value="">Select HOD </option>
-                  {hodNames.map((name, index) => (
-                    <option key={index} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Leave Type (छुट्टी के प्रकार) *</label>
-                <select
-                  name="leaveType"
-                  value={formData.leaveType}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  required
-                >
-                  <option value="">Select Leave Type</option>
-                  {leaveTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">From Date (की तिथि से) *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of leave FROM *</label>
                   <input
                     type="date"
                     name="fromDate"
@@ -891,7 +1033,7 @@ const LeaveManagement = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">To Date (तारीख तक) *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">TO *</label>
                   <input
                     type="date"
                     name="toDate"
@@ -906,13 +1048,13 @@ const LeaveManagement = () => {
               {formData.fromDate && formData.toDate && (
                 <div className="bg-blue-50 p-3 rounded-lg">
                   <p className="text-sm text-blue-800">
-                    Total Days (कुल दिन) : <span className="font-semibold">{calculateDays(formData.fromDate, formData.toDate)}</span>
+                    Total No of leaves days: <span className="font-semibold">{formatLeaveDays(formData.fromDate, formData.toDate)}</span>
                   </p>
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reason (कारण) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Taking Leave *</label>
                 <textarea
                   name="reason"
                   value={formData.reason}
@@ -921,6 +1063,30 @@ const LeaveManagement = () => {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   placeholder="Please provide reason for leave..."
                   required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Remark</label>
+                <textarea
+                  name="remark"
+                  value={formData.remark}
+                  onChange={handleInputChange}
+                  rows={2}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                  placeholder="Enter remark..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                <input
+                  type="url"
+                  name="imageUrl"
+                  value={formData.imageUrl}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                  placeholder="Paste image URL..."
                 />
               </div>
 

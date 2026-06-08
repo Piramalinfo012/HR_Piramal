@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Edit, Save, X, Loader, Search, Key, User, Shield, Layers, Eye, EyeOff, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { pageAccessGroups, pageAccessOptions } from '../config/hrModules';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -16,25 +17,7 @@ const UserManagement = () => {
     const [mode, setMode] = useState('edit'); // 'edit' or 'add'
 
     // Page options for access control
-    const pageOptions = [
-        "Dashboard",
-        "Indent",
-        "Online Posting",
-        "Call Tracker",
-        "Joining",
-        "Calling For Job Agencies",
-        "Whatsapp",
-        "Employee",
-        "Candidate Sortlisted",
-        "Verification Before Interview",
-        "Interview & Final Selection",
-        "Joining Follow Up",
-        "Check Salary Slip & Resume Copy",
-        "Joining Letter Release",
-        "Induction Or Training",
-        "Asset Assignment (IT Team)",
-        "Leaving"
-    ];
+    const pageOptions = pageAccessOptions;
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -538,23 +521,32 @@ const UserManagement = () => {
                                             <p className="text-green-700 text-sm font-medium">Admins have access to all pages by default.</p>
                                         </div>
                                     ) : (
-                                        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 max-h-60 overflow-y-auto custom-scrollbar">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                {pageOptions.map((page) => (
-                                                    <label key={page} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white hover:shadow-sm transition-all cursor-pointer">
-                                                        <div className="relative flex items-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={currentUser.selectedPages.includes(page)}
-                                                                onChange={() => handlePageToggle(page)}
-                                                                className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-gray-300 transition-all checked:border-indigo-600 checked:bg-indigo-600"
-                                                            />
-                                                            <svg className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-0 peer-checked:opacity-100 text-white transition-opacity" viewBox="0 0 14 14" fill="none">
-                                                                <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                                            </svg>
+                                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-72 overflow-y-auto custom-scrollbar">
+                                            <div className="space-y-5">
+                                                {pageAccessGroups.map((group) => (
+                                                    <div key={group.label} className="space-y-2">
+                                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                                            {group.label}
+                                                        </p>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                            {group.items.map((page) => (
+                                                                <label key={page} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white hover:shadow-sm transition-all cursor-pointer">
+                                                                    <div className="relative flex items-center">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={currentUser.selectedPages.includes(page)}
+                                                                            onChange={() => handlePageToggle(page)}
+                                                                            className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-gray-300 transition-all checked:border-indigo-600 checked:bg-indigo-600"
+                                                                        />
+                                                                        <svg className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 opacity-0 peer-checked:opacity-100 text-white transition-opacity" viewBox="0 0 14 14" fill="none">
+                                                                            <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                                        </svg>
+                                                                    </div>
+                                                                    <span className="text-sm text-gray-700 select-none">{page}</span>
+                                                                </label>
+                                                            ))}
                                                         </div>
-                                                        <span className="text-sm text-gray-700 select-none">{page}</span>
-                                                    </label>
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>

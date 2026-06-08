@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import useAuthStore from "../store/authStore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUsers } from "@fortawesome/free-solid-svg-icons";
+import { pageRouteMap } from "../config/hrModules";
 
 const SHEET_API_URL = `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`;
 const LEAVING_API_URL = `${import.meta.env.VITE_LEAVING_SHEET_URL}?sheet=LEAVING&action=fetch`;
@@ -151,33 +152,9 @@ const Login = () => {
         if (pageAccess) {
           const accessList = pageAccess.split(",").map(page => page.trim().toLowerCase());
 
-          // Map of page names to routes
-          const pageRoutes = {
-            "my profile": "/my-profile",
-            "my attendance": "/my-attendance",
-            "leave request": "/leave-request",
-            "gate pass request": "/gate-pass-request",
-            "my salary": "/my-salary",
-            "company calendar": "/company-calendar",
-            "dashboard": "/",
-            "indent": "/indent",
-            "find enquiry": "/find-enquiry",
-            "call tracker": "/call-tracker",
-            "joining": "/joining",
-            "after joining work": "/after-joining-work",
-            "leaving": "/leaving",
-            "after leaving work": "/after-leaving-work",
-            "employee": "/employee",
-            "leave management": "/leave-management",
-            "gate pass": "/gate-pass",
-            "attendance": "/attendance",
-            "payroll": "/payroll",
-            "mis report": "/misreport"
-          };
-
           // Find first accessible route
-          const firstAccessibleRoute = accessList.find(page => pageRoutes[page]);
-          const targetRoute = firstAccessibleRoute ? pageRoutes[firstAccessibleRoute] : "/my-profile";
+          const firstAccessibleRoute = accessList.find(page => pageRouteMap[page]);
+          const targetRoute = firstAccessibleRoute ? pageRouteMap[firstAccessibleRoute] : "/my-profile";
 
           navigate(targetRoute, { replace: true });
         } else {

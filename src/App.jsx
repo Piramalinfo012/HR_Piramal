@@ -54,6 +54,8 @@ import InterviewSelection from "./pages/InterviewSelection";
 import InterviewScheduled from "./pages/InterviewScheduled";
 import JoiningFollowUp from "./pages/JoiningFollowUp";
 import UserManagement from "./pages/UserManagement";
+import ModulePlaceholder from "./pages/ModulePlaceholder";
+import { placeholderRoutes } from "./config/hrModules";
 function App() {
   return (
     <div className="gradient-bg min-h-screen">
@@ -118,6 +120,13 @@ function App() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="hrleads" element={<HrLeads />} />
             <Route path="user-management" element={<UserManagement />} />
+            {placeholderRoutes.map((route) => (
+              <Route
+                key={route.path}
+                path={route.path.replace(/^\//, "")}
+                element={<ModulePlaceholder title={route.label} moduleName={route.module} />}
+              />
+            ))}
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -39,6 +39,7 @@ import useAuthStore from "../store/authStore";
 import logo from "../assets/logo.png";
 
 import { usePendingCounts } from "../hooks/usePendingCounts";
+import { adminNavigationItems, employeeNavigationItems } from "../config/hrModules";
 
 // ... imports remain the same
 
@@ -115,51 +116,76 @@ const SidebarContent = ({
 
         {menuItems.map((item) => {
           if (item.type === "dropdown") {
+            const sectionPendingCount = item.items.reduce(
+              (total, subItem) => total + (badgeMap[subItem.path] || 0),
+              0
+            );
+
             return (
-              <div key={item.label}>
+              <div key={item.label} className="mb-2">
                 <button
                   onClick={item.toggle}
-                  className={`flex items-center justify-between w-full py-2.5 px-4 rounded-xl transition-all duration-300 border border-transparent ${item.isOpen
-                    ? "bg-white bg-opacity-10 text-white border-white border-opacity-20 shadow-lg"
-                    : "text-indigo-100 hover:bg-white hover:bg-opacity-5 hover:text-white"
+                  className={`flex items-center justify-between w-full min-h-[54px] py-2.5 px-3 rounded-xl transition-all duration-300 border ${item.isOpen
+                    ? "bg-white bg-opacity-15 text-white border-yellow-200 shadow-lg"
+                    : "border-transparent text-indigo-100 hover:bg-white hover:bg-opacity-5 hover:text-white"
                     }`}
                 >
-                  <div className="flex items-center">
-                    <item.icon
-                      className={isCollapsed ? "mx-auto" : "mr-3"}
-                      size={20}
-                    />
-                    {!isCollapsed && <span>{item.label}</span>}
+                  <div className="flex items-center min-w-0">
+                    <div className={`${isCollapsed ? "mx-auto" : "mr-3"} flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white bg-opacity-10 border border-white border-opacity-10`}>
+                      <item.icon size={19} />
+                    </div>
+                    {!isCollapsed && (
+                      <div className="flex min-w-0 flex-col text-left">
+                        <span className="text-sm font-semibold leading-snug">{item.label}</span>
+                      </div>
+                    )}
                   </div>
-                  {!isCollapsed &&
-                    (item.isOpen ? (
-                      <ChevronUp size={16} />
-                    ) : (
-                      <ChevronDown size={16} />
-                    ))}
+                  {!isCollapsed && (
+                    <div className="flex flex-shrink-0 items-center gap-2">
+                      {sectionPendingCount > 0 && (
+                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
+                          {sectionPendingCount}
+                        </span>
+                      )}
+                      {item.isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </div>
+                  )}
                 </button>
 
                 {item.isOpen && !isCollapsed && (
-                  <div className="ml-6 mt-1 space-y-1">
-                    {item.items.map((subItem) => (
-                      <NavLink
-                        key={subItem.path}
-                        to={subItem.path}
-                        className={({ isActive }) =>
-                          `flex items-center py-2 px-4 rounded-lg transition-colors ${isActive
-                            ? "bg-indigo-700 text-white"
-                            : "text-indigo-100 hover:bg-indigo-800 hover:text-white"
-                          }`
-                        }
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          onClose?.();
-                        }}
+                  <div className="ml-8 mt-2 mb-3 space-y-1 border-l border-indigo-200 border-opacity-30 pl-3">
+                    {item.items.map((subItem) => {
+                      const subPendingCount = badgeMap[subItem.path] || 0;
 
-                      >
-                        <span>{subItem.label}</span>
-                      </NavLink>
-                    ))}
+                      return (
+                        <NavLink
+                          key={`${item.label}-${subItem.path}-${subItem.label}`}
+                          to={subItem.path}
+                          className={({ isActive }) =>
+                            `relative flex items-center justify-between gap-2 py-2 px-3 rounded-lg border transition-colors ${isActive
+                              ? "bg-white bg-opacity-15 text-white border-white border-opacity-20 shadow-sm"
+                              : "border-transparent text-indigo-100 hover:bg-white hover:bg-opacity-10 hover:text-white"
+                            }`
+                          }
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            onClose?.();
+                          }}
+
+                        >
+                          <span className="absolute -left-[17px] top-1/2 h-px w-4 -translate-y-1/2 bg-indigo-200 bg-opacity-30" />
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-indigo-200 bg-opacity-80" />
+                            <span className="text-sm leading-snug">{subItem.label}</span>
+                          </span>
+                          {subPendingCount > 0 && (
+                            <span className="flex-shrink-0 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
+                              {subPendingCount}
+                            </span>
+                          )}
+                        </NavLink>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -235,12 +261,23 @@ const SidebarContent = ({
 
 const Sidebar = ({ onClose }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [attendanceOpen, setAttendanceOpen] = useState(false);
+  const [openSections, setOpenSections] = useState({
+    "Recruitment Management": true,
+    "Onboarding Management": true,
+  });
   const [currentLang, setCurrentLang] = useState("en");
   const [showLanguageHint, setShowLanguageHint] = useState(false);
   const [isTranslateReady, setIsTranslateReady] = useState(false);
   const pendingCounts = usePendingCounts();
+
+  const toggleSection = (label) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }));
+  };
 
   // ... (rest of the state and effects in Sidebar)
 
@@ -250,6 +287,20 @@ const Sidebar = ({ onClose }) => {
   const userPageAccess = user?.["Pages Access"]
     ? user["Pages Access"].split(",").map((page) => page.trim().toLowerCase())
     : [];
+
+  useEffect(() => {
+    const activeSection = adminNavigationItems.find(
+      (item) =>
+        item.type === "dropdown" &&
+        item.items.some((subItem) => subItem.path === location.pathname)
+    );
+
+    if (activeSection) {
+      setOpenSections((prev) =>
+        prev[activeSection.label] ? prev : { ...prev, [activeSection.label]: true }
+      );
+    }
+  }, [location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -600,111 +651,54 @@ const Sidebar = ({ onClose }) => {
     }, 500);
   };
 
-  const adminMenuItems = [
-    { path: "/", icon: LayoutDashboard, label: "Dashboard" },
-    { path: "/indent", icon: FileText, label: "Indent" },
-    { path: "/online_posting", icon: FileText, label: "Online Posting" },
-    // { path: "/find-enquiry", icon: Search, label: "Find Enquiry" },
-    {
-      path: "/calling_for_job_agencies",
-      icon: Search,
-      label: "Calling For Job Agencies",
-    },
-    { path: "/whatsapp", icon: Phone, label: "Whatsapp" },
-    { path: "/call-tracker", icon: Phone, label: "Call Tracker" },
-    {
-      path: "/interview-scheduled",
-      icon: Users,
-      label: "Interview Scheduled",
-    },
-    {
-      path: "/candidate_sortlisted",
-      icon: Users,
-      label: "Candidate Sortlisted",
-    },
-    {
-      path: "/verification_before_interview",
-      icon: Search,
-      label: "Verification Before Interview",
-    },
-    {
-      path: "/interview_final_selection",
-      icon: CheckCircle,
-      label: "Interview & Final Selection",
-    },
-    {
-      path: "/joining_follow_up",
-      icon: Clock,
-      label: "Joining Follow Up",
-    },
-    
-    { path: "/joining", icon: NotebookPen, label: "Joining" },
-    {
-      path: "/check-salary-slip-and-resume",
-      icon: FileText,
-      label: "Check Salary Slip & Resume Copy",
-    },
-    {
-      path: "/joining-letter-release",
-      icon: FileText,
-      label: "Joining Letter Release",
-    },
-    {
-      path: "/induction-or-training",
-      icon: Users,
-      label: "Induction Or Training",
-    },
+  const iconMap = {
+    AlarmClockCheck,
+    BadgeDollarSign,
+    Book,
+    BookPlus,
+    Calendar,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    DoorOpen,
+    File,
+    FileText,
+    Inbox,
+    LayoutDashboard,
+    LeaveIcon,
+    NotebookPen,
+    PersonStandingIcon,
+    Phone,
+    ProfileIcon,
+    Search,
+    UserCheck,
+    UserCog,
+    Users,
+    UserX,
+    Video,
+  };
 
-    {
-      path: "/asset-assignment",
-      icon: LayoutDashboard,
-      label: "Asset Assignment (IT Team)",
-    },
-    // {
-      //   path: "/after-joining-work",
-      //   icon: UserCheck,
-      //   label: "After Joining Work",
-      // },
-      // { path: "/leaving", icon: UserX, label: "Leaving" },
-      // {
-    //   path: "/after-leaving-work",
-    //   icon: UserMinus,
-    //   label: "After Leaving Work",
-    // },
-    { path: "/employee", icon: Users, label: "Employee" },
-    { path: "/leaving", icon: Users, label: "Leaving" },
-    { path: "/user-management", icon: UserCog, label: "User Management" },
-    // { path: "/leave-management", icon: BookPlus, label: "Leave Management" },
-    // { path: "/gate-pass", icon: DoorOpen, label: "Gate Pass" },
-    // {
-    //   type: "dropdown",
-    //   icon: Book,
-    //   label: "Attendance",
-    //   isOpen: attendanceOpen,
-    //   toggle: () => setAttendanceOpen(!attendanceOpen),
-    //   items: [
-    //     { path: "/attendance", label: "Monthly" },
-    //     { path: "/attendancedaily", label: "Daily" },
-    //   ],
-    // },
-    // { path: "/payroll", icon: BadgeDollarSign, label: "Payroll" },
-    // { path: "/misreport", icon: AlarmClockCheck, label: "MIS Report" },
+  const bindMenuIcons = (items) =>
+    items.map((item) => {
+      const icon = iconMap[item.icon] || FileText;
 
-    // { path: "/documents", icon: File, label: "Documents" },
-    // { path: "/vendor", icon: PersonStandingIcon, label: "Vendors" },
-    // { path: "/video", icon: Video, label: "Videos" },
-    // { path: "/inventory", icon: Inbox, label: "Inventory" },
-    // { path: "/hrleads", icon: Inbox, label: "HR Leads" },
-  ];
+      if (item.type === "dropdown") {
+        return {
+          ...item,
+          icon,
+          isOpen: Boolean(openSections[item.label]),
+          toggle: () => toggleSection(item.label),
+        };
+      }
 
-  const employeeMenuItems = [
-    { path: "/my-profile", icon: ProfileIcon, label: "My Profile" },
-    { path: "/my-attendance", icon: Clock, label: "My Attendance" },
-    { path: "/leave-request", icon: LeaveIcon, label: "Leave Request" },
-    { path: "/gate-pass-request", icon: DoorOpen, label: "Gate Pass Request" },
-    { path: "/my-salary", icon: DollarSign, label: "My Salary" },
-    { path: "/company-calendar", icon: Calendar, label: "Company Calendar" },
-  ];
+      return {
+        ...item,
+        icon,
+      };
+    });
+
+  const adminMenuItems = bindMenuIcons(adminNavigationItems);
+  const employeeMenuItems = bindMenuIcons(employeeNavigationItems);
 
   // let menuItems = user?.Admin === "Yes" ? adminMenuItems : employeeMenuItems;
 
@@ -723,34 +717,37 @@ const Sidebar = ({ onClose }) => {
   //   });
   // }
 
+  const hasPageAccess = (item) => {
+    const labels = [item.label, ...(item.aliases || [])].map((label) =>
+      label.trim().toLowerCase()
+    );
+
+    return labels.some((label) => userPageAccess.includes(label));
+  };
+
+  const filterMenuByAccess = (items) =>
+    items
+      .map((item) => {
+        if (item.type !== "dropdown") {
+          return hasPageAccess(item) ? item : null;
+        }
+
+        if (hasPageAccess(item)) {
+          return item;
+        }
+
+        const accessibleChildren = item.items.filter(hasPageAccess);
+        return accessibleChildren.length > 0
+          ? { ...item, items: accessibleChildren }
+          : null;
+      })
+      .filter(Boolean);
+
   let menuItems;
 
   if (userPageAccess.length > 0) {
-    // Combine all possible menu items (admin + employee)
-    const allMenuItems = [...adminMenuItems, ...employeeMenuItems];
-
-    // Filter based on user's page access
-    menuItems = allMenuItems.filter((item) => {
-      // For dropdown items, check if "Attendance" is in access list
-      if (item.type === "dropdown") {
-        const itemLabel = item.label.toLowerCase();
-        return userPageAccess.includes(itemLabel);
-      }
-
-      // For regular items, check label
-      const itemLabel = item.label.toLowerCase();
-
-      // Only show pages that are in the user's Pages Access column
-      return userPageAccess.includes(itemLabel);
-    });
-
-    // Remove duplicates (in case any item exists in both admin and employee menus)
-    menuItems = menuItems.filter(
-      (item, index, self) =>
-        index === self.findIndex((t) => t.path === item.path)
-    );
+    menuItems = filterMenuByAccess([...adminMenuItems, ...employeeMenuItems]);
   } else {
-    // Default behavior: show admin or employee menu based on Admin status
     menuItems = user?.Admin === "Yes" ? adminMenuItems : employeeMenuItems;
   }
 
