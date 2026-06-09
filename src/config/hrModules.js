@@ -18,12 +18,12 @@ export const adminNavigationItems = [
       { path: "/call-tracker", label: "Call Tracker" },
       { path: "/interview-scheduled", label: "Interview Scheduled" },
       {
-        path: "/candidate_shortlisted",
+        path: "/candidate_sortlisted",
         label: "Candidate Shortlisted",
         aliases: ["Candidate Sortlisted"],
       },
       { path: "/verification_before_interview", label: "Verification Before Interview" },
-      { path: "/interview_final_selection", label: "Interview & Final Selection" },
+      { path: "/interview_final_selection", label: "Final Selection", aliases: ["Interview & Final Selection"] },
       { path: "/joining_follow_up", label: "Joining Follow Up" },
     ],
   },
@@ -50,17 +50,7 @@ export const adminNavigationItems = [
     items: [
       { path: "/employee", label: "Employee Master", aliases: ["Employee"] },
       { path: "/employee-profile", label: "Employee Profile", placeholder: true },
-      {
-        path: "/department-designation-management",
-        label: "Department & Designation Management",
-        placeholder: true,
-      },
       { path: "/documents", label: "Employee Documents", aliases: ["Documents"] },
-      {
-        path: "/employee-lifecycle-management",
-        label: "Employee Lifecycle Management",
-        placeholder: true,
-      },
     ],
   },
   {
@@ -81,8 +71,6 @@ export const adminNavigationItems = [
     items: [
       { path: "/leave-request", label: "Leave Application" },
       { path: "/leave-management", label: "Leave Approval", aliases: ["Leave Management"] },
-      { path: "/leave-balance", label: "Leave Balance", placeholder: true },
-      { path: "/leave-reports", label: "Leave Reports", placeholder: true },
     ],
   },
   {

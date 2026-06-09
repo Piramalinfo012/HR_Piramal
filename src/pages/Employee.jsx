@@ -22,16 +22,17 @@ const Employee = () => {
   const [showModal, setShowModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [joiningPlaceFilter, setJoiningPlaceFilter] = useState("");
   const [joiningPlaces, setJoiningPlaces] = useState([]);
 
   // Helper to convert Google Drive link to direct image link
-  const getDriveImageUrl = (url) => {
+  const getDriveImageUrl = (url, size) => {
     if (!url) return null;
     const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
     if (match && match[1]) {
       // Safest embedded link that works in img tags
-      return `https://drive.google.com/thumbnail?id=${match[1]}`;
+      return `https://drive.google.com/thumbnail?id=${match[1]}${size ? `&sz=w${size}` : ""}`;
     }
     return url;
   };
@@ -229,8 +230,22 @@ const Employee = () => {
   };
 
   const handleViewProfile = (item) => {
+    setImagePreview(null);
     setSelectedProfile(item);
     setShowProfileModal(true);
+  };
+
+  const closeProfileModal = () => {
+    setImagePreview(null);
+    setShowProfileModal(false);
+  };
+
+  const openImagePreview = (photoUrl, altText) => {
+    if (!photoUrl) return;
+    setImagePreview({
+      src: getDriveImageUrl(photoUrl, 1600),
+      alt: altText || "Employee photo",
+    });
   };
 
   const handleChange = (e) => {
@@ -726,7 +741,7 @@ const Employee = () => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col relative">
             <div className="absolute top-4 right-4 z-10">
-              <button onClick={() => setShowProfileModal(false)} className="p-2 bg-white/50 backdrop-blur-md rounded-full text-gray-600 hover:text-gray-900 hover:bg-white shadow-sm transition-all">
+              <button onClick={closeProfileModal} className="p-2 bg-white/50 backdrop-blur-md rounded-full text-gray-600 hover:text-gray-900 hover:bg-white shadow-sm transition-all">
                 <X size={24} />
               </button>
             </div>
@@ -739,7 +754,14 @@ const Employee = () => {
                 <div className="w-24 h-24 rounded-full bg-white p-1 shadow-md border border-gray-100 flex-shrink-0">
                   <div className="w-full h-full bg-white rounded-full overflow-hidden flex items-center justify-center">
                     {selectedProfile.candidatePhoto ? (
-                      <img src={getDriveImageUrl(selectedProfile.candidatePhoto)} alt={selectedProfile.candidateName || selectedProfile.name} className="w-full h-full object-contain" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+                      <button
+                        type="button"
+                        onClick={() => openImagePreview(selectedProfile.candidatePhoto, selectedProfile.candidateName || selectedProfile.name)}
+                        className="w-full h-full cursor-zoom-in"
+                        aria-label="Open employee photo"
+                      >
+                        <img src={getDriveImageUrl(selectedProfile.candidatePhoto, 400)} alt={selectedProfile.candidateName || selectedProfile.name} className="w-full h-full object-contain" onError={(e) => { e.target.onerror = null; e.target.parentElement.style.display = 'none'; e.target.parentElement.nextSibling.style.display = 'block'; }} />
+                      </button>
                     ) : null}
                     <User size={40} className={`text-indigo-300 ${selectedProfile.candidatePhoto ? 'hidden' : 'block'}`} />
                   </div>
@@ -851,6 +873,28 @@ const Employee = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {imagePreview && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setImagePreview(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setImagePreview(null)}
+            className="absolute top-4 right-4 p-2 bg-white/90 rounded-full text-gray-700 hover:text-gray-950 hover:bg-white shadow-lg transition-all"
+            aria-label="Close image preview"
+          >
+            <X size={26} />
+          </button>
+          <img
+            src={imagePreview.src}
+            alt={imagePreview.alt}
+            className="max-w-full max-h-[92vh] rounded-2xl object-contain shadow-2xl bg-white"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>

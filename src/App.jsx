@@ -47,7 +47,6 @@ import InductionTraining from "./pages/InductionTraining";
 import InductionWelcome from "./pages/InductionWelcome";
 import AssetAssignment from "./pages/AssetAssignment";
 import Whatsapp from "./pages/Whatsapp";
-import CandidateShortlisted from "./pages/CandidateShortlisted";
 import CandidateSortlisted from "./pages/CandidateSortlisted";
 import VerificationBeforeInterview from "./pages/VerificationBeforeInterview";
 import InterviewSelection from "./pages/InterviewSelection";
@@ -107,7 +106,7 @@ function App() {
             <Route path="calling_for_job_agencies" element={<CallingForJobAgencies />} />
             <Route path="whatsapp" element={<Whatsapp />} />
             <Route path="full_fill_position" element={<FullFillPostion />} />
-            <Route path="candidate_shortlisted" element={<CandidateShortlisted />} />
+            <Route path="candidate_shortlisted" element={<CandidateSortlisted />} />
             <Route path="candidate_sortlisted" element={<CandidateSortlisted />} />
             <Route path="verification_before_interview" element={<VerificationBeforeInterview />} />
             <Route path="interview-scheduled" element={<InterviewScheduled />} />

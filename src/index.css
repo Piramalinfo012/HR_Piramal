@@ -9,6 +9,15 @@
   --accent-indigo: #6366f1;
   --navy-primary: #312e81;
   --navy-hover: #1e1b4b;
+  --app-border-default: #cbd5e1;
+  --app-border-subtle: #d1d5db;
+  --app-border-strong: #94a3b8;
+}
+
+*,
+::before,
+::after {
+  border-color: var(--app-border-default);
 }
 
 body {
@@ -61,4 +70,49 @@ thead th {
   max-height: calc(100vh - 250px);
   overflow-y: auto;
   position: relative;
+}
+
+/* Make app-wide borders and table dividers easier to see. */
+.border-gray-50,
+.border-gray-100,
+.border-slate-50,
+.border-slate-100 {
+  border-color: rgb(209 213 219 / var(--tw-border-opacity, 1));
+}
+
+.border-gray-200,
+.border-slate-200 {
+  border-color: rgb(203 213 225 / var(--tw-border-opacity, 1));
+}
+
+.border-gray-300,
+.border-slate-300 {
+  border-color: rgb(148 163 184 / var(--tw-border-opacity, 1));
+}
+
+.divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(209 213 219 / var(--tw-divide-opacity, 1));
+}
+
+.divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+.divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(203 213 225 / var(--tw-divide-opacity, 1));
+}
+
+.divide-gray-300 > :not([hidden]) ~ :not([hidden]),
+.divide-slate-300 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(148 163 184 / var(--tw-divide-opacity, 1));
+}
+
+.border-white\/10 {
+  border-color: rgb(255 255 255 / 0.22);
+}
+
+.border-white\/15 {
+  border-color: rgb(255 255 255 / 0.28);
+}
+
+.border-white\/20 {
+  border-color: rgb(255 255 255 / 0.34);
 }

@@ -232,7 +232,7 @@ const InterviewSelection = () => {
     return (
         <div className="space-y-6 page-content p-6">
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-gray-800">Interview & Final Selection</h1>
+                <h1 className="text-2xl font-bold text-gray-800">Final Selection</h1>
             </div>
 
             <div className="bg-white p-4 rounded-lg shadow">
