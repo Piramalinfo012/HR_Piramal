@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Search, X, Check, Clock, Calendar, Plus } from 'lucide-react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { Search, X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const LEAVE_API_URL = import.meta.env.VITE_LEAVE_REQUEST_SHEET_URL;
 const LEAVE_SHEET_NAME = 'FMS';
 const LEAVE_DATA_START_INDEX = 6;
+const LEAVE_REFRESH_INTERVAL_MS = 30000;
+const LEAVE_PAGE_SIZE = 50;
+const LEAVE_PROCESS_CHUNK_SIZE = 500;
 
 const LeaveManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,12 +21,14 @@ const LeaveManagement = () => {
   const [activeTab, setActiveTab] = useState('pending');
   const [actionInProgress, setActionInProgress] = useState(null);
   const [editableDates, setEditableDates] = useState({ from: '', to: '' });
-  const [hodNames, setHodNames] = useState([]);
+  const [visibleLimit, setVisibleLimit] = useState(LEAVE_PAGE_SIZE);
+  const leaveFetchInProgressRef = useRef(false);
 
   // New state for leave request modal
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [employees, setEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
   const [formData, setFormData] = useState({
     employeeId: '',
     employeeName: '',
@@ -36,41 +41,6 @@ const LeaveManagement = () => {
     remark: '',
     imageUrl: ''
   });
-
-  const fetchHodNames = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=${encodeURIComponent('Master')}&action=fetch`
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch HOD data');
-      }
-
-      const rawData = result.data || result;
-
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
-
-      // Extract HOD names from Column A (index 0), skip header row
-      const hodData = rawData.slice(1).map(row => row[0]?.toString().trim()).filter(name => name);
-
-      setHodNames([...new Set(hodData)]); // Remove duplicates
-    } catch (error) {
-      console.error('Error fetching HOD data:', error);
-      toast.error(`Failed to load HOD data: ${error.message}`);
-
-      // Fallback to default HOD names if fetch fails
-      setHodNames(['Deepak', 'Vikas', 'Dharam', 'Pratap', 'Aubhav']);
-    }
-  };
 
   const handleCheckboxChange = (leaveId, rowData) => {
     if (selectedRow?.serialNo === leaveId) {
@@ -115,7 +85,10 @@ const LeaveManagement = () => {
 
   // Fetch employees from JOINING_FMS sheet
   const fetchEmployees = async () => {
+    if (employees.length > 0 || employeesLoading) return;
+
     try {
+      setEmployeesLoading(true);
       const response = await fetch(getJoiningFetchUrl());
 
       if (!response.ok) {
@@ -155,6 +128,8 @@ const LeaveManagement = () => {
     } catch (error) {
       console.error('Error fetching employee data:', error);
       toast.error(`Failed to load employee data: ${error.message}`);
+    } finally {
+      setEmployeesLoading(false);
     }
   };
 
@@ -322,6 +297,65 @@ const LeaveManagement = () => {
     sheetRowIndex: index + LEAVE_DATA_START_INDEX + 1,
   });
 
+  const yieldToBrowser = () =>
+    new Promise((resolve) => window.setTimeout(resolve, 0));
+
+  const processLeaveRows = async (rows) => {
+    const processedData = [];
+
+    for (let start = 0; start < rows.length; start += LEAVE_PROCESS_CHUNK_SIZE) {
+      const chunk = rows
+        .slice(start, start + LEAVE_PROCESS_CHUNK_SIZE)
+        .map((row, index) => mapLeaveRow(row, start + index))
+        .filter((leave) => leave.serialNo || leave.employeeName || leave.startDate);
+
+      processedData.push(...chunk);
+
+      if (start + LEAVE_PROCESS_CHUNK_SIZE < rows.length) {
+        await yieldToBrowser();
+      }
+    }
+
+    return processedData;
+  };
+
+  const splitLeaveLists = (leaves) => ({
+    pending: leaves.filter((leave) => leave.approvalPending),
+    approved: leaves.filter((leave) =>
+      leave.status?.toString().toLowerCase() === 'approved'
+    ),
+    rejected: leaves.filter((leave) =>
+      leave.status?.toString().toLowerCase() === 'rejected'
+    ),
+  });
+
+  const setLeaveLists = (leaves) => {
+    const nextLists = splitLeaveLists(leaves);
+    setPendingLeaves(nextLists.pending);
+    setApprovedLeaves(nextLists.approved);
+    setRejectedLeaves(nextLists.rejected);
+  };
+
+  const restoreLeaveLists = (snapshot) => {
+    setPendingLeaves(snapshot.pending);
+    setApprovedLeaves(snapshot.approved);
+    setRejectedLeaves(snapshot.rejected);
+  };
+
+  const applyLocalLeaveChange = (updatedLeave) => {
+    const nextLeaves = [
+      updatedLeave,
+      ...pendingLeaves,
+      ...approvedLeaves,
+      ...rejectedLeaves,
+    ].filter((leave, index) => {
+      if (!updatedLeave.serialNo) return index === 0 || leave !== updatedLeave;
+      return index === 0 || leave.serialNo !== updatedLeave.serialNo;
+    });
+
+    setLeaveLists(nextLeaves);
+  };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -365,6 +399,36 @@ const LeaveManagement = () => {
       const result = await response.json();
 
       if (result.success) {
+        const optimisticLeave = {
+          timestamp: formattedTimestamp,
+          leaveRequestId: leaveRequestNo,
+          requestedBy: formData.employeeName,
+          department: formData.department || formData.designation,
+          totalLeaves: formatLeaveDays(formData.fromDate, formData.toDate),
+          jobLocation: formData.jobLocation || '',
+          leaveFromDate: formatDOB(formData.fromDate),
+          leaveToDate: formatDOB(formData.toDate),
+          leaveReason: formData.reason,
+          remark: formData.remark,
+          imageUrl: formData.imageUrl,
+          approvalPlanned: '',
+          approvalActual: '',
+          approvalDelay: '',
+          approvedBy: '',
+          approvalStatus: 'Pending',
+          approvalRemarks: '',
+          serialNo: leaveRequestNo,
+          employeeId: leaveRequestNo,
+          employeeName: formData.employeeName,
+          startDate: formatDOB(formData.fromDate),
+          endDate: formatDOB(formData.toDate),
+          days: formatLeaveDays(formData.fromDate, formData.toDate),
+          status: 'Pending',
+          approvalPending: true,
+          sheetRowIndex: existingRows.length + 1,
+        };
+
+        applyLocalLeaveChange(optimisticLeave);
         toast.success('Leave Request submitted successfully!');
         setFormData({
           employeeId: '',
@@ -379,8 +443,9 @@ const LeaveManagement = () => {
           imageUrl: ''
         });
         setShowModal(false);
-        // Refresh the data
-        fetchLeaveData();
+        window.setTimeout(() => {
+          fetchLeaveData({ showLoader: false, silent: true });
+        }, 1200);
       } else {
         toast.error('Failed to insert: ' + (result.error || 'Unknown error'));
       }
@@ -404,25 +469,63 @@ const LeaveManagement = () => {
       return;
     }
 
+    const previousLists = {
+      pending: pendingLeaves,
+      approved: approvedLeaves,
+      rejected: rejectedLeaves,
+    };
+    const previousEditableDates = editableDates;
+
     setActionInProgress(action);
     setLoading(true);
 
     try {
-      const fullDataResponse = await fetch(
-        getLeaveFetchUrl()
-      );
+      const selectedStartDate = formatDOB(selectedRow.startDate);
+      const selectedEndDate = formatDOB(selectedRow.endDate);
+      const finalFromDate = editableDates.from ? formatDOB(editableDates.from) : selectedStartDate;
+      const finalToDate = editableDates.to ? formatDOB(editableDates.to) : selectedEndDate;
+      const fromDateChanged = Boolean(finalFromDate) && finalFromDate !== selectedStartDate;
+      const toDateChanged = Boolean(finalToDate) && finalToDate !== selectedEndDate;
+      const finalLeaveDays = formatLeaveDays(finalFromDate, finalToDate) || selectedRow.days;
+      const approvalActual = formatSheetTimestamp();
+      const approverName = getCurrentApproverName();
 
-      if (!fullDataResponse.ok) {
-        throw new Error(`HTTP error! status: ${fullDataResponse.status}`);
+      applyLocalLeaveChange({
+        ...selectedRow,
+        leaveFromDate: finalFromDate,
+        leaveToDate: finalToDate,
+        startDate: finalFromDate,
+        endDate: finalToDate,
+        totalLeaves: finalLeaveDays,
+        days: finalLeaveDays,
+        approvalActual,
+        approvedBy: approverName,
+        approvalStatus: actionStatus,
+        approvalRemarks: approvalRemark,
+        status: actionStatus,
+        approvalPending: false,
+      });
+
+      setSelectedRow(null);
+      setEditableDates({ from: '', to: '' });
+
+      let rowIndex = selectedRow.sheetRowIndex;
+
+      if (!rowIndex) {
+        const fullDataResponse = await fetch(getLeaveFetchUrl());
+
+        if (!fullDataResponse.ok) {
+          throw new Error(`HTTP error! status: ${fullDataResponse.status}`);
+        }
+
+        const fullDataResult = await fullDataResponse.json();
+        const allData = fullDataResult.data || fullDataResult;
+
+        rowIndex = allData.findIndex((row, idx) =>
+          idx >= LEAVE_DATA_START_INDEX &&
+          row[1]?.toString().trim() === selectedRow.serialNo?.toString().trim()
+        ) + 1;
       }
-
-      const fullDataResult = await fullDataResponse.json();
-      const allData = fullDataResult.data || fullDataResult;
-
-      const rowIndex = selectedRow.sheetRowIndex || allData.findIndex((row, idx) =>
-        idx >= LEAVE_DATA_START_INDEX &&
-        row[1]?.toString().trim() === selectedRow.serialNo?.toString().trim()
-      ) + 1;
 
       if (!rowIndex || rowIndex < 1) {
         throw new Error(`Leave request not found for ${selectedRow.requestedBy || selectedRow.leaveRequestId}`);
@@ -431,28 +534,21 @@ const LeaveManagement = () => {
       const updates = [];
 
       // Update dates if they were changed (Column G and H)
-      if (editableDates.from && editableDates.from !== selectedRow.startDate) {
-        updates.push({ columnIndex: 7, value: formatDOB(editableDates.from) });
+      if (fromDateChanged) {
+        updates.push({ columnIndex: 7, value: finalFromDate });
       }
 
-      if (editableDates.to && editableDates.to !== selectedRow.endDate) {
-        updates.push({ columnIndex: 8, value: formatDOB(editableDates.to) });
+      if (toDateChanged) {
+        updates.push({ columnIndex: 8, value: finalToDate });
       }
 
-      const finalFromDate = editableDates.from && editableDates.from !== selectedRow.startDate
-        ? formatDOB(editableDates.from)
-        : selectedRow.startDate;
-      const finalToDate = editableDates.to && editableDates.to !== selectedRow.endDate
-        ? formatDOB(editableDates.to)
-        : selectedRow.endDate;
-
-      if (updates.some((update) => update.columnIndex === 7 || update.columnIndex === 8)) {
-        updates.push({ columnIndex: 5, value: formatLeaveDays(finalFromDate, finalToDate) });
+      if (fromDateChanged || toDateChanged) {
+        updates.push({ columnIndex: 5, value: finalLeaveDays });
       }
 
       updates.push(
-        { columnIndex: 13, value: formatSheetTimestamp() },
-        { columnIndex: 15, value: getCurrentApproverName() },
+        { columnIndex: 13, value: approvalActual },
+        { columnIndex: 15, value: approverName },
         { columnIndex: 16, value: actionStatus },
         { columnIndex: 17, value: approvalRemark }
       );
@@ -475,15 +571,16 @@ const LeaveManagement = () => {
 
       if (results.every((result) => result.success)) {
         toast.success(`Leave ${action === 'accept' ? 'approved' : 'rejected'} for ${selectedRow.requestedBy || 'employee'}`);
-        fetchLeaveData();
-        setSelectedRow(null);
-        setEditableDates({ from: '', to: '' });
+        fetchLeaveData({ showLoader: false, silent: true });
       } else {
         const failed = results.find((result) => !result.success);
         throw new Error(failed?.error || "Update failed");
       }
 
     } catch (error) {
+      restoreLeaveLists(previousLists);
+      setSelectedRow(selectedRow);
+      setEditableDates(previousEditableDates);
       console.error('Update error:', error);
       toast.error(`Failed to ${action} leave: ${error.message}`);
     } finally {
@@ -492,10 +589,21 @@ const LeaveManagement = () => {
     }
   };
 
-  const fetchLeaveData = async () => {
-    setLoading(true);
-    setTableLoading(true);
-    setError(null);
+  const fetchLeaveData = async ({ showLoader = true, silent = false } = {}) => {
+    if (leaveFetchInProgressRef.current) {
+      return;
+    }
+
+    leaveFetchInProgressRef.current = true;
+
+    if (showLoader) {
+      setLoading(true);
+      setTableLoading(true);
+    }
+
+    if (!silent) {
+      setError(null);
+    }
 
     try {
       const response = await fetch(
@@ -519,63 +627,105 @@ const LeaveManagement = () => {
       }
 
       const dataRows = rawData.length > LEAVE_DATA_START_INDEX ? rawData.slice(LEAVE_DATA_START_INDEX) : [];
-      const processedData = dataRows
-        .map(mapLeaveRow)
-        .filter((leave) => leave.serialNo || leave.employeeName || leave.startDate);
+      const processedData = await processLeaveRows(dataRows);
 
-      // Case-insensitive filtering
-      setPendingLeaves(processedData.filter(leave => leave.approvalPending));
-      setApprovedLeaves(processedData.filter(leave =>
-        leave.status?.toString().toLowerCase() === 'approved'
-      ));
-      setRejectedLeaves(processedData.filter(leave =>
-        leave.status?.toString().toLowerCase() === 'rejected'
-      ));
+      setLeaveLists(processedData);
+      setError(null);
 
     } catch (error) {
       console.error('Error fetching leave data:', error);
-      setError(error.message);
-      toast.error(`Failed to load leave data: ${error.message}`);
+      if (!silent) {
+        setError(error.message);
+        toast.error(`Failed to load leave data: ${error.message}`);
+      }
     } finally {
-      setLoading(false);
-      setTableLoading(false);
+      leaveFetchInProgressRef.current = false;
+
+      if (showLoader) {
+        setLoading(false);
+        setTableLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchLeaveData();
-    fetchEmployees();
-    fetchHodNames();
+
+    const syncLeaveData = () => fetchLeaveData({ showLoader: false, silent: true });
+    const refreshTimer = window.setInterval(syncLeaveData, LEAVE_REFRESH_INTERVAL_MS);
+    window.addEventListener('focus', syncLeaveData);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+      window.removeEventListener('focus', syncLeaveData);
+    };
   }, []);
+
+  useEffect(() => {
+    if (showModal) {
+      fetchEmployees();
+    }
+  }, [showModal]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return formatDateToDDMMYYYY(dateString) || '-';
   };
 
-  const filteredPendingLeaves = pendingLeaves.filter(item => {
-    const matchesSearch = item.requestedBy?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.leaveRequestId?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const normalizedSearchTerm = deferredSearchTerm.trim().toLowerCase();
 
-  const filteredApprovedLeaves = approvedLeaves.filter(item => {
-    const matchesSearch = item.requestedBy?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.leaveRequestId?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredPendingLeaves = useMemo(
+    () => pendingLeaves.filter((item) =>
+      item.requestedBy?.toLowerCase().includes(normalizedSearchTerm) ||
+      item.leaveRequestId?.toLowerCase().includes(normalizedSearchTerm)
+    ),
+    [pendingLeaves, normalizedSearchTerm]
+  );
 
-  const filteredRejectedLeaves = rejectedLeaves.filter(item => {
-    const matchesSearch = item.requestedBy?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.leaveRequestId?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredApprovedLeaves = useMemo(
+    () => approvedLeaves.filter((item) =>
+      item.requestedBy?.toLowerCase().includes(normalizedSearchTerm) ||
+      item.leaveRequestId?.toLowerCase().includes(normalizedSearchTerm)
+    ),
+    [approvedLeaves, normalizedSearchTerm]
+  );
 
-  const leaveTypes = [
-    'Casual Leave',
-    'Earned Leave',
-    // 'Normal Leave',
-  ];
+  const filteredRejectedLeaves = useMemo(
+    () => rejectedLeaves.filter((item) =>
+      item.requestedBy?.toLowerCase().includes(normalizedSearchTerm) ||
+      item.leaveRequestId?.toLowerCase().includes(normalizedSearchTerm)
+    ),
+    [rejectedLeaves, normalizedSearchTerm]
+  );
+
+  useEffect(() => {
+    setVisibleLimit(LEAVE_PAGE_SIZE);
+  }, [activeTab, normalizedSearchTerm]);
+
+  const displayedPendingLeaves = useMemo(
+    () => filteredPendingLeaves.slice(0, visibleLimit),
+    [filteredPendingLeaves, visibleLimit]
+  );
+
+  const displayedApprovedLeaves = useMemo(
+    () => filteredApprovedLeaves.slice(0, visibleLimit),
+    [filteredApprovedLeaves, visibleLimit]
+  );
+
+  const displayedRejectedLeaves = useMemo(
+    () => filteredRejectedLeaves.slice(0, visibleLimit),
+    [filteredRejectedLeaves, visibleLimit]
+  );
+
+  const activeFilteredCount =
+    activeTab === 'approved'
+      ? filteredApprovedLeaves.length
+      : activeTab === 'rejected'
+        ? filteredRejectedLeaves.length
+        : filteredPendingLeaves.length;
+
+  const activeVisibleCount = Math.min(visibleLimit, activeFilteredCount);
 
   const renderPendingLeavesTable = () => (
     <table className="min-w-full divide-y divide-white">
@@ -600,8 +750,8 @@ const LeaveManagement = () => {
       </thead>
       <tbody className="divide-y divide-white">
         {filteredPendingLeaves.length > 0 ? (
-          filteredPendingLeaves.map((item, index) => (
-            <tr key={index} className="hover:bg-white">
+          displayedPendingLeaves.map((item, index) => (
+            <tr key={item.serialNo || index} className="hover:bg-white">
               <td className="px-6 py-4 whitespace-nowrap">
                 <input
                   type="checkbox"
@@ -737,8 +887,8 @@ const LeaveManagement = () => {
       </thead>
       <tbody className="divide-y divide-white">
         {filteredApprovedLeaves.length > 0 ? (
-          filteredApprovedLeaves.map((item, index) => (
-            <tr key={index} className="hover:bg-white">
+          displayedApprovedLeaves.map((item, index) => (
+            <tr key={item.serialNo || index} className="hover:bg-white">
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveRequestId}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.requestedBy}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -802,8 +952,8 @@ const LeaveManagement = () => {
       </thead>
       <tbody className="divide-y divide-white">
         {filteredRejectedLeaves.length > 0 ? (
-          filteredRejectedLeaves.map((item, index) => (
-            <tr key={index} className="hover:bg-white">
+          displayedRejectedLeaves.map((item, index) => (
+            <tr key={item.serialNo || index} className="hover:bg-white">
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveRequestId}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.requestedBy}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -935,14 +1085,32 @@ const LeaveManagement = () => {
               <div className="px-6 py-12 text-center">
                 <p className="text-red-500">Error: {error}</p>
                 <button
-                  onClick={fetchLeaveData}
+                  onClick={() => fetchLeaveData()}
                   className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
                 >
                   Retry
                 </button>
               </div>
             ) : (
-              renderTable()
+              <>
+                {renderTable()}
+                {activeFilteredCount > 0 && (
+                  <div className="flex flex-col gap-3 border-t border-gray-100 px-2 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-gray-500">
+                      Showing {activeVisibleCount} of {activeFilteredCount} records
+                    </p>
+                    {activeVisibleCount < activeFilteredCount && (
+                      <button
+                        type="button"
+                        onClick={() => setVisibleLimit((limit) => limit + LEAVE_PAGE_SIZE)}
+                        className="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Load more
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -988,8 +1156,11 @@ const LeaveManagement = () => {
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
                   required
+                  disabled={employeesLoading}
                 >
-                  <option value="">Select Employee</option>
+                  <option value="">
+                    {employeesLoading ? 'Loading employees...' : 'Select Employee'}
+                  </option>
                   {employees.map(employee => (
                     <option key={employee.id} value={employee.name}>{employee.name}</option>
                   ))}

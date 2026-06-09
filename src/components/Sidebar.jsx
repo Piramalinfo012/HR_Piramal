@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
@@ -259,12 +259,8 @@ const SidebarContent = ({
 
 const Sidebar = ({ onClose }) => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [openSections, setOpenSections] = useState({
-    "Recruitment Management": true,
-    "Onboarding Management": true,
-  });
+  const [openSections, setOpenSections] = useState({});
   const [currentLang, setCurrentLang] = useState("en");
   const [showLanguageHint, setShowLanguageHint] = useState(false);
   const [isTranslateReady, setIsTranslateReady] = useState(false);
@@ -285,20 +281,6 @@ const Sidebar = ({ onClose }) => {
   const userPageAccess = user?.["Pages Access"]
     ? user["Pages Access"].split(",").map((page) => page.trim().toLowerCase())
     : [];
-
-  useEffect(() => {
-    const activeSection = adminNavigationItems.find(
-      (item) =>
-        item.type === "dropdown" &&
-        item.items.some((subItem) => subItem.path === location.pathname)
-    );
-
-    if (activeSection) {
-      setOpenSections((prev) =>
-        prev[activeSection.label] ? prev : { ...prev, [activeSection.label]: true }
-      );
-    }
-  }, [location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");

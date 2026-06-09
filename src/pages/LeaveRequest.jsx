@@ -1,19 +1,19 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, X, Calendar, Clock, CheckCircle, AlertCircle, Filter, Search } from 'lucide-react';
-import useAuthStore from '../store/authStore';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, X, Calendar, Clock, CheckCircle, AlertCircle, Filter } from 'lucide-react';
 
 import toast from 'react-hot-toast';
 
 const LEAVE_API_URL = import.meta.env.VITE_LEAVE_REQUEST_SHEET_URL;
 const LEAVE_SHEET_NAME = 'FMS';
 const LEAVE_DATA_START_INDEX = 6;
+const LEAVE_PAGE_SIZE = 25;
+const LEAVE_PROCESS_CHUNK_SIZE = 500;
 
 const LeaveRequest = () => {
   const employeeId = localStorage.getItem("employeeId");
   const rawUser = localStorage.getItem("user");
   const user = rawUser ? JSON.parse(rawUser) : {};
   const isAdmin = (user.Admin || user.admin || '').toString().trim().toLowerCase() === 'yes';
-  const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
   const [leavesData, setLeavesData] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -22,8 +22,11 @@ const LeaveRequest = () => {
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [requestedByFilter, setRequestedByFilter] = useState(isAdmin ? 'all' : (user.Name || ''));
-  const [employees, setEmployees] = useState([]);
-  const [hodNames, setHodNames] = useState([]);
+  const [visibleLimit, setVisibleLimit] = useState(LEAVE_PAGE_SIZE);
+  const [employeeDetailsLoading, setEmployeeDetailsLoading] = useState(false);
+  const leaveFetchInProgressRef = useRef(false);
+  const employeeDetailsLoadedRef = useRef(false);
+  const employeeFetchInProgressRef = useRef(false);
   const [formData, setFormData] = useState({
     employeeId: employeeId,
     employeeName: user.Name || '',
@@ -49,41 +52,15 @@ const LeaveRequest = () => {
     return index !== -1 ? index : fallbackIndex;
   };
 
-  const fetchHodNames = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Master&action=fetch`
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch HOD data');
-      }
-
-      const rawData = result.data || result;
-
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
-
-      // Skip the first row (header) and get HOD names from Column A (index 0)
-      const hodData = rawData.slice(1).map(row => row[0] || '').filter(name => name);
-
-      setHodNames(hodData);
-    } catch (error) {
-      console.error('Error fetching HOD data:', error);
-      toast.error(`Failed to load HOD data: ${error.message}`);
-    }
-  };
-
   // Fetch employee data including designation
   const fetchEmployeeData = async () => {
+    if (employeeDetailsLoadedRef.current || employeeFetchInProgressRef.current) {
+      return;
+    }
+
     try {
+      employeeFetchInProgressRef.current = true;
+      setEmployeeDetailsLoading(true);
       const response = await fetch(getJoiningFetchUrl());
 
       if (!response.ok) {
@@ -126,53 +103,13 @@ const LeaveRequest = () => {
           department: department,
           jobLocation: jobLocation
         }));
+        employeeDetailsLoadedRef.current = true;
       }
     } catch (error) {
       console.error('Error fetching employee data:', error);
-    }
-  };
-
-  // Fetch employees from JOINING_FMS sheet
-  const fetchEmployees = async () => {
-    try {
-      const response = await fetch(getJoiningFetchUrl());
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch employee data');
-      }
-
-      const rawData = result.data || result;
-
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
-
-      const headers = rawData[6] || [];
-      const idIndex = getColumnIndex(headers, ['Joining ID', 'Indent Number', 'ID'], 5);
-      const nameIndex = getColumnIndex(headers, ['Candidate Name', 'Name As Per Aadhar', 'Employee Name'], 10);
-      const designationIndex = getColumnIndex(headers, ['Designation'], 14);
-      const jobLocationIndex = getColumnIndex(headers, ['Joining Place', 'Job Location', 'Location'], 13);
-      const departmentIndex = getColumnIndex(headers, ['Department'], 2);
-
-      const employeeData = rawData.slice(7).map((row, index) => ({
-        id: row[idIndex] || '',
-        name: row[nameIndex] || '',
-        designation: row[designationIndex] || '',
-        jobLocation: row[jobLocationIndex] || '',
-        department: row[departmentIndex] || '',
-        rowIndex: index + 8
-      })).filter(emp => emp.name && emp.id);
-
-      setEmployees(employeeData);
-    } catch (error) {
-      console.error('Error fetching employee data:', error);
-      toast.error(`Failed to load employee data: ${error.message}`);
+    } finally {
+      employeeFetchInProgressRef.current = false;
+      setEmployeeDetailsLoading(false);
     }
   };
 
@@ -250,38 +187,6 @@ const LeaveRequest = () => {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return diffDays;
   };
-
-  const calculateDaysInMonth = (startDateStr, endDateStr, month, year) => {
-    if (!startDateStr || !endDateStr || month === 'all') {
-      // For "All Months" selection, return the total days
-      return calculateDays(startDateStr, endDateStr);
-    }
-
-    const startDate = parseSheetDate(startDateStr);
-    const endDate = parseSheetDate(endDateStr);
-    if (!startDate || !endDate) return 0;
-
-    // If the leave doesn't fall in the selected month and year at all, return 0
-    const selectedMonthStart = new Date(year, parseInt(month), 1);
-    const selectedMonthEnd = new Date(year, parseInt(month) + 1, 0);
-
-    if (endDate < selectedMonthStart || startDate > selectedMonthEnd) {
-      return 0;
-    }
-
-    // Adjust start date if it's before the selected month
-    const adjustedStartDate = startDate < selectedMonthStart ? selectedMonthStart : startDate;
-
-    // Adjust end date if it's after the selected month
-    const adjustedEndDate = endDate > selectedMonthEnd ? selectedMonthEnd : endDate;
-
-    // Calculate days in the selected month
-    const diffTime = adjustedEndDate - adjustedStartDate;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-    return Math.max(0, diffDays); // Ensure we don't return negative values
-  };
-
 
   const formatDOB = (dateString) => formatDateToDDMMYYYY(dateString);
 
@@ -379,8 +284,38 @@ const LeaveRequest = () => {
     appliedDate: row[0] || '',
   });
 
+  const yieldToBrowser = () =>
+    new Promise((resolve) => window.setTimeout(resolve, 0));
+
+  const processLeaveRows = async (rows) => {
+    const processedData = [];
+    const currentUserName = user.Name?.toString().trim().toLowerCase();
+
+    for (let start = 0; start < rows.length; start += LEAVE_PROCESS_CHUNK_SIZE) {
+      const chunk = rows
+        .slice(start, start + LEAVE_PROCESS_CHUNK_SIZE)
+        .map((row, index) => mapLeaveRow(row, start + index))
+        .filter((item) =>
+          isAdmin ||
+          item.employeeName?.toString().trim().toLowerCase() === currentUserName
+        );
+
+      processedData.push(...chunk);
+
+      if (start + LEAVE_PROCESS_CHUNK_SIZE < rows.length) {
+        await yieldToBrowser();
+      }
+    }
+
+    return processedData;
+  };
+
   const fetchLeaveData = async () => {
-    setLoading(true);
+    if (leaveFetchInProgressRef.current) {
+      return;
+    }
+
+    leaveFetchInProgressRef.current = true;
     setTableLoading(true);
     setError(null);
 
@@ -406,12 +341,7 @@ const LeaveRequest = () => {
       }
 
       const dataRows = rawData.length > LEAVE_DATA_START_INDEX ? rawData.slice(LEAVE_DATA_START_INDEX) : [];
-      const processedData = dataRows
-        .map(mapLeaveRow)
-        .filter(item =>
-          isAdmin ||
-          item.employeeName?.toString().trim().toLowerCase() === user.Name?.toString().trim().toLowerCase()
-        );
+      const processedData = await processLeaveRows(dataRows);
 
       setLeavesData(processedData);
 
@@ -420,16 +350,20 @@ const LeaveRequest = () => {
       setError(error.message);
       toast.error(`Failed to load leave data: ${error.message}`);
     } finally {
-      setLoading(false);
+      leaveFetchInProgressRef.current = false;
       setTableLoading(false);
     }
   };
 
   useEffect(() => {
     fetchLeaveData();
-    fetchEmployeeData();
-    fetchHodNames();
   }, []);
+
+  useEffect(() => {
+    if (showModal) {
+      fetchEmployeeData();
+    }
+  }, [showModal]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -473,10 +407,39 @@ const LeaveRequest = () => {
       const result = await response.json();
 
       if (result.success) {
-        toast.success('Leave Request submitted successfully!');
+        const optimisticLeave = {
+          id: leavesData.length + 1,
+          timestamp: formattedTimestamp,
+          leaveRequestId: leaveRequestNo,
+          requestedBy: formData.employeeName,
+          department: formData.department || formData.designation,
+          totalLeaves: formatLeaveDays(formData.fromDate, formData.toDate),
+          jobLocation: formData.jobLocation || '',
+          leaveFromDate: formatDOB(formData.fromDate),
+          leaveToDate: formatDOB(formData.toDate),
+          leaveReason: formData.reason,
+          remark: formData.remark,
+          imageUrl: formData.imageUrl,
+          approvalPlanned: '',
+          approvalActual: '',
+          approvalDelay: '',
+          approvedBy: '',
+          approvalStatus: 'Pending',
+          approvalRemarks: '',
+          serialNo: leaveRequestNo,
+          employeeId: leaveRequestNo,
+          employeeName: formData.employeeName,
+          startDate: formatDOB(formData.fromDate),
+          endDate: formatDOB(formData.toDate),
+          reason: formData.reason,
+          days: formatLeaveDays(formData.fromDate, formData.toDate),
+          status: 'Pending',
+          approvalPending: true,
+          appliedDate: formattedTimestamp,
+        };
 
-        // Refresh the data immediately to update the button state
-        await fetchLeaveData();
+        setLeavesData((prev) => [optimisticLeave, ...prev]);
+        toast.success('Leave Request submitted successfully!');
 
         setFormData({
           employeeId: employeeId,
@@ -491,8 +454,7 @@ const LeaveRequest = () => {
           imageUrl: ''
         });
         setShowModal(false);
-        // Refresh the data
-        fetchLeaveData();
+        window.setTimeout(fetchLeaveData, 1200);
       } else {
         toast.error('Failed to insert: ' + (result.error || 'Unknown error'));
       }
@@ -504,25 +466,26 @@ const LeaveRequest = () => {
     }
   };
 
-  const hasSubmittedToday = () => {
+  const hasSubmittedToday = useMemo(() => {
     const today = new Date();
     const todayStr = formatDateToDDMMYYYY(today);
+    const currentUserName = user.Name?.toString().toLowerCase().trim();
+
+    if (!currentUserName) {
+      return false;
+    }
 
     return leavesData.some(leave => {
       // Case-insensitive employee name comparison
       if (!leave.timestamp || !leave.employeeName ||
-        leave.employeeName.toLowerCase().trim() !== user.Name.toLowerCase().trim()) {
+        leave.employeeName.toString().toLowerCase().trim() !== currentUserName) {
         return false;
       }
 
       // Extract date part from timestamp (M/D/YYYY H:M:S format from sheet)
       return formatDateToDDMMYYYY(leave.timestamp) === todayStr;
     });
-  };
-  const leaveTypes = [
-    'Casual Leave',
-    'Earned Leave',
-  ];
+  }, [leavesData, user.Name]);
 
   // Generate year options (current year and previous 5 years)
   const getYearOptions = () => {
@@ -580,80 +543,6 @@ const LeaveRequest = () => {
   const formatLeaveCount = (value) =>
     Number.isInteger(value) ? value : Number(value.toFixed(1));
 
-  // Calculate leave counts based on selected month and year
-  const calculateLeaveCounts = () => {
-    // Filter for approved leaves for this specific employee
-    const approvedLeaves = visibleLeaves.filter(leave =>
-      leave.status && leave.status.toLowerCase() === 'approved' &&
-      matchesRequestedByFilter(leave)
-    );
-
-    return {
-      'Casual Leave': approvedLeaves
-        .filter(leave => leave.leaveType && leave.leaveType.toLowerCase().includes('casual'))
-        .reduce((sum, leave) => sum + calculateDaysInMonth(leave.startDate, leave.endDate, selectedMonth, parseInt(selectedYear)), 0),
-      'Earned Leave': approvedLeaves
-        .filter(leave => leave.leaveType && leave.leaveType.toLowerCase().includes('earned'))
-        .reduce((sum, leave) => sum + calculateDaysInMonth(leave.startDate, leave.endDate, selectedMonth, parseInt(selectedYear)), 0),
-    };
-  };
-
-  // Calculate remaining leaves for the year
-  const calculateRemainingLeaves = () => {
-    const currentYear = new Date().getFullYear();
-
-    // Filter for approved leaves for this specific employee in the current year
-    const approvedLeaves = visibleLeaves.filter(leave =>
-      leave.status && leave.status.toLowerCase() === 'approved' &&
-      matchesRequestedByFilter(leave)
-    );
-
-    // Calculate total days taken for each leave type in the current year
-    const casualLeaveTaken = approvedLeaves
-      .filter(leave => leave.leaveType && leave.leaveType.toLowerCase().includes('casual'))
-      .reduce((sum, leave) => {
-        const leaveYear = new Date(parseDate(leave.startDate) || new Date()).getFullYear();
-        return leaveYear === currentYear ? sum + calculateDays(leave.startDate, leave.endDate) : sum;
-      }, 0);
-
-    const earnedLeaveTaken = approvedLeaves
-      .filter(leave => leave.leaveType && leave.leaveType.toLowerCase().includes('earned'))
-      .reduce((sum, leave) => {
-        const leaveYear = new Date(parseDate(leave.startDate) || new Date()).getFullYear();
-        return leaveYear === currentYear ? sum + calculateDays(leave.startDate, leave.endDate) : sum;
-      }, 0);
-
-    // Company policy: 12 Casual Leave and 15 Earned Leave per year
-    return {
-      'Casual Leave': 12 - casualLeaveTaken,
-      'Earned Leave': 24 - earnedLeaveTaken,
-    };
-  };
-
-  // ✅ Approved leave counts (only number of requests)
-  const calculateApprovedLeaveCounts = () => {
-    const approvedLeaves = visibleLeaves.filter(
-      leave =>
-        leave.status &&
-        leave.status.toLowerCase() === 'approved' &&
-        matchesRequestedByFilter(leave) &&
-        (selectedMonth === 'all' ||
-          isDateInSelectedPeriod(leave.startDate, selectedMonth, selectedYear) ||
-          isDateInSelectedPeriod(leave.endDate, selectedMonth, selectedYear))
-    );
-
-    return {
-      'Casual Leave': approvedLeaves.filter(
-        leave => leave.leaveType && leave.leaveType.toLowerCase() === 'casual leave'
-      ).length,
-      'Earned Leave': approvedLeaves.filter(
-        leave => leave.leaveType && leave.leaveType.toLowerCase() === 'earned leave'
-      ).length,
-    };
-  };
-
-  const approvedCounts = useMemo(() => calculateApprovedLeaveCounts(), [visibleLeaves, selectedMonth, selectedYear, requestedByFilter]);
-
   // Generate month options for the dropdown
   const monthOptions = [
     { value: 'all', label: 'All Months' },
@@ -671,7 +560,6 @@ const LeaveRequest = () => {
     { value: '11', label: 'December' }
   ];
 
-  const remainingLeaves = useMemo(() => calculateRemainingLeaves(), [visibleLeaves, selectedMonth, selectedYear, requestedByFilter]);
   const filteredLeaveRequests = useMemo(() => visibleLeaves.filter(leave => {
     const requestedByMatch = matchesRequestedByFilter(leave);
     const matchesYear = selectedMonth === 'all'
@@ -687,22 +575,42 @@ const LeaveRequest = () => {
 
     return requestedByMatch && matchesYear;
   }), [visibleLeaves, selectedMonth, selectedYear, requestedByFilter]);
-  const totalLeaveDays = useMemo(() => filteredLeaveRequests.reduce((sum, leave) => sum + getLeaveDayCount(leave), 0), [filteredLeaveRequests]);
-  const approvedLeaveDays = useMemo(() => filteredLeaveRequests
-    .filter((leave) => leave.status?.toString().toLowerCase() === 'approved')
-    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0), [filteredLeaveRequests]);
-  const pendingLeaveDays = useMemo(() => filteredLeaveRequests
-    .filter((leave) => leave.status?.toString().toLowerCase() === 'pending')
-    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0), [filteredLeaveRequests]);
-  const rejectedLeaveDays = useMemo(() => filteredLeaveRequests
-    .filter((leave) => leave.status?.toString().toLowerCase() === 'rejected')
-    .reduce((sum, leave) => sum + getLeaveDayCount(leave), 0), [filteredLeaveRequests]);
+
+  useEffect(() => {
+    setVisibleLimit(LEAVE_PAGE_SIZE);
+  }, [selectedMonth, selectedYear, requestedByFilter]);
+
+  const displayedLeaveRequests = useMemo(
+    () => filteredLeaveRequests.slice(0, visibleLimit),
+    [filteredLeaveRequests, visibleLimit]
+  );
+
+  const leaveDaySummary = useMemo(() => filteredLeaveRequests.reduce(
+    (summary, leave) => {
+      const dayCount = getLeaveDayCount(leave);
+      const status = leave.status?.toString().toLowerCase();
+
+      summary.total += dayCount;
+
+      if (status === 'approved') {
+        summary.approved += dayCount;
+      } else if (status === 'pending') {
+        summary.pending += dayCount;
+      } else if (status === 'rejected') {
+        summary.rejected += dayCount;
+      }
+
+      return summary;
+    },
+    { total: 0, approved: 0, pending: 0, rejected: 0 }
+  ), [filteredLeaveRequests]);
+
   const leaveSummaryCards = useMemo(() => ([
-    { label: 'Paid Leave', value: totalLeaveDays, subtext: 'Total leave days', icon: Calendar, iconClass: 'text-navy', bgClass: 'bg-indigo-100' },
-    { label: 'Approved Leave', value: approvedLeaveDays, subtext: 'Approved leave days', icon: CheckCircle, iconClass: 'text-green-600', bgClass: 'bg-green-100' },
-    { label: 'Pending Leave', value: pendingLeaveDays, subtext: 'Pending leave days', icon: Clock, iconClass: 'text-yellow-600', bgClass: 'bg-yellow-100' },
-    { label: 'Rejected Leave', value: rejectedLeaveDays, subtext: 'Rejected leave days', icon: AlertCircle, iconClass: 'text-red-600', bgClass: 'bg-red-100' },
-  ]), [totalLeaveDays, approvedLeaveDays, pendingLeaveDays, rejectedLeaveDays]);
+    { label: 'Paid Leave', value: leaveDaySummary.total, subtext: 'Total leave days', icon: Calendar, iconClass: 'text-navy', bgClass: 'bg-indigo-100' },
+    { label: 'Approved Leave', value: leaveDaySummary.approved, subtext: 'Approved leave days', icon: CheckCircle, iconClass: 'text-green-600', bgClass: 'bg-green-100' },
+    { label: 'Pending Leave', value: leaveDaySummary.pending, subtext: 'Pending leave days', icon: Clock, iconClass: 'text-yellow-600', bgClass: 'bg-yellow-100' },
+    { label: 'Rejected Leave', value: leaveDaySummary.rejected, subtext: 'Rejected leave days', icon: AlertCircle, iconClass: 'text-red-600', bgClass: 'bg-red-100' },
+  ]), [leaveDaySummary]);
 
   const getStatusMeta = (status) => {
     const value = status?.toString().trim().toLowerCase();
@@ -746,16 +654,16 @@ const LeaveRequest = () => {
         <h1 className="text-2xl font-bold text-gray-800">Leave Request</h1>
         <button
           onClick={() => setShowModal(true)}
-          disabled={hasSubmittedToday()}
-          className={`inline-flex w-full items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white sm:w-auto ${hasSubmittedToday()
+          disabled={hasSubmittedToday}
+          className={`inline-flex w-full items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white sm:w-auto ${hasSubmittedToday
             ? 'bg-gray-400 cursor-not-allowed'
             : 'bg-navy hover:bg-navy-dark'
             }`}
-          title={hasSubmittedToday() ? "You have already submitted a leave request today. Please try again tomorrow." : ""}
+          title={hasSubmittedToday ? "You have already submitted a leave request today. Please try again tomorrow." : ""}
         >
           <Plus size={16} className="mr-2" />
           New Leave Request
-          {hasSubmittedToday() && (
+          {hasSubmittedToday && (
             <span className="ml-2 text-xs">(Disabled for today)</span>
           )}
         </button>
@@ -855,13 +763,13 @@ const LeaveRequest = () => {
           ) : (
             <div className="space-y-4">
               {filteredLeaveRequests.length > 0 ? (
-                filteredLeaveRequests.map((request) => {
+                displayedLeaveRequests.map((request) => {
                   const statusMeta = getStatusMeta(request.status);
                   const StatusIcon = statusMeta.icon;
                   const isRejected = statusMeta.label === 'Rejected';
 
                   return (
-                    <article key={request.id} className={`rounded-lg border p-4 ${statusMeta.cardClass}`}>
+                    <article key={request.leaveRequestId || request.id} className={`rounded-lg border p-4 ${statusMeta.cardClass}`}>
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -919,6 +827,22 @@ const LeaveRequest = () => {
                   <p className="text-gray-500">No leave requests found.</p>
                 </div>
               )}
+              {filteredLeaveRequests.length > 0 && (
+                <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-gray-500">
+                    Showing {Math.min(visibleLimit, filteredLeaveRequests.length)} of {filteredLeaveRequests.length} records
+                  </p>
+                  {visibleLimit < filteredLeaveRequests.length && (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleLimit((limit) => limit + LEAVE_PAGE_SIZE)}
+                      className="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Load more
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -965,6 +889,9 @@ const LeaveRequest = () => {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
                   readOnly
                 />
+                {employeeDetailsLoading && (
+                  <p className="mt-1 text-xs text-gray-500">Loading employee details...</p>
+                )}
               </div>
 
               <div>
