@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Filter, Search, Clock, CheckCircle, ImageIcon, X } from "lucide-react";
+import { Filter, Search, Clock, CheckCircle, ImageIcon, X, User, Briefcase, MapPin, Calendar, FileText, Phone, Mail } from "lucide-react";
 
 import toast from "react-hot-toast";
 
@@ -20,8 +20,21 @@ const Employee = () => {
   const [error, setError] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState(null);
   const [joiningPlaceFilter, setJoiningPlaceFilter] = useState("");
   const [joiningPlaces, setJoiningPlaces] = useState([]);
+
+  // Helper to convert Google Drive link to direct image link
+  const getDriveImageUrl = (url) => {
+    if (!url) return null;
+    const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      // Safest embedded link that works in img tags
+      return `https://drive.google.com/thumbnail?id=${match[1]}`;
+    }
+    return url;
+  };
 
   const formatDOB = (dateString) => {
     if (!dateString) return "";
@@ -203,7 +216,8 @@ const Employee = () => {
     return matchesSearch;
   });
 
-  const handleLeaveClick = (item) => {
+  const handleLeaveClick = (e, item) => {
+    e.stopPropagation();
     setSelectedItem(item);
     setFormData({
       dateOfLeaving: "",
@@ -212,6 +226,11 @@ const Employee = () => {
       salary: ""
     });
     setShowModal(true);
+  };
+
+  const handleViewProfile = (item) => {
+    setSelectedProfile(item);
+    setShowProfileModal(true);
   };
 
   const handleChange = (e) => {
@@ -300,23 +319,26 @@ const Employee = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold ">Employee</h1>
+      <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+        <div>
+          <h1 className="text-3xl font-black text-gray-800 tracking-tight">Employee Master</h1>
+          <p className="text-sm text-gray-500 font-medium mt-1">Manage all joining and leaving personnel</p>
+        </div>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
         <div className="flex flex-1 max-w-md">
           <div className="relative w-full">
             <input
               type="text"
-              placeholder="Search by name, employee ID, or designation..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 bg-white text-gray-500"
+              placeholder="Search by name, ID, or designation..."
+              className="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 text-gray-800 font-medium transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             <Search
               size={20}
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
             />
           </div>
         </div>
@@ -349,28 +371,28 @@ const Employee = () => {
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="border-b border-gray-300">
-          <nav className="flex -mb-px">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="border-b border-gray-200 bg-gray-50/50">
+          <nav className="flex px-4 pt-4 gap-4">
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "joining"
-                ? "border-indigo-500 text-navy"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              className={`py-3 px-6 font-bold text-sm rounded-t-xl transition-all flex items-center ${activeTab === "joining"
+                ? "bg-white text-indigo-700 border-t border-l border-r border-gray-200 shadow-[0_4px_0_0_white]"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 border border-transparent"
                 }`}
               onClick={() => setActiveTab("joining")}
             >
-              <CheckCircle size={16} className="inline mr-2" />
-              Joining ({filteredJoiningData.length})
+              <CheckCircle size={18} className={`mr-2 ${activeTab === "joining" ? "text-indigo-500" : "text-gray-400"}`} />
+              Active / Joining <span className={`ml-2 px-2.5 py-0.5 rounded-full text-xs ${activeTab === "joining" ? "bg-indigo-100 text-indigo-700" : "bg-gray-200 text-gray-600"}`}>{filteredJoiningData.length}</span>
             </button>
             <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 ${activeTab === "leaving"
-                ? "border-indigo-500 text-navy"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              className={`py-3 px-6 font-bold text-sm rounded-t-xl transition-all flex items-center ${activeTab === "leaving"
+                ? "bg-white text-indigo-700 border-t border-l border-r border-gray-200 shadow-[0_4px_0_0_white]"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 border border-transparent"
                 }`}
               onClick={() => setActiveTab("leaving")}
             >
-              <Clock size={16} className="inline mr-2" />
-              Leaving ({filteredLeavingData.length})
+              <Clock size={18} className={`mr-2 ${activeTab === "leaving" ? "text-rose-500" : "text-gray-400"}`} />
+              Archived / Leaving <span className={`ml-2 px-2.5 py-0.5 rounded-full text-xs ${activeTab === "leaving" ? "bg-rose-100 text-rose-700" : "bg-gray-200 text-gray-600"}`}>{filteredLeavingData.length}</span>
             </button>
           </nav>
         </div>
@@ -379,122 +401,94 @@ const Employee = () => {
           {activeTab === "joining" && (
             <div className="overflow-x-auto table-container">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-100 sticky top-0 z-10">
+                <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Employee ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Father Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date Of Joining
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Joining Place
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Designation
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Aadhar Photo
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Candidate Photo
-                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tl-lg">Profile</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Details</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Joining Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Documents</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tr-lg">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100 bg-white">
                   {tableLoading ? (
                     <tr>
-                      <td colSpan="21" className="px-6 py-12 text-center">
+                      <td colSpan="7" className="px-6 py-16 text-center">
                         <div className="flex justify-center flex-col items-center">
-                          <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
-                          <span className="text-gray-600 text-sm">
-                            Loading employees...
-                          </span>
+                          <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                          <span className="text-gray-500 font-medium">Loading employee master data...</span>
                         </div>
                       </td>
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan="21" className="px-6 py-12 text-center">
-                        <p className="text-red-500">Error: {error}</p>
-                        <button
-                          onClick={fetchData}
-                          className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
-                        >
-                          Retry
-                        </button>
+                      <td colSpan="7" className="px-6 py-12 text-center">
+                        <div className="bg-red-50 text-red-600 p-4 rounded-xl inline-block">
+                          <p className="font-semibold mb-2">Error loading data</p>
+                          <p className="text-sm">{error}</p>
+                          <button onClick={fetchData} className="mt-3 px-4 py-2 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 transition">Retry</button>
+                        </div>
                       </td>
                     </tr>
                   ) : (
                     filteredJoiningData.map((item, index) => (
-                      <tr
-                        key={index}
-                        className="hover:bg-gray-50"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <button
-                            onClick={() => handleLeaveClick(item)}
-                            className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
-                          >
-                            Leave
-                          </button>
+                      <tr key={index} onClick={() => handleViewProfile(item)} className="hover:bg-indigo-50/80 transition-colors group cursor-pointer">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-indigo-100 overflow-hidden flex items-center justify-center border-2 border-white shadow-sm flex-shrink-0">
+                              {item.candidatePhoto ? (
+                                <img src={getDriveImageUrl(item.candidatePhoto)} alt={item.candidateName} className="w-full h-full object-contain bg-white" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+                              ) : null}
+                              <User size={24} className={`text-indigo-400 ${item.candidatePhoto ? 'hidden' : 'block'}`} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-800">{item.candidateName}</p>
+                              {item.fatherName && item.fatherName !== "N/A" && item.fatherName !== "na" && (
+                                <p className="text-xs text-gray-500 flex items-center mt-1"><User size={12} className="mr-1" /> C/O {item.fatherName}</p>
+                              )}
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.employeeId}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md text-sm">{item.employeeId}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.candidateName}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p className="text-sm font-semibold text-gray-700 flex items-center"><Briefcase size={14} className="mr-1.5 text-gray-400"/>{item.designation || 'N/A'}</p>
+                          {item.department && item.department !== "N/A" && item.department !== "na" && (
+                            <p className="text-xs text-gray-500 mt-1">{item.department}</p>
+                          )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.fatherName}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm font-medium text-gray-600">
+                            <Calendar size={14} className="mr-2 text-indigo-400" />
+                            {item.dateOfJoining ? formatDOB(item.dateOfJoining) : "-"}
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.dateOfJoining
-                            ? formatDOB(item.dateOfJoining)
-                            : "-"}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                            <MapPin size={12} className="mr-1" />
+                            {item.joiningPlace || 'N/A'}
+                          </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.joiningPlace}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.designation}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           {item.aadharPhoto ? (
-                            <a
-                              href={item.aadharPhoto}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-navy hover:text-indigo-800"
-                            >
-                              <ImageIcon size={20} />
+                            <a href={item.aadharPhoto} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg text-xs font-bold transition-colors">
+                              <FileText size={14} />
+                              Aadhar
                             </a>
                           ) : (
-                            "-"
+                            <span className="text-gray-400 text-xs font-medium bg-gray-50 px-2 py-1 rounded">No doc</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.candidatePhoto ? (
-                            <a
-                              href={item.candidatePhoto}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-navy hover:text-indigo-800"
-                            >
-                              <ImageIcon size={20} />
-                            </a>
-                          ) : (
-                            "-"
-                          )}
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <button
+                            onClick={(e) => handleLeaveClick(e, item)}
+                            className="px-4 py-2 bg-white border-2 border-rose-200 text-rose-600 font-bold rounded-xl hover:bg-rose-50 hover:border-rose-300 transition-colors shadow-sm"
+                          >
+                            Mark Leave
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -514,97 +508,78 @@ const Employee = () => {
           {activeTab === "leaving" && (
             <div className="overflow-x-auto table-container">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-100 sticky top-0 z-10">
+                <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Employee ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date Of Joining
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date Of Leaving
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Mobile Number
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Father Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Designation
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Department
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Reason Of Leaving
-                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tl-lg">Profile</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Role & Details</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Duration</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tr-lg">Reason for Leaving</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-100 bg-white">
                   {tableLoading ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-12 text-center">
+                      <td colSpan="6" className="px-6 py-16 text-center">
                         <div className="flex justify-center flex-col items-center">
-                          <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
-                          <span className="text-gray-600 text-sm">
-                            Loading leaving employees...
-                          </span>
+                          <div className="w-8 h-8 border-4 border-rose-200 border-t-rose-600 rounded-full animate-spin mb-4"></div>
+                          <span className="text-gray-500 font-medium">Loading archived records...</span>
                         </div>
                       </td>
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-12 text-center">
-                        <p className="text-red-500">Error: {error}</p>
-                        <button
-                          onClick={fetchGlobalData}
-                          className="mt-2 px-4 py-2 bg-navy text-white rounded-md hover:bg-navy-dark"
-                        >
-                          Retry
-                        </button>
+                      <td colSpan="6" className="px-6 py-12 text-center">
+                        <div className="bg-red-50 text-red-600 p-4 rounded-xl inline-block">
+                          <p className="font-semibold mb-2">Error loading data</p>
+                          <p className="text-sm">{error}</p>
+                          <button onClick={fetchData} className="mt-3 px-4 py-2 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 transition">Retry</button>
+                        </div>
                       </td>
                     </tr>
                   ) : (
                     filteredLeavingData.map((item, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.employeeId}
+                      <tr key={index} onClick={() => handleViewProfile(item)} className="hover:bg-rose-50/80 transition-colors group cursor-pointer">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center border-2 border-white shadow-sm flex-shrink-0">
+                              {item.candidatePhoto ? (
+                                <img src={getDriveImageUrl(item.candidatePhoto)} alt={item.name} className="w-full h-full object-contain bg-white grayscale" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+                              ) : null}
+                              <User size={20} className={`text-gray-400 ${item.candidatePhoto ? 'hidden' : 'block'}`} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-gray-700 line-through decoration-rose-300 opacity-80">{item.name}</p>
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.name}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md text-sm opacity-80">{item.employeeId}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.dateOfJoining
-                            ? formatDOB(item.dateOfJoining)
-                            : "-"}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p className="text-sm font-semibold text-gray-600">{item.designation}</p>
+                          {item.department && <p className="text-xs text-gray-400 mt-0.5">{item.department}</p>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.joiningPlace}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-col gap-1.5">
+                            {item.dateOfJoining && (
+                              <div className="flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded w-max border border-emerald-100">
+                                <span className="mr-1 font-bold">Joined:</span> {formatDOB(item.dateOfJoining)}
+                              </div>
+                            )}
+                            <div className="flex items-center text-xs font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded w-max border border-rose-100">
+                              <span className="mr-1 font-bold">Left:</span> {item.dateOfLeaving ? formatDOB(item.dateOfLeaving) : 'N/A'}
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.dateOfLeaving
-                            ? formatDOB(item.dateOfLeaving)
-                            : "-"}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
+                          {item.mobileNo || '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.mobileNo}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.fatherName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.designation}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.department}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.reasonOfLeaving}
+                        <td className="px-6 py-4">
+                          <p className="text-sm text-gray-600 italic border-l-2 border-rose-200 pl-3 py-1 bg-gray-50 rounded-r-lg max-w-xs truncate" title={item.reasonOfLeaving}>
+                            "{item.reasonOfLeaving || 'No reason provided'}"
+                          </p>
                         </td>
                       </tr>
                     ))
@@ -745,6 +720,139 @@ const Employee = () => {
           </div>
         )
       }
+
+      {/* Profile Details Modal */}
+      {showProfileModal && selectedProfile && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col relative">
+            <div className="absolute top-4 right-4 z-10">
+              <button onClick={() => setShowProfileModal(false)} className="p-2 bg-white/50 backdrop-blur-md rounded-full text-gray-600 hover:text-gray-900 hover:bg-white shadow-sm transition-all">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto w-full">
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 h-24 w-full flex-shrink-0"></div>
+              
+              <div className="px-6 pb-6">
+                <div className="relative flex justify-between items-end -mt-12 mb-4">
+                <div className="w-24 h-24 rounded-full bg-white p-1 shadow-md border border-gray-100 flex-shrink-0">
+                  <div className="w-full h-full bg-white rounded-full overflow-hidden flex items-center justify-center">
+                    {selectedProfile.candidatePhoto ? (
+                      <img src={getDriveImageUrl(selectedProfile.candidatePhoto)} alt={selectedProfile.candidateName || selectedProfile.name} className="w-full h-full object-contain" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+                    ) : null}
+                    <User size={40} className={`text-indigo-300 ${selectedProfile.candidatePhoto ? 'hidden' : 'block'}`} />
+                  </div>
+                </div>
+                <div className="mb-1 flex-shrink-0">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm ${selectedProfile.isArchived ? 'bg-rose-100 text-rose-700 border border-rose-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'}`}>
+                    {selectedProfile.isArchived ? 'Inactive' : 'Active Employee'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-2xl font-black text-gray-800 tracking-tight">{selectedProfile.candidateName || selectedProfile.name}</h2>
+                <div className="flex items-center gap-2 mt-1.5 text-gray-600 font-medium text-sm">
+                  <span className="flex items-center gap-1"><Briefcase size={14} className="text-indigo-400" /> {selectedProfile.designation || 'No Designation'}</span>
+                  <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                  <span className="text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-md text-xs">{selectedProfile.employeeId}</span>
+                </div>
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Contact Info</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-white rounded-lg shadow-sm text-blue-500"><Phone size={18} /></div>
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium mb-0.5">Mobile Number</p>
+                          <p className="text-sm font-bold text-gray-800">{selectedProfile.mobileNo || 'N/A'}</p>
+                        </div>
+                      </div>
+                      {!selectedProfile.isArchived && (
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-white rounded-lg shadow-sm text-purple-500"><Mail size={18} /></div>
+                          <div>
+                            <p className="text-xs text-gray-500 font-medium mb-0.5">Email Address</p>
+                            <p className="text-sm font-bold text-gray-800 truncate pr-2">{selectedProfile.emailId || 'N/A'}</p>
+                          </div>
+                        </div>
+                      )}
+                      {selectedProfile.fatherName && selectedProfile.fatherName !== "N/A" && selectedProfile.fatherName !== "na" && (
+                        <div className="flex items-start gap-3">
+                          <div className="p-2 bg-white rounded-lg shadow-sm text-emerald-500"><User size={18} /></div>
+                          <div>
+                            <p className="text-xs text-gray-500 font-medium mb-0.5">Father's Name</p>
+                            <p className="text-sm font-bold text-gray-800">{selectedProfile.fatherName}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Employment Details</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-white rounded-lg shadow-sm text-orange-500"><Calendar size={18} /></div>
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium mb-0.5">Date of Joining</p>
+                          <p className="text-sm font-bold text-gray-800">{selectedProfile.dateOfJoining ? formatDOB(selectedProfile.dateOfJoining) : 'N/A'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-white rounded-lg shadow-sm text-rose-500"><MapPin size={18} /></div>
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium mb-0.5">Location & Dept</p>
+                          <p className="text-sm font-bold text-gray-800">
+                            {selectedProfile.joiningPlace || 'N/A'} 
+                            {selectedProfile.department && selectedProfile.department !== "N/A" && selectedProfile.department !== "na" && (
+                              <><span className="text-gray-400 font-normal mx-1">|</span> {selectedProfile.department}</>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {selectedProfile.isArchived && (
+                        <div className="flex items-start gap-3 mt-4 pt-4 border-t border-gray-200">
+                          <div className="p-2 bg-rose-100 rounded-lg shadow-sm text-rose-600"><Clock size={18} /></div>
+                          <div>
+                            <p className="text-xs text-rose-500 font-bold mb-0.5">Date of Leaving</p>
+                            <p className="text-sm font-bold text-gray-800">{selectedProfile.dateOfLeaving ? formatDOB(selectedProfile.dateOfLeaving) : 'N/A'}</p>
+                            {selectedProfile.reasonOfLeaving && (
+                              <p className="text-xs text-gray-600 mt-1 italic">"{selectedProfile.reasonOfLeaving}"</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {selectedProfile.aadharPhoto && (
+                <div className="mt-4">
+                  <a 
+                    href={selectedProfile.aadharPhoto} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center w-full gap-2 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl transition-colors border border-indigo-100"
+                  >
+                    <FileText size={18} />
+                    View Aadhar Document
+                  </a>
+                </div>
+              )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
