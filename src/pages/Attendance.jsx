@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Download, X, Filter, User, Calendar, ChevronDown, CalendarDays, Table2, ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react';
+import { Search, Download, X, Filter, User, Calendar, ChevronDown, CalendarDays, Table2, ChevronLeft, ChevronRight, MoreVertical, CheckCircle2, XCircle, Clock, Coffee, AlertCircle, TrendingUp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 import jsPDF from 'jspdf';
@@ -18,6 +18,7 @@ const Attendance = () => {
   const [reportYear, setReportYear] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);
   const [attendanceView, setAttendanceView] = useState('calendar');
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
@@ -418,7 +419,17 @@ const Attendance = () => {
   const buildAttendanceSummary = (rows) => rows.reduce((summary, item) => {
     const status = item.status.toString().trim().toUpperCase();
     const inTimeMinutes = parseTimeToMinutes(item.inTime);
-    const halfDayThresholdMinutes = 9 * 60 + 15;
+    const outTimeMinutes = parseTimeToMinutes(item.outTime);
+    const halfDayThresholdMinutes = 9 * 60 + 15; // 09:15
+    const earlyOutThresholdMinutes = 18 * 60; // 18:00
+    
+    const inTimeStr = item.inTime ? item.inTime.toString().trim() : '';
+    const outTimeStr = item.outTime ? item.outTime.toString().trim() : '';
+    const hasInTime = inTimeStr !== '' && inTimeStr !== '-';
+    const hasOutTime = outTimeStr !== '' && outTimeStr !== '-';
+
+    const isLateIn = hasInTime && inTimeMinutes !== null && inTimeMinutes > halfDayThresholdMinutes;
+    const isEarlyOut = hasOutTime && outTimeMinutes !== null && outTimeMinutes < earlyOutThresholdMinutes;
 
     if (status === 'P' || status === 'PRESENT') {
       summary.present += 1;
@@ -430,12 +441,16 @@ const Attendance = () => {
       summary.halfDay += 1;
     }
 
-    if (status === 'P' && inTimeMinutes !== null && inTimeMinutes > halfDayThresholdMinutes) {
+    if ((status === 'P' || status === 'PRESENT') && (isLateIn || isEarlyOut)) {
       summary.halfDay += 1;
+    }
+    
+    if (hasInTime && !hasOutTime) {
+      summary.punchMiss += 1;
     }
 
     return summary;
-  }, { present: 0, absent: 0, halfDay: 0, wo: 0 });
+  }, { present: 0, absent: 0, halfDay: 0, wo: 0, punchMiss: 0 });
 
   const calendarMonth = monthFilter || monthOptions[0] || monthOrder[new Date().getMonth()];
   const calendarYear = yearFilter || yearOptions[yearOptions.length - 1] || String(new Date().getFullYear());
@@ -521,8 +536,8 @@ const Attendance = () => {
     const daySummary = buildAttendanceSummary(rows);
     let baseClass = 'bg-white text-slate-900';
 
-    if (daySummary.present > 0) baseClass = 'bg-emerald-200 text-slate-950';
-    else if (daySummary.halfDay > 0) baseClass = 'half-day-dot text-slate-950';
+    if (daySummary.halfDay > 0) baseClass = 'half-day-dot text-slate-950';
+    else if (daySummary.present > 0) baseClass = 'bg-emerald-200 text-slate-950';
     else if (daySummary.absent > 0) baseClass = 'bg-red-100 text-red-800';
     else if (daySummary.wo > 0) baseClass = 'bg-violet-100 text-violet-800';
     else if (cell.weekday === 0) baseClass = 'bg-violet-100 text-violet-800';
@@ -803,7 +818,8 @@ const Attendance = () => {
                           <div key={cell.key} className="flex justify-center">
                             <div
                               title={getCompactCalendarDayTitle(cell)}
-                              className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition hover:scale-105 sm:h-10 sm:w-10 sm:text-xl ${getCompactCalendarDayClass(cell)}`}
+                              onClick={() => cell.isCurrentMonth && setSelectedCalendarDay(selectedCalendarDay === cell.day ? null : cell.day)}
+                              className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-sm font-medium transition hover:scale-105 sm:h-10 sm:w-10 sm:text-xl ${getCompactCalendarDayClass(cell)} ${cell.isCurrentMonth && selectedCalendarDay === cell.day ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
                             >
                               {cell.day}
                             </div>
@@ -836,30 +852,112 @@ const Attendance = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 sm:p-5">
-                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">Selected Summary</p>
-                    <h3 className="mt-1 text-lg font-black text-slate-950 sm:text-xl">{calendarTitle}</h3>
-                    <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-5 sm:gap-3">
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3">
-                        <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Present</p>
-                        <p className="mt-1 text-xl font-black text-emerald-800 sm:text-2xl">{calendarSummary.present}</p>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Summary</p>
+                        <h3 className="text-sm font-black text-slate-800">{calendarTitle}</h3>
                       </div>
-                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3">
-                        <p className="text-xs font-black uppercase tracking-wide text-rose-700">Absent</p>
-                        <p className="mt-1 text-xl font-black text-rose-800 sm:text-2xl">{calendarSummary.absent}</p>
+                      <TrendingUp size={14} className="text-slate-300" />
+                    </div>
+                    
+                    <div className="grid grid-cols-5 gap-2">
+                      <div className="group flex flex-col items-center rounded-xl bg-emerald-50 py-2.5 transition-all hover:shadow-md hover:shadow-emerald-100">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm shadow-emerald-200">
+                          <CheckCircle2 size={14} />
+                        </div>
+                        <p className="mt-1.5 text-lg font-black text-emerald-700">{calendarSummary.present}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-500">Present</p>
                       </div>
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3">
-                        <p className="text-xs font-black uppercase tracking-wide text-amber-700">Half Day</p>
-                        <p className="mt-1 text-xl font-black text-amber-800 sm:text-2xl">{calendarSummary.halfDay}</p>
+
+                      <div className="group flex flex-col items-center rounded-xl bg-rose-50 py-2.5 transition-all hover:shadow-md hover:shadow-rose-100">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white shadow-sm shadow-rose-200">
+                          <XCircle size={14} />
+                        </div>
+                        <p className="mt-1.5 text-lg font-black text-rose-700">{calendarSummary.absent}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-rose-500">Absent</p>
                       </div>
-                      <div className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3">
-                        <p className="text-xs font-black uppercase tracking-wide text-slate-600">WO</p>
-                        <p className="mt-1 text-xl font-black text-slate-800 sm:text-2xl">{calendarSummary.wo}</p>
+
+                      <div className="group flex flex-col items-center rounded-xl bg-amber-50 py-2.5 transition-all hover:shadow-md hover:shadow-amber-100">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm shadow-amber-200">
+                          <Clock size={14} />
+                        </div>
+                        <p className="mt-1.5 text-lg font-black text-amber-700">{calendarSummary.halfDay}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-amber-500">Half Day</p>
+                      </div>
+
+                      <div className="group flex flex-col items-center rounded-xl bg-violet-50 py-2.5 transition-all hover:shadow-md hover:shadow-violet-100">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-500 text-white shadow-sm shadow-violet-200">
+                          <Coffee size={14} />
+                        </div>
+                        <p className="mt-1.5 text-lg font-black text-violet-700">{calendarSummary.wo}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-violet-500">WO</p>
+                      </div>
+
+                      <div className="group flex flex-col items-center rounded-xl bg-orange-50 py-2.5 transition-all hover:shadow-md hover:shadow-orange-100">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm shadow-orange-200">
+                          <AlertCircle size={14} />
+                        </div>
+                        <p className="mt-1.5 text-lg font-black text-orange-700">{calendarSummary.punchMiss}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-orange-500">Punch Miss</p>
                       </div>
                     </div>
-                    <p className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2.5 text-xs font-semibold text-navy sm:mt-5 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-                      {calendarRows.length} attendance records in this calendar view.
-                    </p>
+
+                    <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-slate-50 py-1.5 text-[10px] font-semibold text-slate-400">
+                      <CalendarDays size={11} />
+                      <span className="font-bold text-slate-500">{calendarRows.length}</span> records
+                    </div>
+
+                    {/* Day Log Panel */}
+                    {selectedCalendarDay && (calendarRowsByDay[selectedCalendarDay] || []).length > 0 && (
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="mb-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Day Log</p>
+                            <h3 className="text-sm font-black text-slate-800">{selectedCalendarDay} {calendarMonth} {calendarYear}</h3>
+                          </div>
+                          <button type="button" onClick={() => setSelectedCalendarDay(null)} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                            <X size={16} />
+                          </button>
+                        </div>
+                        <div className="overflow-x-auto rounded-xl border border-slate-100">
+                          <table className="w-full text-left text-xs">
+                            <thead>
+                              <tr className="bg-slate-50">
+                                <th className="px-3 py-2 font-bold uppercase tracking-wide text-slate-500">Employee</th>
+                                <th className="px-3 py-2 font-bold uppercase tracking-wide text-slate-500">In</th>
+                                <th className="px-3 py-2 font-bold uppercase tracking-wide text-slate-500">Out</th>
+                                <th className="px-3 py-2 font-bold uppercase tracking-wide text-slate-500">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {(calendarRowsByDay[selectedCalendarDay] || []).map((row, i) => (
+                                <tr key={i} className="transition hover:bg-slate-50">
+                                  <td className="px-3 py-2 font-semibold text-slate-700">{row.employeeName}</td>
+                                  <td className="px-3 py-2 font-medium text-slate-600">{row.inTime || '-'}</td>
+                                  <td className="px-3 py-2 font-medium text-slate-600">{row.outTime || '-'}</td>
+                                  <td className="px-3 py-2">
+                                    <span className={`inline-block rounded-md border px-2 py-0.5 text-[10px] font-bold ${getStatusBadgeClass(row.status)}`}>{row.status}</span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedCalendarDay && (calendarRowsByDay[selectedCalendarDay] || []).length === 0 && (
+                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="mb-2 flex items-center justify-between">
+                          <h3 className="text-sm font-black text-slate-800">{selectedCalendarDay} {calendarMonth} {calendarYear}</h3>
+                          <button type="button" onClick={() => setSelectedCalendarDay(null)} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                            <X size={16} />
+                          </button>
+                        </div>
+                        <p className="text-xs font-medium text-slate-400">No attendance records for this date.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

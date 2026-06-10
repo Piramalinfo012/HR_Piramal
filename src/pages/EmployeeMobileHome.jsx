@@ -86,7 +86,15 @@ const formatWorkingDuration = (inTimeValue, outTimeValue) => {
 
 const summarizeRows = (rows) => rows.reduce((summary, item) => {
   const status = normalize(item.status).toUpperCase();
-  const inTime = parseTimeToMinutes(item.inTime);
+  const inTimeMinutes = parseTimeToMinutes(item.inTime);
+  const outTimeMinutes = parseTimeToMinutes(item.outTime);
+  const inTimeStr = item.inTime ? item.inTime.toString().trim() : '';
+  const outTimeStr = item.outTime ? item.outTime.toString().trim() : '';
+  const hasInTime = inTimeStr !== '' && inTimeStr !== '-';
+  const hasOutTime = outTimeStr !== '' && outTimeStr !== '-';
+
+  const isLateIn = hasInTime && inTimeMinutes !== null && inTimeMinutes > 9 * 60 + 15;
+  const isEarlyOut = hasOutTime && outTimeMinutes !== null && outTimeMinutes < 18 * 60;
 
   if (status === 'P' || status === 'PRESENT') {
     summary.present += 1;
@@ -98,7 +106,7 @@ const summarizeRows = (rows) => rows.reduce((summary, item) => {
     summary.late += 1;
   }
   
-  if (status === 'P' && inTime !== null && inTime > 9 * 60 + 15) {
+  if ((status === 'P' || status === 'PRESENT') && (isLateIn || isEarlyOut)) {
     summary.late += 1;
   }
 
@@ -236,8 +244,8 @@ const EmployeeMobileHome = () => {
     const summary = summarizeRows(rows);
     let statusClass = 'bg-white text-black';
 
-    if (summary.present > 0) statusClass = 'bg-emerald-200 text-black';
-    else if (summary.late > 0) statusClass = 'half-day-dot text-black';
+    if (summary.late > 0) statusClass = 'half-day-dot text-black';
+    else if (summary.present > 0) statusClass = 'bg-emerald-200 text-black';
     else if (summary.absent > 0) statusClass = 'bg-red-100 text-red-800';
     else if (summary.holiday > 0) statusClass = 'bg-violet-100 text-violet-800';
     else if (cell.weekday === 0) statusClass = 'bg-violet-100 text-violet-800';

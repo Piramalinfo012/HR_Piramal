@@ -145,6 +145,16 @@ const LeaveRequest = () => {
     const rawValue = dateValue.toString().trim();
     if (!rawValue) return '';
 
+    // Handle full ISO datetime strings (e.g. "2026-05-23T18:30:00.000Z") by parsing as Date first
+    if (rawValue.includes('T') && rawValue.includes(':')) {
+      const parsedDate = new Date(rawValue);
+      if (!isNaN(parsedDate.getTime())) {
+        const day = String(parsedDate.getDate()).padStart(2, '0');
+        const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+        return `${day}/${month}/${parsedDate.getFullYear()}`;
+      }
+    }
+
     const datePart = rawValue.split(/[ T]/)[0];
     const isoMatch = datePart.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (isoMatch) {
