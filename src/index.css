@@ -116,3 +116,7 @@ thead th {
 .border-white\/20 {
   border-color: rgb(255 255 255 / 0.34);
 }
+
+.half-day-dot {
+  background: linear-gradient(135deg, #a7f3d0 0 50%, #fecaca 50% 100%);
+}

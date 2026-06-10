@@ -60,8 +60,7 @@ export const adminNavigationItems = [
     items: [
       { path: "/attendance", label: "Attendance" },
       { path: "/shift-management", label: "Shift Management", placeholder: true },
-      { path: "/attendance-regularization", label: "Attendance Regularization", placeholder: true },
-      { path: "/biometric-integration", label: "Biometric Integration", placeholder: true },
+      { path: "/outstation-attendance", label: "Outstation Attendance" },
     ],
   },
   {
@@ -109,12 +108,8 @@ export const adminNavigationItems = [
 ];
 
 export const employeeNavigationItems = [
-  { path: "/my-profile", icon: "ProfileIcon", label: "My Profile" },
   { path: "/my-attendance", icon: "Clock", label: "My Attendance" },
   { path: "/leave-request", icon: "LeaveIcon", label: "Leave Request" },
-  { path: "/gate-pass-request", icon: "DoorOpen", label: "Gate Pass Request" },
-  { path: "/my-salary", icon: "DollarSign", label: "My Salary" },
-  { path: "/company-calendar", icon: "Calendar", label: "Company Calendar" },
 ];
 
 export const flattenNavigationItems = (items = adminNavigationItems) =>

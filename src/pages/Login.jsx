@@ -6,6 +6,7 @@ import useAuthStore from "../store/authStore";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUsers } from "@fortawesome/free-solid-svg-icons";
 import { pageRouteMap } from "../config/hrModules";
+import { getUserRole, isMobileViewport } from "../utils/authRole";
 
 const SHEET_API_URL = `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`;
 const LEAVING_API_URL = `${import.meta.env.VITE_LEAVING_SHEET_URL}?sheet=LEAVING&action=fetch`;
@@ -139,14 +140,14 @@ const Login = () => {
         console.error("Prefetch error", e);
       }
 
-      const adminStatus = matchedUser.Admin
-        ? matchedUser.Admin.trim().toLowerCase()
-        : "no";
+      const userRole = getUserRole(matchedUser);
 
-      if (adminStatus === "yes") {
+      if (userRole === "admin") {
         navigate("/", { replace: true });
+      } else if (userRole === "employee" && isMobileViewport()) {
+        navigate("/employee-mobile", { replace: true });
       } else {
-        // For non-admin users, redirect to first accessible page
+        // For recruiter/non-admin users, redirect to first accessible page
         const pageAccess = matchedUser["Pages Access"];
 
         if (pageAccess) {
@@ -154,12 +155,16 @@ const Login = () => {
 
           // Find first accessible route
           const firstAccessibleRoute = accessList.find(page => pageRouteMap[page]);
-          const targetRoute = firstAccessibleRoute ? pageRouteMap[firstAccessibleRoute] : "/my-profile";
+          const targetRoute = firstAccessibleRoute
+            ? pageRouteMap[firstAccessibleRoute]
+            : userRole === "recruiter"
+              ? "/indent"
+              : "/my-profile";
 
           navigate(targetRoute, { replace: true });
         } else {
           // Fallback if no Pages Access defined
-          navigate("/my-profile", { replace: true });
+          navigate(userRole === "recruiter" ? "/indent" : "/my-profile", { replace: true });
         }
       }
 

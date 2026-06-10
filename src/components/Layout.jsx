@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import useAuthStore from '../store/authStore';
+import { getUserRole } from '../utils/authRole';
 
 // ScrollToTop component to handle scrolling to top on route changes
 const ScrollToTop = () => {
@@ -39,6 +41,47 @@ const ScrollToTop = () => {
 
 
 const Layout = () => {
+  const { user } = useAuthStore();
+  const location = useLocation();
+  const [isMobile, setIsMobile] = useState(false);
+  const storedUser = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+  const currentUser = user || storedUser;
+  const isEmployee = getUserRole(currentUser || {}) === 'employee';
+  const isEmployeeMobile = isEmployee && isMobile;
+  const employeeAllowedPaths = ['/employee-mobile', '/my-attendance', '/leave-request'];
+
+  useEffect(() => {
+    const updateViewport = () => setIsMobile(window.matchMedia('(max-width: 767px)').matches);
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  if (isEmployee && location.pathname === '/') {
+    return <Navigate to={isMobile ? "/employee-mobile" : "/my-attendance"} replace />;
+  }
+
+  if (isEmployee && !employeeAllowedPaths.includes(location.pathname)) {
+    return <Navigate to={isMobile ? "/employee-mobile" : "/my-attendance"} replace />;
+  }
+
+  if (isEmployeeMobile) {
+    return (
+      <div className="min-h-screen bg-[#efe8df]">
+        <ScrollToTop />
+        <main className="mx-auto min-h-screen max-w-md bg-[#f7f7f4] shadow-[0_0_35px_rgba(15,23,42,0.18)]">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Scroll to top component */}

@@ -18,6 +18,7 @@ import Leaving from "./pages/Leaving";
 import AfterLeavingWork from "./pages/AfterLeavingWork";
 import Employee from "./pages/Employee";
 import MyProfile from "./pages/MyProfile";
+import EmployeeMobileHome from "./pages/EmployeeMobileHome";
 import MyAttendance from "./pages/MyAttendance";
 import LeaveRequest from "./pages/LeaveRequest";
 import MySalary from "./pages/MySalary";
@@ -25,6 +26,7 @@ import CompanyCalendar from "./pages/CompanyCalendar";
 import JoiningCalendar from "./pages/JoiningCalendar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Attendance from "./pages/Attendance";
+import OutstationAttendance from "./pages/OutstationAttendance";
 import LeaveManagement from "./pages/LeaveManagement";
 import Attendancedaily from "./pages/Attendancedaily";
 import Report from "./pages/Report";
@@ -86,6 +88,7 @@ function App() {
             <Route path="leaving" element={<Leaving />} />
             <Route path="after-leaving-work" element={<AfterLeavingWork />} />
             <Route path="employee" element={<Employee />} />
+            <Route path="employee-mobile" element={<EmployeeMobileHome />} />
             <Route path="my-profile" element={<MyProfile />} />
             <Route path="my-attendance" element={<MyAttendance />} />
             <Route path="leave-request" element={<LeaveRequest />} />
@@ -96,6 +99,7 @@ function App() {
             <Route path="gate-pass" element={<GatePass />} />
             <Route path="gate-pass-request" element={<GatePassRequest />} />
             <Route path="attendance" element={<Attendance />} />
+            <Route path="outstation-attendance" element={<OutstationAttendance />} />
             <Route path="attendancedaily" element={<Attendancedaily />} />
             <Route path="report" element={<Report />} />
             <Route path="payroll" element={<Payroll />} />

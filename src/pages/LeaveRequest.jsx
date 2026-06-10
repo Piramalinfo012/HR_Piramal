@@ -501,11 +501,17 @@ const LeaveRequest = () => {
 
   const yearOptions = getYearOptions();
 
-  const requestedByOptions = useMemo(() => [...new Set(
-    leavesData
-      .map((leave) => leave.requestedBy || leave.employeeName)
-      .filter(Boolean)
-  )].sort(), [leavesData]);
+  const requestedByOptions = useMemo(() => {
+    if (!isAdmin) {
+      return user.Name ? [user.Name] : [];
+    }
+
+    return [...new Set(
+      leavesData
+        .map((leave) => leave.requestedBy || leave.employeeName)
+        .filter(Boolean)
+    )].sort();
+  }, [isAdmin, leavesData, user.Name]);
 
   const matchesRequestedByFilter = (leave) =>
     requestedByFilter === 'all' || (leave.requestedBy || leave.employeeName) === requestedByFilter;
@@ -513,7 +519,9 @@ const LeaveRequest = () => {
   const visibleLeaves = useMemo(() => (
     isAdmin
       ? leavesData
-      : leavesData.filter((leave) => leave.employeeName === user.Name)
+      : leavesData.filter((leave) =>
+        leave.employeeName?.toString().trim().toLowerCase() === user.Name?.toString().trim().toLowerCase()
+      )
   ), [isAdmin, leavesData, user.Name]);
 
   const parseLeaveDaysValue = (value) => {
@@ -719,7 +727,7 @@ const LeaveRequest = () => {
               onChange={handleRequestedByChange}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy sm:w-auto"
             >
-              <option value="all">All</option>
+              {isAdmin && <option value="all">All</option>}
               {requestedByOptions.map((name) => (
                 <option key={name} value={name}>
                   {name}
