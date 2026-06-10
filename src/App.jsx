@@ -27,6 +27,7 @@ import JoiningCalendar from "./pages/JoiningCalendar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Attendance from "./pages/Attendance";
 import OutstationAttendance from "./pages/OutstationAttendance";
+import TaDa from "./pages/TaDa";
 import LeaveManagement from "./pages/LeaveManagement";
 import Attendancedaily from "./pages/Attendancedaily";
 import Report from "./pages/Report";
@@ -100,6 +101,7 @@ function App() {
             <Route path="gate-pass-request" element={<GatePassRequest />} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="outstation-attendance" element={<OutstationAttendance />} />
+            <Route path="ta-da" element={<TaDa />} />
             <Route path="attendancedaily" element={<Attendancedaily />} />
             <Route path="report" element={<Report />} />
             <Route path="payroll" element={<Payroll />} />

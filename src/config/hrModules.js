@@ -61,6 +61,7 @@ export const adminNavigationItems = [
       { path: "/attendance", label: "Attendance" },
       { path: "/shift-management", label: "Shift Management", placeholder: true },
       { path: "/outstation-attendance", label: "Outstation Attendance" },
+      { path: "/ta-da", label: "TA & DA" },
     ],
   },
   {

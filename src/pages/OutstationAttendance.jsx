@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Search, Download, X, Filter, User, ChevronDown, CalendarDays, Table2, ChevronLeft, ChevronRight, MoreVertical, CheckCircle2, XCircle, Clock, Coffee, AlertCircle, TrendingUp, MapPin, ExternalLink } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
-const OUTSTATION_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxwve2gvQqFeo_OAkIBVS5uzKX92fZJAEyYtgE0GWQPlxs-3r-ofYA00_mEM19LumWIUg/exec';
+const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
 
 const OutstationAttendance = () => {
   const [searchTerm, setSearchTerm] = useState('');
