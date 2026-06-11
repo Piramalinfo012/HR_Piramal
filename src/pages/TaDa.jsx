@@ -20,7 +20,9 @@ import * as XLSX from 'xlsx';
 const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
 const OUTSTATION_SPREADSHEET_ID = '1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw';
 const ADVANCE_SHEET_NAME = 'Advance';
-const KM_RATE = 4;
+const FMS_SHEET_NAME = 'FMS';
+const BIKE_KM_RATE = 2;
+const CAR_KM_RATE = 4;
 const MONTHS = [
   'January',
   'February',
@@ -48,6 +50,13 @@ const parseNumber = (value) => {
   if (value === undefined || value === null || value === '') return 0;
   const number = Number(String(value).replace(/[^0-9.-]/g, ''));
   return Number.isFinite(number) ? number : 0;
+};
+
+const getVehicleKmRate = (vehicleType) => {
+  const normalized = String(vehicleType || '').toLowerCase();
+  if (normalized.includes('bike')) return BIKE_KM_RATE;
+  if (normalized.includes('car')) return CAR_KM_RATE;
+  return 0;
 };
 
 const parseDateToObj = (value) => {
@@ -115,16 +124,16 @@ const getMonthYear = (value) => {
 
 const buildUrlLinks = (items) => items.filter((item) => item.url);
 
-const parseGoogleSheetTable = (text) => {
+const parseGoogleSheetTable = (text, sheetLabel = 'sheet') => {
   const jsonStart = text.indexOf('{');
   const jsonEnd = text.lastIndexOf('}');
   if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
-    throw new Error('Invalid Advance sheet response');
+    throw new Error(`Invalid ${sheetLabel} response`);
   }
 
   const payload = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
   if (payload.status && payload.status !== 'ok') {
-    throw new Error(payload.errors?.[0]?.detailed_message || 'Failed to read Advance sheet');
+    throw new Error(payload.errors?.[0]?.detailed_message || `Failed to read ${sheetLabel}`);
   }
 
   return (payload.table?.rows || []).map((row) =>
@@ -135,13 +144,45 @@ const parseGoogleSheetTable = (text) => {
   );
 };
 
-const fetchAdvanceRowsFromSheet = async () => {
-  const url = `https://docs.google.com/spreadsheets/d/${OUTSTATION_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(ADVANCE_SHEET_NAME)}&cb=${Date.now()}`;
+const fetchSheetRows = async (sheetName) => {
+  const url = `https://docs.google.com/spreadsheets/d/${OUTSTATION_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&cb=${Date.now()}`;
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`Advance sheet HTTP error! status: ${response.status}`);
+  if (!response.ok) throw new Error(`${sheetName} sheet HTTP error! status: ${response.status}`);
 
   const text = await response.text();
-  return parseGoogleSheetTable(text);
+  return parseGoogleSheetTable(text, sheetName);
+};
+
+const normalizeFmsSheetRow = (row) => {
+  const inVehicleType = row[5] || '';
+  const outVehicleType = row[16] || '';
+  const vehicleType = inVehicleType || outVehicleType;
+  const totalRunningKm = parseNumber(row[7]);
+
+  return {
+    serialNo: row[1] || '',
+    vehicleType,
+    inVehicleType,
+    outVehicleType,
+    totalRunningKm,
+    inProofUrl: row[8] || '',
+    outProofUrl: row[18] || '',
+    totalAmount: totalRunningKm * getVehicleKmRate(vehicleType),
+  };
+};
+
+const fetchFmsRowsFromSheet = async () => {
+  const rows = await fetchSheetRows(FMS_SHEET_NAME);
+  return rows
+    .filter((row) => {
+      const personName = String(row?.[2] || '').trim();
+      return personName && personName.toLowerCase() !== 'person name';
+    })
+    .map(normalizeFmsSheetRow);
+};
+
+const fetchAdvanceRowsFromSheet = async () => {
+  return fetchSheetRows(ADVANCE_SHEET_NAME);
 };
 
 const normalizeAdvanceRow = (row) => {
@@ -218,16 +259,25 @@ const TaDa = () => {
       const result = await response.json();
       if (result.status !== 'success') throw new Error(result.message || 'Failed to fetch TA/DA data');
 
+      let fmsSheetRows = [];
+      try {
+        fmsSheetRows = await fetchFmsRowsFromSheet();
+      } catch (sheetError) {
+        console.error('FMS sheet detail fetch failed:', sheetError);
+      }
+
       const visits = (result.visit || [])
         .filter((row) => {
           const personName = String(row?.personName || '').trim();
           return personName && personName.toLowerCase() !== 'person name';
         })
         .map((row, index) => {
+          const fmsSheetRow = fmsSheetRows[index] || {};
           const dateSource = pickValue(row, ['date', 'returnDate', 'inTime', 'outTime']);
           const dateMeta = getMonthYear(dateSource);
-          const inAmount = parseNumber(pickValue(row, ['inVehicleAmount', 'IN Vehicle Amount']));
-          const outAmount = parseNumber(pickValue(row, ['outVehicleAmount', 'Vehicle Amount', 'outVehicleAmount']));
+          const totalRunningKm = fmsSheetRow.totalRunningKm || parseNumber(pickValue(row, ['totalRunning', 'Total Running Km']));
+          const vehicleType = pickValue(row, ['vehicleType', 'inVehicleType', 'IN Vehicle Type']) || fmsSheetRow.vehicleType || '';
+          const calculatedAmount = totalRunningKm * getVehicleKmRate(vehicleType);
           const inProofUrl = pickValue(row, [
             'inVehicleProof',
             'inVehiclePic',
@@ -237,7 +287,7 @@ const TaDa = () => {
             'ticketPic',
             'ticketUrl',
             'mapLink',
-          ]);
+          ]) || fmsSheetRow.inProofUrl;
           const outProofUrl = pickValue(row, [
             'outVehicleProof',
             'outVehiclePic',
@@ -245,12 +295,12 @@ const TaDa = () => {
             'outVehicleMeterPic',
             'vehicleMtrPic',
             'vehicleMtrPicTicketPic',
-          ]);
+          ]) || fmsSheetRow.outProofUrl;
 
           return {
             id: `visit-${index}`,
             source: 'FMS',
-            serialNo: pickValue(row, ['serialNo', 'Serial No']) || `VIS-${String(index + 1).padStart(3, '0')}`,
+            serialNo: pickValue(row, ['serialNo', 'Serial No']) || fmsSheetRow.serialNo || `VIS-${String(index + 1).padStart(3, '0')}`,
             employeeName: String(row.personName || '').trim(),
             date: formatDateValue(dateSource),
             dateObj: dateMeta.dateObj,
@@ -260,11 +310,12 @@ const TaDa = () => {
             to: pickValue(row, ['to', 'To']),
             inTime: formatTimeValue(pickValue(row, ['inTime', 'Timestamp'])),
             outTime: formatTimeValue(pickValue(row, ['outTime', 'Actual'])),
-            vehicleType: pickValue(row, ['vehicleType', 'inVehicleType', 'IN Vehicle Type']),
-            totalRunningKm: parseNumber(pickValue(row, ['totalRunning', 'Total Running Km'])),
-            inVehicleAmount: inAmount,
-            outVehicleAmount: outAmount,
-            totalAmount: inAmount + outAmount,
+            vehicleType,
+            totalRunningKm,
+            kmRate: getVehicleKmRate(vehicleType),
+            inVehicleAmount: calculatedAmount,
+            outVehicleAmount: '',
+            totalAmount: calculatedAmount,
             remarks: pickValue(row, ['remarks', 'Remarks']),
             proofLinks: buildUrlLinks([
               { label: 'IN Proof', url: inProofUrl },
@@ -479,6 +530,7 @@ const TaDa = () => {
       }
 
       acc[key].totalKm += item.totalRunningKm || 0;
+      acc[key].amount = (acc[key].amount || 0) + (item.totalAmount || 0);
       return acc;
     }, {});
 
@@ -490,7 +542,7 @@ const TaDa = () => {
       })
       .map((item) => ({
         ...item,
-        amount: item.totalKm * KM_RATE,
+        amount: item.amount || 0,
       }));
   };
 
@@ -519,7 +571,7 @@ const TaDa = () => {
     const dates = reportRows.map((item) => item.dateObj).filter(Boolean).sort((a, b) => a - b);
     const summaryRows = buildFmsKmSummary(reportRows, isAllReport);
     const totalKm = reportRows.reduce((sum, item) => sum + (item.totalRunningKm || 0), 0);
-    const totalAmount = totalKm * KM_RATE;
+    const totalAmount = reportRows.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
     const employeeLabel = isAllReport ? 'All Employees' : employeeFilter;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
@@ -529,7 +581,7 @@ const TaDa = () => {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Employee: ${employeeLabel}`, 14, 23);
-    doc.text(`Month: ${monthFilter || 'All Months'}   Year: ${yearFilter || 'All Years'}   Rate: Rs. ${KM_RATE}/KM`, 14, 29);
+    doc.text(`Month: ${monthFilter || 'All Months'}   Year: ${yearFilter || 'All Years'}   Rate: Bike Rs. ${BIKE_KM_RATE}/KM, Car Rs. ${CAR_KM_RATE}/KM`, 14, 29);
     doc.text(`Start Date: ${formatDateObj(dates[0])}   End Date: ${formatDateObj(dates[dates.length - 1])}`, 14, 35);
     doc.setFont('helvetica', 'bold');
     doc.text(`Total KM: ${totalKm}   Amount: Rs. ${totalAmount}`, 14, 41);
@@ -557,7 +609,7 @@ const TaDa = () => {
         item.to || '-',
         item.serialNo,
         item.totalRunningKm || 0,
-        `Rs. ${(item.totalRunningKm || 0) * KM_RATE}`,
+        `Rs. ${item.totalAmount || 0}`,
       ]),
       startY: (doc.lastAutoTable?.finalY || 48) + 8,
       styles: { fontSize: 7.5, cellPadding: 2 },
