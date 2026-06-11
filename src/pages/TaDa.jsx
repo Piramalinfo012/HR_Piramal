@@ -13,9 +13,14 @@ import {
   User,
   Wallet,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
+const OUTSTATION_SPREADSHEET_ID = '1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw';
+const ADVANCE_SHEET_NAME = 'Advance';
+const KM_RATE = 4;
 const MONTHS = [
   'January',
   'February',
@@ -73,6 +78,11 @@ const formatDateValue = (value) => {
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 };
 
+const formatDateObj = (date) => {
+  if (!date) return '-';
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+};
+
 const formatTimeValue = (value) => {
   if (!value) return '-';
   const raw = value.toString().trim();
@@ -104,6 +114,35 @@ const getMonthYear = (value) => {
 };
 
 const buildUrlLinks = (items) => items.filter((item) => item.url);
+
+const parseGoogleSheetTable = (text) => {
+  const jsonStart = text.indexOf('{');
+  const jsonEnd = text.lastIndexOf('}');
+  if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+    throw new Error('Invalid Advance sheet response');
+  }
+
+  const payload = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+  if (payload.status && payload.status !== 'ok') {
+    throw new Error(payload.errors?.[0]?.detailed_message || 'Failed to read Advance sheet');
+  }
+
+  return (payload.table?.rows || []).map((row) =>
+    (row.c || []).map((cell) => {
+      if (!cell) return '';
+      return cell.f ?? cell.v ?? '';
+    })
+  );
+};
+
+const fetchAdvanceRowsFromSheet = async () => {
+  const url = `https://docs.google.com/spreadsheets/d/${OUTSTATION_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(ADVANCE_SHEET_NAME)}&cb=${Date.now()}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Advance sheet HTTP error! status: ${response.status}`);
+
+  const text = await response.text();
+  return parseGoogleSheetTable(text);
+};
 
 const normalizeAdvanceRow = (row) => {
   if (!Array.isArray(row)) return row || {};
@@ -152,6 +191,9 @@ const getStatusClass = (status) => {
   return 'bg-amber-50 text-amber-700 border-amber-200';
 };
 
+const sanitizeFileName = (value) =>
+  String(value || 'all').trim().replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase() || 'all';
+
 const TaDa = () => {
   const [visitRows, setVisitRows] = useState([]);
   const [travellingRows, setTravellingRows] = useState([]);
@@ -163,6 +205,7 @@ const TaDa = () => {
   const [yearFilter, setYearFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
 
   const fetchTaDaData = async () => {
     setLoading(true);
@@ -262,7 +305,11 @@ const TaDa = () => {
         });
 
       const rawAdvanceRowsValue = result.advance || result.Advance || result.advances || result.advanceData || result.advanceRows || [];
-      const rawAdvanceRows = Array.isArray(rawAdvanceRowsValue) ? rawAdvanceRowsValue : [];
+      let rawAdvanceRows = Array.isArray(rawAdvanceRowsValue) ? rawAdvanceRowsValue : [];
+      if (rawAdvanceRows.length === 0) {
+        rawAdvanceRows = await fetchAdvanceRowsFromSheet();
+      }
+
       const advances = rawAdvanceRows
         .map(normalizeAdvanceRow)
         .filter((row) => {
@@ -299,10 +346,10 @@ const TaDa = () => {
             plannedDate: formatDateValue(planned),
             actualDate: formatDateValue(actual),
             delay: pickValue(row, ['delay', 'Delay']),
-            companyName: pickValue(row, ['companyName', 'Company Name', 'company']),
+            companyName: pickValue(row, ['companyName', 'Company Name', 'Compnay Name', 'company']),
             status: pickValue(row, ['status', 'Status']),
             approvedBy: pickValue(row, ['approvedBy', 'Approved by', 'Approved By']),
-            remarks: pickValue(row, ['remarks', 'Remarks', 'Reamarks']),
+            remarks: pickValue(row, ['remarks', 'Remarks', 'Reamakrs', 'Reamarks']),
             remarks1: pickValue(row, ['remarks1', 'Remarks1', 'Remarks 1']),
             advanceAmount,
             totalAmount: advanceAmount,
@@ -345,7 +392,7 @@ const TaDa = () => {
     [allRows]
   );
 
-  const filteredRows = activeRows.filter((item) => {
+  const matchesFilters = (item, useEmployeeFilter = true) => {
     const search = searchTerm.toLowerCase();
     const matchesSearch = !searchTerm ||
       item.serialNo.toLowerCase().includes(search) ||
@@ -360,10 +407,12 @@ const TaDa = () => {
       item.date.toLowerCase().includes(search);
 
     return matchesSearch &&
-      (!employeeFilter || item.employeeName === employeeFilter) &&
+      (!useEmployeeFilter || !employeeFilter || item.employeeName === employeeFilter) &&
       (!monthFilter || item.month === monthFilter) &&
       (!yearFilter || item.year === yearFilter);
-  });
+  };
+
+  const filteredRows = activeRows.filter((item) => matchesFilters(item));
 
   const summary = filteredRows.reduce((acc, item) => {
     acc.records += 1;
@@ -413,6 +462,112 @@ const TaDa = () => {
     XLSX.writeFile(workbook, `ta_da_${activeTab}_${monthFilter || 'all'}_${yearFilter || 'all'}.xlsx`);
   };
 
+  const buildFmsKmSummary = (rows, includeEmployee) => {
+    const summaryMap = rows.reduce((acc, item) => {
+      const monthName = item.month || 'No Month';
+      const yearName = item.year || '';
+      const key = includeEmployee
+        ? `${item.employeeName}__${monthName}__${yearName}`
+        : `${monthName}__${yearName}`;
+
+      if (!acc[key]) {
+        acc[key] = {
+          employeeName: item.employeeName,
+          monthName: yearName ? `${monthName} ${yearName}` : monthName,
+          totalKm: 0,
+        };
+      }
+
+      acc[key].totalKm += item.totalRunningKm || 0;
+      return acc;
+    }, {});
+
+    return Object.values(summaryMap)
+      .sort((a, b) => {
+        const employeeSort = includeEmployee ? a.employeeName.localeCompare(b.employeeName) : 0;
+        if (employeeSort !== 0) return employeeSort;
+        return a.monthName.localeCompare(b.monthName);
+      })
+      .map((item) => ({
+        ...item,
+        amount: item.totalKm * KM_RATE,
+      }));
+  };
+
+  const downloadFmsKmPdf = (reportType) => {
+    const isAllReport = reportType === 'all';
+    if (!isAllReport && !employeeFilter) {
+      alert('Individual PDF ke liye pehle employee select karein.');
+      return;
+    }
+
+    const reportRows = visitRows
+      .filter((item) => matchesFilters(item, !isAllReport))
+      .sort((a, b) => {
+        if (isAllReport) {
+          const nameSort = a.employeeName.localeCompare(b.employeeName);
+          if (nameSort !== 0) return nameSort;
+        }
+        return (a.dateObj || 0) - (b.dateObj || 0);
+      });
+
+    if (reportRows.length === 0) {
+      alert('Selected filters ke liye FMS report data nahi mila.');
+      return;
+    }
+
+    const dates = reportRows.map((item) => item.dateObj).filter(Boolean).sort((a, b) => a - b);
+    const summaryRows = buildFmsKmSummary(reportRows, isAllReport);
+    const totalKm = reportRows.reduce((sum, item) => sum + (item.totalRunningKm || 0), 0);
+    const totalAmount = totalKm * KM_RATE;
+    const employeeLabel = isAllReport ? 'All Employees' : employeeFilter;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TA & DA FMS ${isAllReport ? 'All' : 'Individual'} Report`, 14, 15);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Employee: ${employeeLabel}`, 14, 23);
+    doc.text(`Month: ${monthFilter || 'All Months'}   Year: ${yearFilter || 'All Years'}   Rate: Rs. ${KM_RATE}/KM`, 14, 29);
+    doc.text(`Start Date: ${formatDateObj(dates[0])}   End Date: ${formatDateObj(dates[dates.length - 1])}`, 14, 35);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total KM: ${totalKm}   Amount: Rs. ${totalAmount}`, 14, 41);
+
+    autoTable(doc, {
+      head: [isAllReport ? ['Employee', 'Month Name', 'Total KM', 'Amount'] : ['Month Name', 'Total KM', 'Amount']],
+      body: summaryRows.map((item) => (
+        isAllReport
+          ? [item.employeeName, item.monthName, item.totalKm, `Rs. ${item.amount}`]
+          : [item.monthName, item.totalKm, `Rs. ${item.amount}`]
+      )),
+      startY: 48,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [49, 46, 129], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 247, 255] },
+    });
+
+    autoTable(doc, {
+      head: [['Date', 'Name', 'Vehicle Type', 'From', 'To', 'Unique Number', 'Total KM', 'Amount']],
+      body: reportRows.map((item) => [
+        item.date,
+        item.employeeName,
+        item.vehicleType || '-',
+        item.from || '-',
+        item.to || '-',
+        item.serialNo,
+        item.totalRunningKm || 0,
+        `Rs. ${(item.totalRunningKm || 0) * KM_RATE}`,
+      ]),
+      startY: (doc.lastAutoTable?.finalY || 48) + 8,
+      styles: { fontSize: 7.5, cellPadding: 2 },
+      headStyles: { fillColor: [6, 182, 212], textColor: 20 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+
+    doc.save(`ta_da_fms_${isAllReport ? 'all' : sanitizeFileName(employeeFilter)}_${sanitizeFileName(monthFilter)}_${sanitizeFileName(yearFilter)}.pdf`);
+  };
+
   const clearFilters = () => {
     setSearchTerm('');
     setEmployeeFilter('');
@@ -422,7 +577,7 @@ const TaDa = () => {
 
   return (
     <div className="space-y-5">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-visible rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="h-1 bg-gradient-to-r from-indigo-600 via-sky-500 to-emerald-500" />
         <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -441,15 +596,66 @@ const TaDa = () => {
               <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
               Refresh
             </button>
-            <button
-              type="button"
-              onClick={downloadExcel}
-              disabled={filteredRows.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-navy-dark disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Download size={17} />
-              Download Excel
-            </button>
+            {activeTab === 'fms' ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDownloadMenuOpen((open) => !open)}
+                  disabled={filteredRows.length === 0 && visitRows.length === 0}
+                  className="inline-flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-navy-dark disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Download size={17} />
+                  Download Report
+                  <ChevronDown size={16} />
+                </button>
+
+                {downloadMenuOpen && (
+                  <div className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadMenuOpen(false);
+                        downloadExcel();
+                      }}
+                      disabled={filteredRows.length === 0}
+                      className="block w-full px-4 py-2.5 text-left font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                    >
+                      Full Data Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadMenuOpen(false);
+                        downloadFmsKmPdf('individual');
+                      }}
+                      className="block w-full px-4 py-2.5 text-left font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Individual KM PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadMenuOpen(false);
+                        downloadFmsKmPdf('all');
+                      }}
+                      className="block w-full px-4 py-2.5 text-left font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      All Employees KM PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={downloadExcel}
+                disabled={filteredRows.length === 0}
+                className="inline-flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-navy-dark disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download size={17} />
+                Download Excel
+              </button>
+            )}
           </div>
         </div>
       </div>

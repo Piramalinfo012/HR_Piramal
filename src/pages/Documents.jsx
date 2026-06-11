@@ -240,16 +240,28 @@ const Documents = () => {
                       key={folder.id}
                       type="button"
                       onClick={() => setSelectedFolderId(folder.id)}
-                      className="group flex min-h-[176px] flex-col items-center justify-center rounded-2xl border border-gray-100 bg-gray-50 p-5 text-center transition-all duration-300 hover:border-indigo-200 hover:bg-indigo-50 hover:shadow-md"
+                      className={`group flex min-h-[176px] flex-col items-center justify-center rounded-2xl border p-5 text-center transition-all duration-300 hover:shadow-md ${
+                        folder.uploadedCount < 6
+                          ? 'border-amber-300 bg-amber-50 shadow-sm ring-1 ring-amber-100 hover:border-amber-400 hover:bg-amber-100'
+                          : 'border-gray-100 bg-gray-50 hover:border-indigo-200 hover:bg-indigo-50'
+                      }`}
                     >
                       <div className="relative">
                         <Folder
                           size={64}
-                          className="text-indigo-400 transition-colors group-hover:text-indigo-500"
+                          className={`transition-colors ${
+                            folder.uploadedCount < 6
+                              ? 'text-amber-500 group-hover:text-amber-600'
+                              : 'text-indigo-400 group-hover:text-indigo-500'
+                          }`}
                           fill="currentColor"
                           fillOpacity={0.2}
                         />
-                        <span className="absolute -bottom-1 -right-2 rounded-full border border-gray-100 bg-white px-2 py-0.5 text-[10px] font-bold text-indigo-700 shadow-sm">
+                        <span className={`absolute -bottom-1 -right-2 rounded-full border bg-white px-2 py-0.5 text-[10px] font-bold shadow-sm ${
+                          folder.uploadedCount < 6
+                            ? 'border-amber-200 text-amber-700'
+                            : 'border-gray-100 text-indigo-700'
+                        }`}>
                           {folder.uploadedCount}/6
                         </span>
                       </div>
