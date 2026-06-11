@@ -73,24 +73,31 @@ const SidebarContent = ({
 
   return (
     <div
-      className={`relative flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"
-        } overflow-hidden bg-opacity-95 backdrop-blur-xl shadow-[0_24px_80px_rgba(8,8,24,0.45)] border-r border-white/10`}
-      style={{ background: 'var(--sidebar-gradient)' }}
+      className={`hrms-sidebar-panel relative flex flex-col h-full ${isCollapsed ? "w-16" : "w-64"
+        } overflow-hidden border-r border-teal-300/10 bg-[#012f31] shadow-[18px_0_55px_rgba(1,47,49,0.24)] transition-[width] duration-100 ease-out`}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent_18%)]" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(20,184,166,0.2),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_24%)]" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-teal-200/25 to-transparent" />
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between px-5 py-5 border-b border-white/10">
+      <div className="relative z-10 flex items-center justify-between border-b border-teal-100/10 px-5 py-5">
         {!isCollapsed && (
-          <h1 className="text-xl font-extrabold flex items-center gap-3 text-white tracking-tight">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-100 to-slate-200">
-              {currentLang === "en" ? "HRMS" : "एचआरएमएस"}
+          <h1 className="flex items-center gap-3 text-white">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300 ring-1 ring-amber-300/20">
+              <Users size={24} />
+            </span>
+            <span className="flex flex-col">
+              <span className="text-xl font-black leading-tight tracking-tight">
+                {currentLang === "en" ? "HRMS" : "एचआरएमएस"}
+              </span>
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-teal-100/70">
+                ERP Command Center
+              </span>
             </span>
 
             <div id="google_translate_element" style={{ display: "none" }} />
             {user?.role === "employee" && (
-              <span className="text-xs bg-white bg-opacity-20 px-2 py-1 rounded">
+              <span className="text-xs bg-white/15 px-2 py-1 rounded">
                 {currentLang === "en" ? "Employee" : "कर्मचारी"}
               </span>
             )}
@@ -109,7 +116,7 @@ const SidebarContent = ({
 
       {/* Menu */}
       <nav
-        className="relative z-10 flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-hide"
+        className="relative z-10 flex-1 space-y-2 overflow-y-auto px-3 py-4 scrollbar-hide"
       >
 
         {menuItems.map((item) => {
@@ -120,28 +127,28 @@ const SidebarContent = ({
             );
 
             return (
-              <div key={item.label} className="mb-2">
+              <div key={item.label} className="mb-1">
                 <button
                   onClick={item.toggle}
-                  className={`group flex items-center justify-between w-full min-h-[54px] py-2.5 px-3 rounded-2xl transition-all duration-300 border backdrop-blur-sm ${item.isOpen
-                    ? "bg-gradient-to-r from-white/18 to-white/10 text-white border-white/20 shadow-[0_10px_30px_rgba(0,0,0,0.18)] ring-1 ring-white/10"
-                    : "border-transparent text-indigo-100 hover:bg-white/8 hover:text-white hover:shadow-[0_10px_24px_rgba(0,0,0,0.12)]"
+                  className={`group flex min-h-[50px] w-full items-center justify-between rounded-xl border px-3 py-2.5 transition-all duration-300 ${item.isOpen
+                    ? "border-emerald-300/20 bg-emerald-400/15 text-white shadow-[0_10px_28px_rgba(16,185,129,0.12)]"
+                    : "border-transparent text-teal-50/80 hover:bg-white/8 hover:text-white"
                     }`}
                 >
                   <div className="flex items-center min-w-0">
-                    <div className={`${isCollapsed ? "mx-auto" : "mr-3"} flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/10 shadow-inner group-hover:bg-white/15 transition-colors`}>
+                    <div className={`${isCollapsed ? "mx-auto" : "mr-3"} flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/9 text-teal-100 ring-1 ring-white/10 transition-colors group-hover:bg-emerald-400/18 group-hover:text-white`}>
                       <item.icon size={19} />
                     </div>
                     {!isCollapsed && (
                       <div className="flex min-w-0 flex-col text-left">
-                        <span className="text-sm font-semibold leading-snug tracking-[0.01em]">{item.label}</span>
+                        <span className="text-sm font-bold leading-snug tracking-[0.01em]">{item.label}</span>
                       </div>
                     )}
                   </div>
                   {!isCollapsed && (
                     <div className="flex flex-shrink-0 items-center gap-2">
                       {sectionPendingCount > 0 && (
-                        <span className="bg-red-500/95 text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-md ring-1 ring-white/20">
+                        <span className="rounded-full bg-emerald-400 px-2.5 py-0.5 text-xs font-black text-[#003032] shadow-md ring-1 ring-white/20">
                           {sectionPendingCount}
                         </span>
                       )}
@@ -151,7 +158,7 @@ const SidebarContent = ({
                 </button>
 
                 {item.isOpen && !isCollapsed && (
-                  <div className="ml-8 mt-2 mb-3 space-y-1 border-l border-white/15 pl-3">
+                  <div className="ml-8 mb-3 mt-2 space-y-1 border-l border-teal-100/15 pl-3">
                     {item.items.map((subItem) => {
                       const subPendingCount = badgeMap[subItem.path] || 0;
 
@@ -160,9 +167,9 @@ const SidebarContent = ({
                           key={`${item.label}-${subItem.path}-${subItem.label}`}
                           to={subItem.path}
                           className={({ isActive }) =>
-                            `relative flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl border transition-all duration-300 ${isActive
-                              ? "bg-white/16 text-white border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
-                              : "border-transparent text-indigo-100/90 hover:bg-white/10 hover:text-white hover:translate-x-0.5"
+                            `relative flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition-all duration-300 ${isActive
+                              ? "border-emerald-300/20 bg-emerald-400/15 text-white shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
+                              : "border-transparent text-teal-50/78 hover:bg-white/10 hover:text-white hover:translate-x-0.5"
                             }`
                           }
                           onMouseDown={(e) => e.preventDefault()}
@@ -171,13 +178,13 @@ const SidebarContent = ({
                           }}
 
                         >
-                          <span className="absolute -left-[17px] top-1/2 h-px w-4 -translate-y-1/2 bg-white/20" />
+                          <span className="absolute -left-[17px] top-1/2 h-px w-4 -translate-y-1/2 bg-teal-100/20" />
                           <span className="flex min-w-0 items-center gap-2">
-                            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-indigo-100/90 shadow-sm" />
+                            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-300 shadow-sm" />
                             <span className="text-sm leading-snug font-medium">{subItem.label}</span>
                           </span>
                           {subPendingCount > 0 && (
-                            <span className="flex-shrink-0 bg-red-500/95 text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-md ring-1 ring-white/20">
+                            <span className="flex-shrink-0 rounded-full bg-emerald-400 px-2.5 py-0.5 text-xs font-black text-[#003032] shadow-md ring-1 ring-white/20">
                               {subPendingCount}
                             </span>
                           )}
@@ -197,9 +204,9 @@ const SidebarContent = ({
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `group flex items-center justify-between py-2.5 px-4 rounded-2xl transition-all duration-300 border border-transparent mb-1 ${isActive
-                  ? "bg-gradient-to-r from-white/20 to-white/12 text-white border-white/20 shadow-[0_12px_32px_rgba(0,0,0,0.20)] ring-1 ring-white/10 scale-[1.01]"
-                  : "text-indigo-100/90 hover:bg-white/10 hover:text-white hover:translate-x-1"
+                `group mb-1 flex items-center justify-between rounded-xl border px-3 py-2.5 transition-all duration-300 ${isActive
+                  ? "border-emerald-300/20 bg-gradient-to-r from-emerald-500/30 to-teal-500/20 text-white shadow-[0_12px_32px_rgba(0,0,0,0.20)]"
+                  : "border-transparent text-teal-50/82 hover:bg-white/10 hover:text-white hover:translate-x-1"
                 }`
               }
               onClick={() => {
@@ -208,13 +215,13 @@ const SidebarContent = ({
             >
               <div className="flex items-center">
                 <item.icon
-                  className={isCollapsed ? "mx-auto" : "mr-3"}
+                  className={`${isCollapsed ? "mx-auto" : "mr-3"} rounded-lg bg-white/9 p-1.5 text-teal-100 ring-1 ring-white/10 group-hover:text-white`}
                   size={20}
                 />
-                {!isCollapsed && <span className="font-medium tracking-[0.01em]">{item.label}</span>}
+                {!isCollapsed && <span className="font-bold tracking-[0.01em]">{item.label}</span>}
               </div>
               {!isCollapsed && pendingCount > 0 && (
-                <span className="bg-red-500/95 text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-md ring-1 ring-white/20">
+                <span className="rounded-full bg-emerald-400 px-2.5 py-0.5 text-xs font-black text-[#003032] shadow-md ring-1 ring-white/20">
                   {pendingCount}
                 </span>
               )}
@@ -224,8 +231,8 @@ const SidebarContent = ({
       </nav>
 
       {/* Footer - Always visible */}
-      <div className="relative z-10 p-4 border-t border-white/10 bg-black/10 backdrop-blur-sm">
-        <div className="rounded-2xl border border-white/10 bg-white/8 px-3 py-3 mb-3 shadow-inner">
+      <div className="relative z-10 border-t border-teal-100/10 bg-black/10 p-4 backdrop-blur-sm">
+        <div className="mb-3 rounded-2xl border border-teal-100/15 bg-white/7 px-3 py-3 shadow-inner">
           <div className="flex items-center space-x-3 cursor-pointer group">
             <div className="w-11 h-11 rounded-full bg-white/18 flex items-center justify-center border border-white/15 shadow-md transition-transform group-hover:scale-110">
               <User size={20} className="text-white" />
@@ -234,7 +241,7 @@ const SidebarContent = ({
               <p className="text-sm font-semibold text-white leading-tight">
                 {user?.Name || user?.Username || "Guest"}
               </p>
-              <p className="text-[10px] text-indigo-200 uppercase tracking-[0.18em] font-bold">
+              <p className="text-[10px] text-emerald-200 uppercase tracking-[0.18em] font-bold">
                 {user?.Admin === "Yes" ? "Administrator" : "Employee"}
               </p>
             </div>
@@ -246,7 +253,7 @@ const SidebarContent = ({
             onClose?.();
             setIsOpen && setIsOpen(false);
           }}
-          className="flex items-center py-2.5 px-4 rounded-2xl text-white opacity-85 hover:bg-red-500/15 hover:text-red-200 hover:opacity-100 cursor-pointer transition-all duration-300 w-full group border border-transparent hover:border-red-300/20"
+          className="group flex w-full cursor-pointer items-center rounded-xl border border-transparent px-4 py-2.5 text-white opacity-85 transition-all duration-300 hover:border-rose-300/20 hover:bg-rose-500/15 hover:text-rose-200 hover:opacity-100"
         >
           <LogOutIcon className={`${isCollapsed ? "mx-auto" : "mr-3"} group-hover:-translate-x-1 transition-transform`} size={20} />
           {!isCollapsed && <span className="font-medium tracking-[0.01em]">Logout</span>}
@@ -257,7 +264,7 @@ const SidebarContent = ({
 };
 
 
-const Sidebar = ({ onClose }) => {
+const Sidebar = ({ onClose, isCollapsed = false }) => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [openSections, setOpenSections] = useState({});
@@ -756,8 +763,9 @@ const Sidebar = ({ onClose }) => {
       </button>
 
       {/* Desktop Sidebar - full width on desktop */}
-      <div className="hidden lg:block fixed left-0 top-0 h-full">
+      <div className="hrms-sidebar-frame hidden lg:block fixed left-0 top-0 h-full transition-all duration-100">
         <SidebarContent
+          isCollapsed={isCollapsed}
           currentLang={currentLang}
           user={user}
           menuItems={menuItems}
@@ -824,7 +832,7 @@ const Sidebar = ({ onClose }) => {
       </div>
 
       {/* Add padding to main content when sidebar is open on desktop */}
-      <div className="min-h-screen lg:pl-64"></div>
+      <div className={`min-h-screen transition-[padding] duration-100 ${isCollapsed ? "lg:pl-16" : "lg:pl-64"}`}></div>
     </>
   );
 };

@@ -24,7 +24,8 @@ import {
   Calendar,
   CheckCircle,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  X
 } from 'lucide-react';
 
 import { usePendingCounts } from '../hooks/usePendingCounts';
@@ -46,6 +47,7 @@ const Dashboard = () => {
 
   const [indentData, setIndentData] = useState([]);
   const [filterStatus, setFilterStatus] = useState("All");
+  const [selectedIndent, setSelectedIndent] = useState(null);
   
   const pendingCounts = usePendingCounts();
 
@@ -210,28 +212,40 @@ const Dashboard = () => {
     const residenceIndex = findIdx(["Residence"]);
     const indenterNameIndex = findIdx(["Indenter Name", "Person Name"]);
     const statusIndex = findIdx(["Position Status", "Status"]); // For display
+    const priorityIndex = findIdx(["Priority", "Priorety"]);
     const TotalJoiningIndex = findIdx(["Total Joining"]);
 
-    const processed = dataRows.map(row => ({
-      timestamp: row[timestampIndex],
-      indentNumber: row[indentNumberIndex],
-      post: row[postIndex],
-      gender: row[genderIndex],
-      department: row[departmentIndex],
-      prefer: row[preferIndex],
-      noOfPost: row[noOFPostIndex],
-      completionDate: row[completionDateIndex],
-      experience: row[experienceIndex],
-      salary: row[salaryIndex],
-      officeTiming: row[officeTimingIndex],
-      typeOfWeek: row[typeOfWeekIndex],
-      residence: row[residenceIndex],
-      indenterName: row[indenterNameIndex],
-      status: row[statusIndex],
-      totaljoining: row[TotalJoiningIndex],
-      // Filter Source: Column B (Index 1)
-      filterKey: row[1]
-    }));
+    const processed = dataRows.map(row => {
+      const fullDetails = headers
+        .map((header, index) => ({
+          label: header || `Column ${index + 1}`,
+          value: row[index] ?? ""
+        }))
+        .filter((detail) => String(detail.label).trim() || String(detail.value).trim());
+
+      return {
+        timestamp: row[timestampIndex],
+        indentNumber: row[indentNumberIndex],
+        post: row[postIndex],
+        gender: row[genderIndex],
+        department: row[departmentIndex],
+        prefer: row[preferIndex],
+        priority: priorityIndex >= 0 ? row[priorityIndex] : '',
+        noOfPost: row[noOFPostIndex],
+        completionDate: row[completionDateIndex],
+        experience: row[experienceIndex],
+        salary: row[salaryIndex],
+        officeTiming: row[officeTimingIndex],
+        typeOfWeek: row[typeOfWeekIndex],
+        residence: row[residenceIndex],
+        indenterName: row[indenterNameIndex],
+        status: row[statusIndex],
+        totaljoining: row[TotalJoiningIndex],
+        fullDetails,
+        // Filter Source: Column B (Index 1)
+        filterKey: row[1]
+      };
+    });
 
     // Filter based on filterStatus state ("Open", "Close", or "All")
     // Column B (Index 1) check
@@ -465,134 +479,248 @@ const Dashboard = () => {
     return "#6B7280";
   };
 
+  const getPriorityClass = (priority) => {
+    const normalized = (priority || "").toString().trim().toLowerCase();
+    if (normalized.includes("high") || normalized.includes("urgent")) return "border-rose-200 bg-rose-50 text-rose-700";
+    if (normalized.includes("medium") || normalized.includes("normal")) return "border-amber-200 bg-amber-50 text-amber-700";
+    if (normalized.includes("low")) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    return "border-slate-200 bg-slate-50 text-slate-600";
+  };
+
+  const totalPendingActions = pendingTasks.reduce((sum, task) => sum + Number(task.pending || 0), 0);
+  const closeRate = totalEmployee > 0 ? Math.round((closeCount / totalEmployee) * 100) : 0;
+
+  const summaryCards = [
+    {
+      title: "Total Indents",
+      value: totalEmployee,
+      helper: "All recruitment requests",
+      icon: Users,
+      iconBox: "bg-emerald-500 text-white",
+      ring: "ring-emerald-100",
+      accent: "from-emerald-500 to-teal-500",
+      stroke: "#10b981",
+      delay: "80ms"
+    },
+    {
+      title: "Total Open",
+      value: openCount,
+      helper: "Positions in progress",
+      icon: Clock,
+      iconBox: "bg-amber-400 text-white",
+      ring: "ring-amber-100",
+      accent: "from-amber-400 to-orange-500",
+      stroke: "#f59e0b",
+      delay: "150ms"
+    },
+    {
+      title: "Total Close",
+      value: closeCount,
+      helper: `${closeRate}% closure rate`,
+      icon: CheckCircle,
+      iconBox: "bg-violet-600 text-white",
+      ring: "ring-violet-100",
+      accent: "from-violet-500 to-indigo-500",
+      stroke: "#8b5cf6",
+      delay: "220ms"
+    }
+  ];
+
+  const dashboardSignals = [
+    { label: "Active Employees", value: activeEmployee, icon: UserCheck, tone: "text-emerald-700 bg-emerald-50 border-emerald-100" },
+    { label: "Left Employees", value: leftEmployee, icon: UserX, tone: "text-rose-700 bg-rose-50 border-rose-100" },
+    { label: "Left This Month", value: leaveThisMonth, icon: TrendingUp, tone: "text-amber-700 bg-amber-50 border-amber-100" },
+    { label: "Pending Tasks", value: totalPendingActions, icon: AlertCircle, tone: "text-indigo-700 bg-indigo-50 border-indigo-100" }
+  ];
+
   return (
-    <div className="space-y-8 page-content p-6 md:p-8 bg-gradient-to-br from-slate-50 to-indigo-50/30 min-h-screen font-sans">
+    <div className="erp-dashboard relative min-h-screen overflow-hidden rounded-[1.1rem] border border-slate-200/80 bg-[#f4f7fb] p-3 font-sans shadow-sm sm:p-4 md:p-5">
       <style>{`
-        @keyframes gradient-x {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+        @keyframes erp-fade-up {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        .animate-gradient-x {
-          background-size: 200% 200%;
-          animation: gradient-x 3s ease infinite;
+        @keyframes erp-scan-line {
+          0% { transform: translateX(-100%); opacity: 0; }
+          18% { opacity: 1; }
+          100% { transform: translateX(120%); opacity: 0; }
+        }
+        @keyframes erp-meter {
+          0%, 100% { transform: scaleX(0.72); opacity: 0.7; }
+          50% { transform: scaleX(1); opacity: 1; }
+        }
+        .erp-fade-up { animation: erp-fade-up 520ms ease both; }
+        .erp-scan-line { animation: erp-scan-line 5.8s ease-in-out infinite; }
+        .erp-meter { animation: erp-meter 2.8s ease-in-out infinite; transform-origin: left; }
+        .erp-grid-surface {
+          background-image:
+            linear-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(15, 23, 42, 0.045) 1px, transparent 1px);
+          background-size: 38px 38px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .erp-fade-up, .erp-scan-line, .erp-meter { animation: none; }
         }
       `}</style>
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-6 border-b border-gray-200/60 gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-          <div>
-            <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 animate-gradient-x drop-shadow-sm pb-1">
-              HR Dashboard
-            </h1>
-            <p className="text-sm text-gray-500 mt-1 font-medium">Overview of company indents and reporting</p>
-          </div>
-          
-          {/* Clock Widget */}
-          <div className="hidden sm:flex items-center space-x-3 bg-white/60 backdrop-blur-md px-4 py-2 rounded-xl border border-gray-200 shadow-sm ml-2">
-            <div className="p-2 bg-indigo-50 rounded-lg">
-              <Clock size={18} className="text-indigo-600" />
+      <div className="pointer-events-none absolute inset-0 erp-grid-surface" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-gradient-to-b from-white/80 via-cyan-50/40 to-transparent" />
+
+      <div className="relative z-10 space-y-5">
+        <section className="erp-dashboard-hero erp-fade-up relative overflow-hidden rounded-2xl border border-teal-900/20 bg-[#003f3b] text-white shadow-xl shadow-teal-950/10">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_10%,rgba(20,184,166,0.34),transparent_32%),linear-gradient(135deg,rgba(0,75,70,0.96),rgba(0,45,48,0.98))]" />
+          <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(140deg,transparent_0%,transparent_45%,rgba(255,255,255,0.18)_46%,transparent_48%),linear-gradient(30deg,transparent_0%,transparent_62%,rgba(255,255,255,0.14)_63%,transparent_65%)]" />
+          <div className="absolute left-0 top-0 h-full w-1/2 bg-[linear-gradient(90deg,rgba(255,255,255,0.12),transparent)] erp-scan-line" />
+
+          <div className="relative grid gap-5 p-5 sm:p-6 lg:grid-cols-[1.35fr_0.65fr] lg:p-7">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/20 px-3 py-1.5 text-[0.68rem] font-black uppercase tracking-[0.22em] text-teal-50">
+                <TrendingUp size={14} />
+                HRMS ERP Command Center
+              </div>
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">HR Dashboard</h1>
+              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-300">
+                Recruitment, joining, employee signals, and pending workflow overview in one compact ERP console.
+              </p>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {dashboardSignals.map((signal, index) => {
+                  const Icon = signal.icon;
+                  return (
+                    <div
+                      key={signal.label}
+                      className="erp-fade-up rounded-xl border border-white/80 bg-white p-4 text-slate-950 shadow-lg shadow-teal-950/10"
+                      style={{ animationDelay: `${120 + index * 70}ms` }}
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-[0.66rem] font-black uppercase tracking-wider text-slate-500">{signal.label}</span>
+                        <span className={`inline-flex h-7 w-7 items-center justify-center rounded-lg border ${signal.tone}`}>
+                          <Icon size={15} />
+                        </span>
+                      </div>
+                      <p className="text-2xl font-black text-slate-950">{signal.value}</p>
+                      <p className="mt-1 text-[10px] font-bold text-slate-400">vs last month</p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-gray-800">
-                {currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-              </span>
-              <span className="text-xs font-semibold text-gray-500">
-                {currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-              </span>
-            </div>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-3">
-          {/* Mobile Clock */}
-          <div className="sm:hidden flex items-center bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm text-sm font-bold text-indigo-700">
-             {currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-          </div>
-          <Link 
-            to="/joining_calendar" 
-            className="flex items-center bg-gradient-to-r from-indigo-600 to-blue-700 text-white px-5 py-2.5 rounded-xl hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 transition-all duration-300 font-medium"
-          >
-            <Calendar size={18} className="mr-2" />
-            Joining Calendar
-          </Link>
-        </div>
-      </div>
-
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center hover:shadow-md hover:border-indigo-100 transition-all duration-300 group">
-          <div className="p-4 rounded-2xl bg-indigo-50 group-hover:bg-indigo-600 transition-colors duration-500 mr-5">
-            <Users size={28} className="text-indigo-600 group-hover:text-white transition-colors duration-500" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Total Indents</p>
-            <h3 className="text-3xl font-black text-gray-800">{totalEmployee}</h3>
-          </div>
-        </div>
-
-        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center hover:shadow-md hover:border-rose-100 transition-all duration-300 group">
-          <div className="p-4 rounded-2xl bg-rose-50 group-hover:bg-rose-500 transition-colors duration-500 mr-5">
-            <Clock size={28} className="text-rose-500 group-hover:text-white transition-colors duration-500" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Total Open</p>
-            <h3 className="text-3xl font-black text-gray-800">{openCount}</h3>
-          </div>
-        </div>
-
-        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center hover:shadow-md hover:border-emerald-100 transition-all duration-300 group">
-          <div className="p-4 rounded-2xl bg-emerald-50 group-hover:bg-emerald-500 transition-colors duration-500 mr-5">
-            <CheckCircle size={28} className="text-emerald-500 group-hover:text-white transition-colors duration-500" />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Total Close</p>
-            <h3 className="text-3xl font-black text-gray-800">{closeCount}</h3>
-          </div>
-        </div>
-      </div>
-
-      {/* Pending Tasks Report Section */}
-      <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-orange-100/50 p-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-50 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2"></div>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center">
-            <div className="p-2 bg-orange-100 rounded-lg mr-3 shadow-inner">
-              <AlertCircle size={20} className="text-orange-600" />
-            </div>
-            Pending Actions Report
-          </h2>
-          <span className="bg-orange-100 text-orange-800 text-xs font-bold px-3 py-1 rounded-full border border-orange-200 shadow-sm">
-            Requires Attention
-          </span>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {pendingTasks.map((task, idx) => (
-            <Link 
-              key={idx} 
-              to={task.link}
-              className={`block bg-white rounded-xl border ${task.color.border} p-5 shadow-sm hover:shadow-md hover:-translate-y-1 ${task.color.hoverBorder} transition-all duration-300 group`}
-            >
-              <div className="flex justify-between items-start">
+            <div className="rounded-2xl border border-white/80 bg-white p-4 text-slate-950 shadow-xl shadow-teal-950/10">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-2">{task.title}</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className={`text-3xl font-black ${task.color.text} ${task.color.hoverText} transition-colors`}>
-                      {task.pending}
-                    </span>
-                    <span className="text-sm font-semibold text-gray-500">pending</span>
+                  <p className="text-[0.7rem] font-black uppercase tracking-[0.2em] text-slate-500">Live Time</p>
+                  <p className="mt-1 text-3xl font-black tracking-tight">
+                    {currentTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-700 shadow-lg">
+                  <Clock size={22} />
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span>Close Rate</span>
+                  <span>{closeRate}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-teal-600 via-emerald-500 to-lime-400 erp-meter"
+                    style={{ width: `${Math.min(closeRate, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <Link
+                to="/joining_calendar"
+                className="mt-5 flex h-11 items-center justify-center gap-2 rounded-xl bg-[#00564f] text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#00453f]"
+              >
+                <Calendar size={17} />
+                Joining Calendar
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {summaryCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div
+                key={card.title}
+                className="erp-fade-up group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200"
+                style={{ animationDelay: card.delay }}
+              >
+                <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accent}`} />
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[0.72rem] font-black uppercase tracking-[0.16em] text-slate-500">{card.title}</p>
+                    <h3 className="mt-2 text-3xl font-black tracking-tight text-slate-950">{card.value}</h3>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">{card.helper}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <svg className="hidden h-16 w-24 sm:block" viewBox="0 0 120 62" fill="none" aria-hidden="true">
+                      <path d="M4 54 C18 48 22 30 34 38 C44 46 48 16 58 24 C70 34 72 8 84 15 C96 22 98 4 116 10" stroke={card.stroke} strokeWidth="3" strokeLinecap="round" />
+                      <path d="M4 60 C18 54 22 36 34 44 C44 52 48 22 58 30 C70 40 72 14 84 21 C96 28 98 10 116 16 L116 62 L4 62 Z" fill={card.stroke} opacity="0.12" />
+                    </svg>
+                    <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${card.iconBox} shadow-lg ring-8 ${card.ring} transition group-hover:scale-105`}>
+                      <Icon size={25} />
+                    </div>
                   </div>
                 </div>
-                <div className={`p-2.5 ${task.color.bg} rounded-full ${task.color.hoverBg} transition-colors`}>
-                  <ArrowRight size={20} className={`${task.color.iconText}`} />
+              </div>
+            );
+          })}
+        </section>
+
+        <section className="erp-fade-up rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" style={{ animationDelay: "260ms" }}>
+          <div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100">
+                <AlertCircle size={20} />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-slate-900">Pending Actions Report</h2>
+                <p className="text-xs font-semibold text-slate-500">{totalPendingActions} workflow items pending</p>
+              </div>
+            </div>
+            <span className="inline-flex w-fit items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">
+              Requires Attention
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {pendingTasks.map((task, idx) => (
+              <Link
+                key={idx}
+                to={task.link}
+                className={`erp-fade-up group rounded-xl border ${task.color.border} bg-slate-50/60 p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-md ${task.color.hoverBorder}`}
+                style={{ animationDelay: `${320 + idx * 35}ms` }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[0.72rem] font-black uppercase tracking-[0.13em] text-slate-500">{task.title}</p>
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className={`text-2xl font-black leading-none ${task.color.text} ${task.color.hoverText}`}>
+                        {task.pending}
+                      </span>
+                      <span className="text-xs font-bold text-slate-500">pending</span>
+                    </div>
+                  </div>
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${task.color.bg} ${task.color.hoverBg} transition`}>
+                    <ArrowRight size={18} className={`${task.color.iconText} transition group-hover:translate-x-0.5`} />
+                  </div>
                 </div>
-              </div>
-              <div className={`mt-4 pt-4 border-t border-gray-100 flex items-center text-xs font-semibold text-gray-400 ${task.color.hoverText} transition-colors`}>
-                Click to view and manage tasks
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
+                <div className="mt-3 h-1 overflow-hidden rounded-full bg-slate-200">
+                  <div className={`h-full rounded-full ${task.color.bg}`} style={{ width: `${Math.min(Number(task.pending || 0) * 8, 100)}%` }} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
 
       {/* New Charts */}
 
@@ -630,103 +758,118 @@ const Dashboard = () => {
         </div>
       </div> */}
 
-      {/* reporting table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mt-8">
-        <div className="flex flex-col md:flex-row justify-between items-center p-5 sm:p-6 border-b border-gray-100 bg-gray-50/50">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center">
-            <div className="p-2 bg-indigo-50 rounded-lg mr-3 shadow-inner">
-              <FileText size={20} className="text-indigo-600" />
+        {/* reporting table */}
+        <section className="erp-fade-up overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" style={{ animationDelay: "340ms" }}>
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-200 bg-slate-50/80 p-4 sm:flex-row sm:items-center sm:p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100">
+              <FileText size={19} />
             </div>
-            Reporting Table
-          </h2>
-          <div className="relative mt-4 md:mt-0 w-full md:w-auto">
+            <div>
+              <h2 className="text-base font-black text-slate-900">Reporting Table</h2>
+              <p className="text-xs font-semibold text-slate-500">{indentData.length} records in current view</p>
+            </div>
+          </div>
+          <div className="relative w-full sm:w-48">
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="appearance-none w-full md:w-48 bg-white border border-gray-200 text-gray-700 py-2.5 px-5 pr-10 rounded-xl leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-sm hover:border-gray-300 transition-colors font-medium text-sm"
+              className="h-10 w-full appearance-none rounded-xl border border-slate-300 bg-white px-4 pr-10 text-sm font-bold text-slate-700 shadow-sm outline-none transition hover:border-indigo-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
             >
               <option value="All">All Statuses</option>
               <option value="Open">Open</option>
               <option value="Close">Close</option>
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+              <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
             </div>
           </div>
         </div>
         
         <div className="overflow-x-auto">
-          <div className="max-h-[calc(100vh-220px)] min-h-[500px] overflow-y-auto custom-scrollbar">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
+          <div className="max-h-[calc(100vh-235px)] min-h-[460px] overflow-y-auto custom-scrollbar">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Indent Number</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Post</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Department</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Prefer</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">No. of Post</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Completion Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Indenter Name</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total Join</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Total Enquiry</th>
-                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Pending Joining</th>
+                  <th className="px-4 py-3 text-left text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Status</th>
+                  <th className="px-4 py-3 text-left text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Indent Number</th>
+                  <th className="px-4 py-3 text-left text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Post</th>
+                  <th className="px-4 py-3 text-left text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Department</th>
+                  <th className="px-4 py-3 text-left text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Priority</th>
+                  <th className="px-4 py-3 text-left text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Prefer</th>
+                  <th className="px-4 py-3 text-center text-[0.68rem] font-black uppercase tracking-wider text-slate-500">No. of Post</th>
+                  <th className="px-4 py-3 text-left text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Completion Date</th>
+                  <th className="px-4 py-3 text-left text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Indenter Name</th>
+                  <th className="px-4 py-3 text-center text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Total Join</th>
+                  <th className="px-4 py-3 text-center text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Total Enquiry</th>
+                  <th className="px-4 py-3 text-center text-[0.68rem] font-black uppercase tracking-wider text-slate-500">Pending Joining</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {tableLoading ? (
                   <tr>
-                    <td colSpan="11" className="px-6 py-20 text-center">
-                      <div className="flex justify-center flex-col items-center">
-                        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4 shadow-sm"></div>
-                        <span className="text-gray-500 font-medium tracking-wide">Loading reporting data...</span>
+                    <td colSpan="12" className="px-4 py-16 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600 shadow-sm" />
+                        <span className="text-sm font-bold tracking-wide text-slate-500">Loading reporting data...</span>
                       </div>
                     </td>
                   </tr>
                 ) : indentData.length === 0 ? (
                   <tr>
-                    <td colSpan="11" className="px-6 py-20 text-center">
+                    <td colSpan="12" className="px-4 py-16 text-center">
                       <div className="flex flex-col items-center justify-center">
-                        <div className="p-5 bg-gray-50 rounded-full mb-4 shadow-inner">
-                          <FileText size={36} className="text-gray-300" />
+                        <div className="mb-4 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-100">
+                          <FileText size={34} className="text-slate-300" />
                         </div>
-                        <p className="text-gray-500 font-medium text-lg">No indent data found.</p>
+                        <p className="text-sm font-bold text-slate-500">No indent data found.</p>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   indentData.map((item, index) => (
-                    <tr key={index} className="hover:bg-indigo-50/40 transition-colors duration-200 group">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-md shadow-sm ${(item.filterKey || "").toString().toLowerCase().includes("close")
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    <tr
+                      key={index}
+                      onClick={() => setSelectedIndent(item)}
+                      className="erp-fade-up group cursor-pointer transition duration-200 hover:bg-indigo-50/45"
+                      style={{ animationDelay: `${Math.min(index, 14) * 24}ms` }}
+                      title="Click to view full details"
+                    >
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <span className={`inline-flex rounded-lg px-2.5 py-1 text-[0.7rem] font-black leading-5 shadow-sm ${(item.filterKey || "").toString().toLowerCase().includes("close")
+                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
                           : (item.filterKey || "").toString().toLowerCase().includes("open")
-                            ? "bg-rose-50 text-rose-700 border border-rose-200"
-                            : "bg-gray-50 text-gray-700 border border-gray-200"
+                            ? "border border-rose-200 bg-rose-50 text-rose-700"
+                            : "border border-slate-200 bg-slate-50 text-slate-700"
                           }`}>
-                          {item.filterKey}
+                          {item.filterKey || "-"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
-                        {item.indentNumber}
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-black text-slate-900 transition group-hover:text-indigo-700">
+                        {item.indentNumber || "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
-                        {item.post}
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-slate-700">
+                        {item.post || "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="px-2.5 py-1 bg-gray-100 rounded-md text-gray-700 text-xs font-semibold">{item.department}</span>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm">
+                        <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">{item.department || "-"}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.prefer}
+                      <td className="whitespace-nowrap px-4 py-3 text-sm">
+                        <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-black ${getPriorityClass(item.priority)}`}>
+                          {item.priority || "-"}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium text-center">
-                        {item.noOfPost}
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-slate-500">
+                        {item.prefer || "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-4 py-3 text-center text-sm font-black text-slate-900">
+                        {item.noOfPost || 0}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-500">
                         {item.completionDate ? (
                           <div className="flex items-center">
                             <Calendar size={14} className="mr-2 text-indigo-400" />
-                            <span className="font-medium text-gray-600">
+                            <span className="font-bold text-slate-600">
                               {(() => {
                                 const date = new Date(item.completionDate);
                                 if (!date || isNaN(date.getTime())) return "Invalid date";
@@ -734,23 +877,23 @@ const Dashboard = () => {
                               })()}
                             </span>
                           </div>
-                        ) : "—"}
+                        ) : "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
-                        {item.indenterName}
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-slate-600">
+                        {item.indenterName || "-"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold text-sm border border-emerald-100">
+                      <td className="whitespace-nowrap px-4 py-3 text-center">
+                        <span className="inline-flex items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-sm font-black text-emerald-700">
                           {item.totaljoining || 0}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold text-sm border border-blue-100">
+                      <td className="whitespace-nowrap px-4 py-3 text-center">
+                        <span className="inline-flex items-center justify-center rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1 text-sm font-black text-blue-700">
                           {item.totalenquiry || 0}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm shadow-sm ring-2 ring-white">
+                      <td className="whitespace-nowrap px-4 py-3 text-center">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-sm font-black text-white shadow-sm ring-4 ring-indigo-50">
                           {item.pendingJoining}
                         </span>
                       </td>
@@ -761,53 +904,56 @@ const Dashboard = () => {
             </table>
           </div>
         </div>
-      </div>
+        </section>
 
-      {/* Designation-wise Employee Count */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mt-8 overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2"></div>
-        <h2 className="text-lg font-bold text-gray-800 mb-8 flex items-center">
-          <div className="p-2.5 bg-gradient-to-br from-indigo-100 to-indigo-50 rounded-xl mr-3 shadow-inner">
-            <UserPlus size={20} className="text-indigo-600" />
+        {/* Designation-wise Employee Count */}
+        <section className="erp-fade-up rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" style={{ animationDelay: "420ms" }}>
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100">
+            <UserPlus size={19} />
           </div>
-          Designation-wise Employee Count
-        </h2>
-        <div className="h-[450px] w-full">
+          <div>
+            <h2 className="text-base font-black text-slate-900">Designation-wise Employee Count</h2>
+            <p className="text-xs font-semibold text-slate-500">Current joining pipeline by designation</p>
+          </div>
+        </div>
+        <div className="h-[390px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={designationData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+            <BarChart data={designationData} margin={{ top: 16, right: 24, left: 12, bottom: 72 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <XAxis
                 dataKey="designation"
-                stroke="#6b7280"
+                stroke="#64748b"
                 interval={0}
-                angle={-45}
+                angle={-40}
                 textAnchor="end"
-                height={100}
-                tick={{ fontSize: 12, fill: '#4b5563', fontWeight: 500 }}
-                tickMargin={15}
-                axisLine={{ stroke: '#e5e7eb' }}
+                height={88}
+                tick={{ fontSize: 11, fill: '#475569', fontWeight: 700 }}
+                tickMargin={12}
+                axisLine={{ stroke: '#cbd5e1' }}
               />
               <YAxis 
-                stroke="#6b7280" 
-                tick={{ fontSize: 12, fill: '#4b5563', fontWeight: 500 }} 
+                stroke="#64748b" 
+                tick={{ fontSize: 11, fill: '#475569', fontWeight: 700 }} 
                 axisLine={false} 
                 tickLine={false}
-                tickMargin={10} 
+                tickMargin={8} 
               />
               <Tooltip
                 cursor={{ fill: 'rgba(79, 70, 229, 0.04)' }}
                 contentStyle={{
                   backgroundColor: 'rgba(255, 255, 255, 0.98)',
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid #cbd5e1',
                   borderRadius: '12px',
-                  color: '#1f2937',
-                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                  padding: '12px 16px',
-                  fontWeight: '500'
+                  color: '#0f172a',
+                  boxShadow: '0 18px 35px rgba(15, 23, 42, 0.12)',
+                  padding: '10px 14px',
+                  fontWeight: '700',
+                  fontSize: '12px'
                 }}
-                itemStyle={{ color: '#4f46e5', fontWeight: 'bold' }}
+                itemStyle={{ color: '#4f46e5', fontWeight: '800' }}
               />
-              <Bar dataKey="employees" name="Employees" radius={[8, 8, 0, 0]} maxBarSize={45}>
+              <Bar dataKey="employees" name="Employees" radius={[8, 8, 0, 0]} maxBarSize={42}>
                 {designationData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
@@ -818,24 +964,82 @@ const Dashboard = () => {
               <defs>
                 <linearGradient id="colorGradient0" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#4338ca" />
+                  <stop offset="100%" stopColor="#2563eb" />
                 </linearGradient>
                 <linearGradient id="colorGradient1" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#34d399" />
                   <stop offset="100%" stopColor="#059669" />
                 </linearGradient>
                 <linearGradient id="colorGradient2" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#fbbf24" />
-                  <stop offset="100%" stopColor="#d97706" />
+                  <stop offset="0%" stopColor="#f59e0b" />
+                  <stop offset="100%" stopColor="#dc2626" />
                 </linearGradient>
               </defs>
             </BarChart>
           </ResponsiveContainer>
         </div>
+        </section>
       </div>
 
+      {selectedIndent && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+          onClick={() => setSelectedIndent(null)}
+        >
+          <div
+            className="erp-fade-up max-h-[86vh] w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">Indent Full Details</p>
+                <h3 className="mt-1 text-xl font-black text-slate-950">
+                  {selectedIndent.indentNumber || "-"} - {selectedIndent.post || "-"}
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <span className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-black ${(selectedIndent.filterKey || "").toString().toLowerCase().includes("close")
+                    ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : (selectedIndent.filterKey || "").toString().toLowerCase().includes("open")
+                      ? "border border-rose-200 bg-rose-50 text-rose-700"
+                      : "border border-slate-200 bg-slate-50 text-slate-700"
+                    }`}>
+                    {selectedIndent.filterKey || "-"}
+                  </span>
+                  <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-black ${getPriorityClass(selectedIndent.priority)}`}>
+                    Priority: {selectedIndent.priority || "-"}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedIndent(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Close details"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-    </div >
+            <div className="max-h-[calc(86vh-130px)] overflow-y-auto p-5">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {(selectedIndent.fullDetails || []).map((detail, index) => (
+                  <div
+                    key={`${detail.label}-${index}`}
+                    className="erp-fade-up rounded-xl border border-slate-200 bg-slate-50/80 p-3"
+                    style={{ animationDelay: `${Math.min(index, 18) * 18}ms` }}
+                  >
+                    <p className="text-[0.68rem] font-black uppercase tracking-wider text-slate-500">{detail.label}</p>
+                    <p className="mt-1 break-words text-sm font-bold text-slate-900">
+                      {detail.value !== undefined && detail.value !== null && String(detail.value).trim() !== "" ? String(detail.value) : "-"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

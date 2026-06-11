@@ -4,7 +4,7 @@
 
 :root {
   --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  --sidebar-gradient: linear-gradient(180deg, #312e81 0%, #1e1b4b 100%);
+  --sidebar-gradient: linear-gradient(180deg, #012f31 0%, #001f22 100%);
   --accent-blue: #3b82f6;
   --accent-indigo: #6366f1;
   --navy-primary: #312e81;
@@ -12,6 +12,11 @@
   --app-border-default: #cbd5e1;
   --app-border-subtle: #d1d5db;
   --app-border-strong: #94a3b8;
+  --erp-modal-radius: 1rem;
+}
+
+html {
+  font-size: 15px;
 }
 
 *,
@@ -22,8 +27,807 @@
 
 body {
   background: radial-gradient(circle, #3b82f6, #8b5cf6);
+  font-size: 0.94rem;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
   min-height: 100vh;
   margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 14.5px;
+  }
+}
+
+@keyframes erp-surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes erp-modal-backdrop-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+
+  to {
+    opacity: 1;
+    backdrop-filter: blur(12px);
+  }
+}
+
+@keyframes erp-modal-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.erp-shell {
+  position: relative;
+  background:
+    linear-gradient(135deg, rgba(248, 250, 252, 0.96), rgba(238, 243, 248, 0.96)),
+    radial-gradient(circle at 18% 0%, rgba(79, 70, 229, 0.08), transparent 34%),
+    radial-gradient(circle at 88% 8%, rgba(14, 165, 233, 0.11), transparent 32%);
+  color: #0f172a;
+}
+
+.erp-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 78%);
+}
+
+.erp-shell > .container {
+  position: relative;
+  z-index: 1;
+}
+
+.erp-shell > .container:has([class*="fixed"][class*="inset-0"]) {
+  z-index: 100;
+}
+
+.erp-shell > .container > * {
+  animation: erp-surface-in 420ms ease both;
+}
+
+.erp-shell :is(.space-y-3, .space-y-4, .space-y-5, .space-y-6, .space-y-8) > * {
+  animation: erp-surface-in 420ms ease both;
+}
+
+.erp-shell :is(.space-y-3, .space-y-4, .space-y-5, .space-y-6, .space-y-8) > *:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.erp-shell :is(.space-y-3, .space-y-4, .space-y-5, .space-y-6, .space-y-8) > *:nth-child(3) {
+  animation-delay: 90ms;
+}
+
+.erp-shell :is(.space-y-3, .space-y-4, .space-y-5, .space-y-6, .space-y-8) > *:nth-child(4) {
+  animation-delay: 135ms;
+}
+
+.erp-shell :is(.space-y-3, .space-y-4, .space-y-5, .space-y-6, .space-y-8) > *:nth-child(n + 5) {
+  animation-delay: 180ms;
+}
+
+.erp-shell h1,
+.erp-shell h2,
+.erp-shell h3 {
+  letter-spacing: -0.015em;
+}
+
+.erp-shell .page-content {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.erp-shell :is(section, div)[class*="bg-white"][class*="border"],
+.erp-shell .page-content,
+.erp-shell [class*="shadow-sm"][class*="border"] {
+  border-color: rgb(203 213 225 / 0.95) !important;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.06) !important;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.erp-shell :is(section, div)[class*="bg-white"][class*="border"]:hover,
+.erp-shell [class*="shadow-sm"][class*="border"]:hover {
+  border-color: rgb(148 163 184 / 0.95) !important;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08) !important;
+}
+
+.erp-shell [class*="rounded-2xl"] {
+  border-radius: 0.9rem !important;
+}
+
+.erp-shell [class*="rounded-xl"] {
+  border-radius: 0.72rem !important;
+}
+
+.erp-shell input:not([type="checkbox"]):not([type="radio"]),
+.erp-shell select,
+.erp-shell textarea {
+  min-height: 2.65rem;
+  border-color: #cbd5e1 !important;
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  color: #1e293b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.erp-shell input:not([type="checkbox"]):not([type="radio"]):focus,
+.erp-shell select:focus,
+.erp-shell textarea:focus {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.75) !important;
+}
+
+.erp-shell button:not(:disabled),
+.erp-shell a[class*="rounded"] {
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.erp-shell button:not(:disabled):hover,
+.erp-shell a[class*="rounded"]:hover {
+  transform: translateY(-1px);
+}
+
+.erp-shell .bg-navy {
+  background-image: linear-gradient(135deg, #312e81, #2563eb) !important;
+  box-shadow: 0 12px 24px rgba(49, 46, 129, 0.18);
+}
+
+.erp-shell .bg-navy:hover {
+  background-image: linear-gradient(135deg, #1e1b4b, #1d4ed8) !important;
+}
+
+.erp-shell table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.86rem;
+}
+
+.erp-shell thead,
+.erp-shell thead th {
+  background: #f8fafc !important;
+}
+
+.erp-shell th {
+  border-bottom: 1px solid #cbd5e1;
+  color: #475569 !important;
+  font-weight: 900 !important;
+}
+
+.erp-shell td {
+  border-color: #e2e8f0;
+}
+
+.erp-shell tbody tr {
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.erp-shell tbody tr:hover {
+  background: #f8fbff !important;
+}
+
+.erp-shell [class*="bg-indigo-50"],
+.erp-shell [class*="bg-emerald-50"],
+.erp-shell [class*="bg-amber-50"],
+.erp-shell [class*="bg-sky-50"],
+.erp-shell [class*="bg-blue-50"],
+.erp-shell [class*="bg-rose-50"] {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] {
+  background:
+    radial-gradient(circle at 50% 22%, rgba(20, 184, 166, 0.18), transparent 34%),
+    rgba(2, 6, 23, 0.62) !important;
+  backdrop-filter: blur(12px) saturate(1.1);
+  animation: erp-modal-backdrop-in 180ms ease both;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"][class*="z-"] {
+  align-items: center !important;
+  display: flex !important;
+  justify-content: center !important;
+  min-height: 100dvh;
+  overflow: hidden !important;
+  padding: clamp(0.75rem, 2vw, 1.25rem) !important;
+  z-index: 9999 !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] > [class*="flex"][class*="min-h-screen"] {
+  align-items: center !important;
+  display: flex !important;
+  justify-content: center !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="sm:h-screen"],
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="align-middle"][class*="h-screen"] {
+  display: none !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-gray-500"][class*="opacity-75"],
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-black"][class*="opacity"] {
+  background: transparent !important;
+  opacity: 0 !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="rounded"],
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="shadow"] {
+  border: 1px solid rgba(203, 213, 225, 0.95) !important;
+  border-radius: var(--erp-modal-radius) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98)) !important;
+  box-shadow:
+    0 28px 70px rgba(2, 6, 23, 0.28),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset !important;
+  animation: erp-modal-card-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  overflow: hidden !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="rounded"] {
+  max-height: calc(100dvh - 6rem) !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="inline-block"][class*="bg-white"] {
+  display: block !important;
+  margin-bottom: 0 !important;
+  margin-top: 0 !important;
+  vertical-align: middle !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="border-b"] {
+  border-color: #dbe3ee !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)) !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="rounded"] > :first-child,
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="shadow"] > :first-child,
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="border-b"]:first-child,
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="sticky"][class*="top-0"][class*="bg-white"] {
+  border-top-left-radius: calc(var(--erp-modal-radius) - 1px) !important;
+  border-top-right-radius: calc(var(--erp-modal-radius) - 1px) !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="rounded"] > :last-child,
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="shadow"] > :last-child,
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="border-t"]:last-child,
+.erp-shell [class*="fixed"][class*="inset-0"] form > :last-child {
+  border-bottom-left-radius: calc(var(--erp-modal-radius) - 1px) !important;
+  border-bottom-right-radius: calc(var(--erp-modal-radius) - 1px) !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="border-b"][class*="p-6"],
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="border-b"] {
+  padding: 1rem 1.35rem !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] form[class*="p-6"],
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="sm:p-6"],
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="px-4"][class*="pt-5"] {
+  padding: 1.05rem 1.35rem !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 0.72rem !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="mb-6"] {
+  margin-bottom: 0.9rem !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] [class*="mt-8"] {
+  margin-top: 1.1rem !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] h2,
+.erp-shell [class*="fixed"][class*="inset-0"] h3 {
+  color: #0f172a !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.025em;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] label {
+  color: #334155 !important;
+  font-size: 0.82rem;
+  font-weight: 800 !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] p {
+  color: #475569;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] input:not([type="checkbox"]):not([type="radio"]),
+.erp-shell [class*="fixed"][class*="inset-0"] select,
+.erp-shell [class*="fixed"][class*="inset-0"] textarea {
+  border-radius: 0.8rem !important;
+  border-color: #cbd5e1 !important;
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  min-height: 3rem;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] input[type="file"] {
+  padding: 0.55rem !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] input[type="file"]::file-selector-button {
+  margin-right: 0.8rem;
+  border: 0;
+  border-radius: 0.65rem;
+  background: #e6fffb;
+  color: #0f766e;
+  cursor: pointer;
+  font-weight: 900;
+  padding: 0.55rem 0.8rem;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] input[type="file"]::file-selector-button:hover {
+  background: #ccfbf1;
+  color: #115e59;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] input[type="checkbox"],
+.erp-shell [class*="fixed"][class*="inset-0"] input[type="radio"] {
+  accent-color: #0f766e;
+  height: 1rem;
+  width: 1rem;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] button[class*="bg-navy"],
+.erp-shell [class*="fixed"][class*="inset-0"] button[type="submit"] {
+  border-radius: 0.8rem !important;
+  background-image: linear-gradient(135deg, #0f766e, #2563eb) !important;
+  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.2) !important;
+  font-weight: 900 !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] button[class*="border"][class*="text-gray"],
+.erp-shell [class*="fixed"][class*="inset-0"] button[type="button"][class*="border"] {
+  border-color: #cbd5e1 !important;
+  border-radius: 0.8rem !important;
+  background: white !important;
+  color: #334155 !important;
+  font-weight: 800 !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] button[class*="text-gray-400"],
+.erp-shell [class*="fixed"][class*="inset-0"] button[class*="text-gray-500"] {
+  border-radius: 0.75rem;
+  color: #64748b !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] button[class*="text-gray-400"]:hover,
+.erp-shell [class*="fixed"][class*="inset-0"] button[class*="text-gray-500"]:hover {
+  background: #f1f5f9;
+  color: #0f172a !important;
+}
+
+html.erp-dark-root body {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.2), transparent 30%),
+    linear-gradient(135deg, #050b16 0%, #07111f 48%, #020617 100%);
+}
+
+.erp-dark {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.22), transparent 30%),
+    radial-gradient(circle at 92% 12%, rgba(14, 165, 233, 0.12), transparent 28%),
+    linear-gradient(135deg, #06101f 0%, #081426 52%, #020617 100%) !important;
+  color: #e5edf8;
+}
+
+.erp-dark .hrms-sidebar-panel {
+  border-color: rgba(96, 165, 250, 0.15) !important;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(37, 99, 235, 0.24), transparent 30%),
+    linear-gradient(180deg, #071326 0%, #031020 48%, #020713 100%) !important;
+  box-shadow: 20px 0 60px rgba(0, 0, 0, 0.44) !important;
+}
+
+.erp-dark .hrms-sidebar-panel a[aria-current="page"] {
+  border-color: rgba(96, 165, 250, 0.44) !important;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.92), rgba(79, 70, 229, 0.86)) !important;
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.28) !important;
+}
+
+.erp-dark .hrms-sidebar-panel nav a:hover,
+.erp-dark .hrms-sidebar-panel nav button:hover {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+}
+
+.erp-dark .erp-topbar {
+  border-color: rgba(96, 165, 250, 0.16) !important;
+  background: rgba(5, 13, 28, 0.92) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34) !important;
+}
+
+.erp-dark .erp-icon-button,
+.erp-dark .erp-theme-toggle,
+.erp-dark .erp-profile-button {
+  border-color: rgba(96, 165, 250, 0.2) !important;
+  background: rgba(15, 23, 42, 0.78) !important;
+  color: #dbeafe !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 22px rgba(0, 0, 0, 0.26) !important;
+}
+
+.erp-dark .erp-icon-button:hover,
+.erp-dark .erp-theme-toggle:hover,
+.erp-dark .erp-profile-button:hover {
+  background: rgba(30, 41, 59, 0.92) !important;
+  color: #ffffff !important;
+}
+
+.erp-dark .erp-theme-toggle[aria-pressed="true"] {
+  color: #bfdbfe !important;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 64, 175, 0.68)) !important;
+}
+
+.erp-dark .erp-topbar-search {
+  border-color: rgba(96, 165, 250, 0.18) !important;
+  background-color: rgba(8, 16, 31, 0.84) !important;
+  color: #e2e8f0 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 12px 26px rgba(0, 0, 0, 0.18) !important;
+}
+
+.erp-dark .erp-topbar-search::placeholder {
+  color: #64748b;
+}
+
+.erp-dark .erp-footer {
+  border-color: rgba(96, 165, 250, 0.14) !important;
+  background: rgba(5, 13, 28, 0.94) !important;
+  box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.3) !important;
+}
+
+.erp-dark .erp-shell {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.16), transparent 34%),
+    radial-gradient(circle at 88% 6%, rgba(6, 182, 212, 0.12), transparent 32%),
+    linear-gradient(135deg, rgba(6, 14, 28, 0.98), rgba(8, 17, 33, 0.98)) !important;
+  color: #dbeafe;
+}
+
+.erp-dark .erp-shell::before {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  opacity: 0.9;
+}
+
+.erp-dark .erp-dashboard {
+  border-color: rgba(96, 165, 250, 0.18) !important;
+  background:
+    radial-gradient(circle at 28% 0%, rgba(37, 99, 235, 0.18), transparent 34%),
+    radial-gradient(circle at 86% 12%, rgba(14, 165, 233, 0.12), transparent 30%),
+    linear-gradient(135deg, rgba(6, 16, 32, 0.96), rgba(4, 10, 22, 0.98)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 24px 70px rgba(0, 0, 0, 0.38) !important;
+}
+
+.erp-dark .erp-dashboard .erp-grid-surface {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.075) 1px, transparent 1px) !important;
+}
+
+.erp-dark .erp-dashboard > [class*="from-white"] {
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.14), rgba(6, 16, 32, 0)) !important;
+}
+
+.erp-dark .erp-dashboard-hero {
+  border-color: rgba(96, 165, 250, 0.2) !important;
+  background: #0b1730 !important;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.38) !important;
+}
+
+.erp-dark .erp-dashboard-hero > .absolute:first-child {
+  background:
+    radial-gradient(circle at 70% 8%, rgba(37, 99, 235, 0.36), transparent 34%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(8, 20, 42, 0.98)) !important;
+}
+
+.erp-dark .erp-shell :is(section, div, article)[class*="bg-white"],
+.erp-dark .erp-shell [class*="shadow-sm"][class*="border"] {
+  border-color: rgba(96, 165, 250, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(15, 29, 52, 0.9), rgba(9, 20, 39, 0.95)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 16px 44px rgba(0, 0, 0, 0.26) !important;
+}
+
+.erp-dark .erp-shell :is(section, div, article)[class*="bg-white"]:hover,
+.erp-dark .erp-shell [class*="shadow-sm"][class*="border"]:hover {
+  border-color: rgba(96, 165, 250, 0.28) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 20px 52px rgba(0, 0, 0, 0.34) !important;
+}
+
+.erp-dark .erp-shell [class*="bg-slate-50"],
+.erp-dark .erp-shell [class*="bg-gray-50"] {
+  background-color: rgba(15, 23, 42, 0.72) !important;
+}
+
+.erp-dark .erp-shell [class*="bg-slate-100"],
+.erp-dark .erp-shell [class*="bg-gray-100"] {
+  background-color: rgba(30, 41, 59, 0.74) !important;
+}
+
+.erp-dark .erp-shell [class*="bg-slate-200"],
+.erp-dark .erp-shell [class*="bg-gray-200"] {
+  background-color: rgba(51, 65, 85, 0.72) !important;
+}
+
+.erp-dark .erp-shell [class*="text-slate-950"],
+.erp-dark .erp-shell [class*="text-slate-900"],
+.erp-dark .erp-shell [class*="text-gray-900"],
+.erp-dark .erp-shell [class*="text-gray-800"] {
+  color: #f8fafc !important;
+}
+
+.erp-dark .erp-shell [class*="text-slate-800"],
+.erp-dark .erp-shell [class*="text-slate-700"],
+.erp-dark .erp-shell [class*="text-gray-700"] {
+  color: #dbeafe !important;
+}
+
+.erp-dark .erp-shell [class*="text-slate-600"],
+.erp-dark .erp-shell [class*="text-gray-600"] {
+  color: #bfccdd !important;
+}
+
+.erp-dark .erp-shell [class*="text-slate-500"],
+.erp-dark .erp-shell [class*="text-gray-500"],
+.erp-dark .erp-shell [class*="text-slate-400"],
+.erp-dark .erp-shell [class*="text-gray-400"] {
+  color: #94a3b8 !important;
+}
+
+.erp-dark .erp-shell [class*="text-indigo-700"],
+.erp-dark .erp-shell [class*="text-blue-700"],
+.erp-dark .erp-shell [class*="text-indigo-600"],
+.erp-dark .erp-shell [class*="text-blue-600"] {
+  color: #93c5fd !important;
+}
+
+.erp-dark .erp-shell [class*="text-emerald-700"],
+.erp-dark .erp-shell [class*="text-teal-700"],
+.erp-dark .erp-shell [class*="text-emerald-600"],
+.erp-dark .erp-shell [class*="text-teal-600"] {
+  color: #6ee7b7 !important;
+}
+
+.erp-dark .erp-shell [class*="text-amber-700"],
+.erp-dark .erp-shell [class*="text-orange-700"],
+.erp-dark .erp-shell [class*="text-amber-600"],
+.erp-dark .erp-shell [class*="text-orange-600"] {
+  color: #fbbf24 !important;
+}
+
+.erp-dark .erp-shell [class*="text-rose-700"],
+.erp-dark .erp-shell [class*="text-red-700"],
+.erp-dark .erp-shell [class*="text-rose-600"],
+.erp-dark .erp-shell [class*="text-red-600"] {
+  color: #fda4af !important;
+}
+
+.erp-dark .erp-shell input:not([type="checkbox"]):not([type="radio"]),
+.erp-dark .erp-shell select,
+.erp-dark .erp-shell textarea {
+  border-color: rgba(96, 165, 250, 0.2) !important;
+  background-color: rgba(8, 16, 31, 0.86) !important;
+  color: #e2e8f0 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+.erp-dark .erp-shell input::placeholder,
+.erp-dark .erp-shell textarea::placeholder {
+  color: #64748b !important;
+}
+
+.erp-dark .erp-shell input:not([type="checkbox"]):not([type="radio"]):focus,
+.erp-dark .erp-shell select:focus,
+.erp-dark .erp-shell textarea:focus {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.erp-dark .erp-shell table,
+.erp-dark .erp-shell tbody {
+  background: transparent !important;
+}
+
+.erp-dark .erp-shell thead,
+.erp-dark .erp-shell thead th {
+  background: rgba(12, 24, 45, 0.98) !important;
+}
+
+.erp-dark .erp-shell th {
+  border-color: rgba(96, 165, 250, 0.18) !important;
+  color: #9fb0c7 !important;
+}
+
+.erp-dark .erp-shell td {
+  border-color: rgba(96, 165, 250, 0.13) !important;
+}
+
+.erp-dark .erp-shell tbody tr:hover {
+  background: rgba(37, 99, 235, 0.12) !important;
+}
+
+.erp-dark .erp-shell [class*="divide-slate"] > :not([hidden]) ~ :not([hidden]),
+.erp-dark .erp-shell [class*="divide-gray"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(96, 165, 250, 0.13) !important;
+}
+
+.erp-dark .erp-shell [class*="border-slate"],
+.erp-dark .erp-shell [class*="border-gray"] {
+  border-color: rgba(96, 165, 250, 0.16) !important;
+}
+
+.erp-dark .erp-shell [class*="bg-indigo-50"],
+.erp-dark .erp-shell [class*="bg-blue-50"] {
+  background-color: rgba(37, 99, 235, 0.18) !important;
+}
+
+.erp-dark .erp-shell [class*="bg-emerald-50"],
+.erp-dark .erp-shell [class*="bg-teal-50"] {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+}
+
+.erp-dark .erp-shell [class*="bg-amber-50"],
+.erp-dark .erp-shell [class*="bg-orange-50"] {
+  background-color: rgba(245, 158, 11, 0.16) !important;
+}
+
+.erp-dark .erp-shell [class*="bg-rose-50"],
+.erp-dark .erp-shell [class*="bg-red-50"] {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+}
+
+.erp-dark .erp-shell [class*="ring-indigo-50"],
+.erp-dark .erp-shell [class*="ring-blue-50"] {
+  --tw-ring-color: rgba(37, 99, 235, 0.2) !important;
+}
+
+.erp-dark .erp-shell [class*="ring-emerald-50"],
+.erp-dark .erp-shell [class*="ring-teal-50"] {
+  --tw-ring-color: rgba(16, 185, 129, 0.18) !important;
+}
+
+.erp-dark .erp-shell [class*="ring-amber-50"],
+.erp-dark .erp-shell [class*="ring-orange-50"] {
+  --tw-ring-color: rgba(245, 158, 11, 0.16) !important;
+}
+
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(37, 99, 235, 0.2), transparent 34%),
+    rgba(2, 6, 23, 0.82) !important;
+}
+
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="rounded"],
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="shadow"] {
+  border-color: rgba(96, 165, 250, 0.22) !important;
+  background:
+    linear-gradient(180deg, rgba(15, 29, 52, 0.98), rgba(8, 17, 34, 0.98)) !important;
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.56),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset !important;
+}
+
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] [class*="border-b"] {
+  border-color: rgba(96, 165, 250, 0.18) !important;
+  background: linear-gradient(180deg, rgba(15, 29, 52, 0.98), rgba(12, 24, 45, 0.94)) !important;
+}
+
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] h2,
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] h3 {
+  color: #f8fafc !important;
+}
+
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] label {
+  color: #cbd5e1 !important;
+}
+
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] p {
+  color: #aebbd0 !important;
+}
+
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] button[class*="border"][class*="text-gray"],
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] button[type="button"][class*="border"] {
+  border-color: rgba(96, 165, 250, 0.24) !important;
+  background: rgba(15, 23, 42, 0.86) !important;
+  color: #dbeafe !important;
+}
+
+.erp-dark .erp-shell [class*="fixed"][class*="inset-0"] input[type="file"]::file-selector-button {
+  background: rgba(37, 99, 235, 0.22);
+  color: #bfdbfe;
+}
+
+.erp-dark .recharts-cartesian-axis-tick text,
+.erp-dark .recharts-text {
+  fill: #9fb0c7 !important;
+}
+
+.erp-dark .recharts-cartesian-grid line {
+  stroke: rgba(96, 165, 250, 0.14) !important;
+}
+
+.erp-dark .recharts-default-tooltip {
+  border-color: rgba(96, 165, 250, 0.24) !important;
+  background: rgba(15, 29, 52, 0.98) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34) !important;
+}
+
+.erp-shell ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.erp-shell ::-webkit-scrollbar-track {
+  background: #eef2f7;
+  border-radius: 999px;
+}
+
+.erp-shell ::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border: 2px solid #eef2f7;
+  border-radius: 999px;
+}
+
+.erp-shell ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .erp-shell > .container > *,
+  .erp-shell :is(.space-y-3, .space-y-4, .space-y-5, .space-y-6, .space-y-8) > * {
+    animation: none;
+  }
+
+  .erp-shell [class*="fixed"][class*="inset-0"],
+  .erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="rounded"],
+  .erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="shadow"] {
+    animation: none;
+  }
+
+  .erp-shell button:not(:disabled):hover,
+  .erp-shell a[class*="rounded"]:hover {
+    transform: none;
+  }
 }
 
 .gradient-bg {

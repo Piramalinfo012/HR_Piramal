@@ -312,7 +312,7 @@ const Login = () => {
                 <Users size={34} />
               </div>
               <p className="text-xs font-black uppercase tracking-[0.28em] text-indigo-600">Secure ERP Access</p>
-              <h2 className="mt-2 text-4xl font-black tracking-tight text-slate-950">HR FMS</h2>
+              <h2 className="mt-2 text-4xl font-black tracking-tight text-slate-950">HRMS</h2>
               <p className="mt-2 text-sm font-semibold text-slate-500">Human Resource & File Management System</p>
             </div>
 
