@@ -78,6 +78,9 @@ const getDriveImageUrl = (url, size) => {
   if (!url) return null;
   const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
   if (match && match[1]) {
+    if (size >= 800) {
+      return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+    }
     return `https://drive.google.com/thumbnail?id=${match[1]}${size ? `&sz=w${size}` : ""}`;
   }
   return url;
@@ -353,11 +356,11 @@ const EmployeeMobileHome = () => {
               </motion.div>
 
               {/* Feed Cards */}
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-6 -mx-5 mt-4">
                 {newJoiners.slice(0, 5).map((person, idx) => (
                   <motion.div 
                     key={`feed-${idx}`}
-                    className="relative overflow-hidden rounded-[24px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-slate-100/50 mb-2 pb-2"
+                    className="relative overflow-hidden bg-white shadow-sm border-y border-slate-200/60 pb-2"
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + idx * 0.1 }}
                   >
                     {/* Header */}
