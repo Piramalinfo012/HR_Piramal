@@ -82,9 +82,9 @@ const Layout = () => {
 
   if (isEmployeeMobile) {
     return (
-      <div className="min-h-screen bg-[#efe8df] pb-[100px]">
+      <div className="min-h-screen overflow-x-hidden bg-[#f7f7f4] pb-[100px]">
         <ScrollToTop />
-        <main className="mx-auto min-h-screen max-w-md bg-[#f7f7f4] shadow-[0_0_35px_rgba(15,23,42,0.18)]">
+        <main className="min-h-screen w-full bg-[#f7f7f4]">
           <Outlet />
         </main>
         <MobileBottomNav />
