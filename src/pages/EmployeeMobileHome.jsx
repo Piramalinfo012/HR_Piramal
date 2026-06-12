@@ -22,6 +22,7 @@ import toast from 'react-hot-toast';
 
 const ATTENDANCE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_GRdhFbP5zQX_HV72t9Ofcj5IHurSBJnPC5o0yr6_HvkLkMs9hOSLHIP0e26uG1iDlA/exec';
 const ATTENDANCE_SHEET_NAME = 'Data';
+const FEED_REFRESH_INTERVAL_MS = 30000;
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -209,13 +210,20 @@ const EmployeeMobileHome = () => {
   };
 
   useEffect(() => {
-    const fetchJoiners = async () => {
+    let isMounted = true;
+
+    const fetchJoiners = async ({ silent = false } = {}) => {
       try {
-        const cb = `&_=${Date.now()}`;
+        if (!silent) setFeedLoading(true);
+        const cb = `&_=${Date.now()}&realtime=1`;
         const sheetName = encodeURIComponent('Onboard and Status');
-        const response = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?action=fetch&sheet=${sheetName}${cb}`);
+        const response = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?action=fetch&sheet=${sheetName}${cb}`, {
+          cache: 'no-store',
+        });
         const json = await response.json();
         const raw = json.data || [];
+
+        if (!isMounted) return;
         
         if (raw.length > 1) {
           const processed = raw.slice(1).map(row => ({
@@ -234,10 +242,31 @@ const EmployeeMobileHome = () => {
       } catch (e) {
         console.error("Failed to fetch feed:", e);
       } finally {
-        setFeedLoading(false);
+        if (isMounted) {
+          setFeedLoading(false);
+        }
       }
     };
+
+    const refreshFeed = () => fetchJoiners({ silent: true });
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshFeed();
+      }
+    };
+
     fetchJoiners();
+
+    const intervalId = window.setInterval(refreshFeed, FEED_REFRESH_INTERVAL_MS);
+    window.addEventListener('focus', refreshFeed);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshFeed);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {

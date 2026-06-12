@@ -114,6 +114,8 @@ export const initGlobalCache = () => {
 
     const isGoogleScript = url.includes('script.google.com') || url.includes('script.googleusercontent.com');
     const isPost = init?.method === 'POST' || (input instanceof Request && input.method === 'POST');
+    const requestCacheMode = init?.cache || (input instanceof Request ? input.cache : '');
+    const shouldForceNetwork = ['no-store', 'reload', 'no-cache'].includes(requestCacheMode);
 
     if (isGoogleScript) {
       if (isPost) {
@@ -125,13 +127,25 @@ export const initGlobalCache = () => {
 
       try {
         const urlObj = new URL(url);
+        const hasFreshParam = ['fresh', 'realtime', 'noCache'].some((param) => {
+          const value = urlObj.searchParams.get(param);
+          return value && ['1', 'true', 'yes'].includes(value.toLowerCase());
+        });
         
-        // Remove the `_` cache buster parameter to create a stable cache key
-        if (urlObj.searchParams.has('_')) {
-          urlObj.searchParams.delete('_');
-        }
+        // Remove cache-buster parameters to create a stable cache key.
+        ['_', 'fresh', 'realtime', 'noCache'].forEach((param) => {
+          if (urlObj.searchParams.has(param)) {
+            urlObj.searchParams.delete(param);
+          }
+        });
         
         const cacheKey = urlObj.toString();
+
+        if (shouldForceNetwork || hasFreshParam) {
+          fetchCache.delete(cacheKey);
+          deleteCacheIDB(cacheKey);
+          return originalFetch(input, init);
+        }
 
         // If the user clicked "Refresh", we bypass the cache and clear it for this key
         if (isBypassCache) {
