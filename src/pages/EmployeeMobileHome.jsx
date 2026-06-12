@@ -249,7 +249,7 @@ const EmployeeMobileHome = () => {
 
   return (
     <div className="min-h-screen bg-[#f7f7f4] pb-20 text-black">
-      <div className="sticky top-0 z-30 bg-[#006241] text-white shadow-md">
+      <div className="sticky top-0 z-30 bg-[#006241] text-white shadow-md md:hidden">
         <div className="flex h-16 items-center justify-between px-4">
           <button type="button" onClick={() => navigate('/employee-mobile')} aria-label="Open employee home">
             <Menu size={30} />

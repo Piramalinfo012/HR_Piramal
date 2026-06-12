@@ -33,6 +33,7 @@ import {
   Inbox,
   CheckCircle,
   UserCog,
+  Home,
 } from "lucide-react";
 
 import useAuthStore from "../store/authStore";
@@ -663,6 +664,7 @@ const Sidebar = ({ onClose, isCollapsed = false }) => {
     Users,
     UserX,
     Video,
+    Home,
   };
 
   const bindMenuIcons = (items) =>
