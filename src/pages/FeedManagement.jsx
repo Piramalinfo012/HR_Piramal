@@ -26,31 +26,28 @@ const emptyForm = {
 
 const uploadFile = async (file) => {
   if (!file) return "";
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const base64Data = e.target.result;
-        const response = await fetch(SCRIPT_URL, {
-          method: "POST",
-          body: new URLSearchParams({
-            action: "uploadFile",
-            base64Data: base64Data,
-            fileName: file.name,
-            mimeType: file.type,
-            folderId: '1Mu3MgyDhc-kM2UesunFRJxLo1sPYOQvdZa1cyKX8yvhPfiz5ssUDxIofM_MAIjlggXAOR4P9', // Uses candidate photo folder as generic image folder
-          }),
-        });
-        const result = await response.json();
-        resolve(result.success ? result.fileUrl : "");
-      } catch (error) {
-        console.error("Upload error:", error);
-        resolve("");
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+
+  try {
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+      {
+        method: "POST",
+        body: formData,
       }
-    };
-    reader.onerror = () => resolve("");
-    reader.readAsDataURL(file);
-  });
+    );
+    const data = await response.json();
+    if (data.secure_url) {
+      return data.secure_url;
+    }
+    console.error("Cloudinary upload failed:", data);
+    return "";
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+    return "";
+  }
 };
 
 const parseGoogleSheetTable = (text, sheetLabel = "sheet") => {
@@ -235,14 +232,20 @@ const FeedManagement = () => {
 
       const rowData = [form.date, finalImageUrl, form.sms, form.smsType, form.name, form.designation];
       
-      const payload = {
-        sheetName: SHEET_NAME,
-        action: mode === "add" ? "bulkInsert" : "update",
-        rowsData: JSON.stringify([rowData]),
-      };
-
-      if (mode === "edit") {
-        payload.rowIndex = editingRow.rowIndex;
+      let payload;
+      if (mode === "add") {
+        payload = {
+          sheetName: SHEET_NAME,
+          action: "insert",
+          rowData: JSON.stringify(rowData),
+        };
+      } else {
+        payload = {
+          sheetName: SHEET_NAME,
+          action: "update",
+          rowIndex: editingRow.rowIndex,
+          rowData: JSON.stringify(rowData),
+        };
       }
 
       const response = await fetch(SCRIPT_URL, {

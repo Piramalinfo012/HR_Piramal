@@ -13,10 +13,12 @@ import {
   FileText,
   User,
   Megaphone,
-  LogOut
+  LogOut,
+  Camera
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
+import toast from 'react-hot-toast';
 
 const ATTENDANCE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_GRdhFbP5zQX_HV72t9Ofcj5IHurSBJnPC5o0yr6_HvkLkMs9hOSLHIP0e26uG1iDlA/exec';
 const ATTENDANCE_SHEET_NAME = 'Data';
@@ -76,6 +78,15 @@ const parseAttendanceDate = (value, monthName = '') => {
 
 const getDriveImageUrl = (url, size) => {
   if (!url) return null;
+
+  // Cloudinary Optimization
+  if (url.includes("cloudinary.com")) {
+    if (size) {
+      return url.replace("/upload/", `/upload/w_${size},q_auto,f_auto/`);
+    }
+    return url.replace("/upload/", `/upload/q_auto,f_auto/`);
+  }
+
   const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
   if (match && match[1]) {
     return `https://drive.google.com/thumbnail?id=${match[1]}${size ? `&sz=w${size}` : ""}`;
@@ -139,6 +150,63 @@ const EmployeeMobileHome = () => {
   const rawUser = localStorage.getItem('user');
   const user = rawUser ? JSON.parse(rawUser) : {};
   const employeeName = user?.Name || user?.name || user?.Username || 'Employee';
+
+  const [profilePic, setProfilePic] = useState(user?.profilePic || "");
+  const [uploadingPic, setUploadingPic] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const handleProfilePicUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingPic(true);
+    const toastId = toast.loading("Uploading profile picture...");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+
+      const cloudinaryRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: formData }
+      );
+      const cloudinaryData = await cloudinaryRes.json();
+      
+      if (!cloudinaryData.secure_url) throw new Error("Upload failed");
+      const newPicUrl = cloudinaryData.secure_url;
+
+      if (user?.rowIndex) {
+        const payload = {
+          sheetName: "USER",
+          action: "updateCell",
+          rowIndex: user.rowIndex,
+          columnIndex: 13,
+          value: newPicUrl
+        };
+        const sheetRes = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(payload).toString()
+        });
+        const sheetData = await sheetRes.json();
+        if (!sheetData.success) throw new Error("Failed to save to sheet");
+      }
+
+      setProfilePic(newPicUrl);
+      
+      const updatedUser = { ...user, profilePic: newPicUrl };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      
+      toast.success("Profile picture updated!", { id: toastId });
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update profile picture", { id: toastId });
+    } finally {
+      setUploadingPic(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   useEffect(() => {
     const fetchJoiners = async () => {
@@ -269,12 +337,45 @@ const EmployeeMobileHome = () => {
           </div>
         </div>
       </div>
-      <div className="bg-[#367f65] px-5 pb-6 pt-6 rounded-b-[30px] shadow-sm text-white relative z-20">
-        <p className="text-lg font-black">Hello, {employeeName.split(' ')[0] || 'Employee'} !</p>
-        <p className="mt-2 text-xs font-semibold">Hope you are having a great day</p>
-        <p className="mt-4 text-xs font-black">Employee Self Service</p>
-        <div className="mt-2 h-1.5 w-28 rounded-full bg-white/40">
-          <div className="h-full w-full rounded-full bg-emerald-200" />
+      <div className="bg-[#367f65] px-5 pb-6 pt-6 rounded-b-[30px] shadow-sm text-white relative z-20 flex justify-between items-center">
+        <div>
+          <p className="text-lg font-black">Hello, {employeeName.split(' ')[0] || 'Employee'} !</p>
+          <p className="mt-2 text-xs font-semibold">Hope you are having a great day</p>
+          <p className="mt-4 text-xs font-black">Employee Self Service</p>
+          <div className="mt-2 h-1.5 w-28 rounded-full bg-white/40">
+            <div className="h-full w-full rounded-full bg-emerald-200" />
+          </div>
+        </div>
+        
+        <div className="relative group cursor-pointer" onClick={() => !uploadingPic && fileInputRef.current?.click()}>
+          <div className="h-20 w-20 rounded-full border-[3px] border-emerald-400/50 bg-white/10 overflow-hidden shadow-lg backdrop-blur flex justify-center items-center">
+            {uploadingPic ? (
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+            ) : profilePic ? (
+              <img 
+                src={getDriveImageUrl(profilePic, 150)} 
+                alt="Profile" 
+                className="h-full w-full object-cover" 
+                onError={(e) => {
+                  if (!e.target.dataset.retried) {
+                    e.target.dataset.retried = "true";
+                    const match = profilePic.match(/\/d\/([a-zA-Z0-9_-]+)/) || profilePic.match(/id=([a-zA-Z0-9_-]+)/);
+                    if (match && match[1]) {
+                      e.target.src = `https://drive.google.com/uc?export=view&id=${match[1]}`;
+                    } else {
+                      e.target.src = profilePic;
+                    }
+                  }
+                }}
+              />
+            ) : (
+              <User size={36} className="text-emerald-100" />
+            )}
+          </div>
+          <div className="absolute bottom-0 right-0 rounded-full bg-indigo-500 p-1.5 shadow-md border-2 border-[#367f65]">
+            <Camera size={12} className="text-white" />
+          </div>
+          <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleProfilePicUpload} />
         </div>
       </div>
 
@@ -340,7 +441,22 @@ const EmployeeMobileHome = () => {
                   >
                     <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-[3px] border-emerald-500 bg-white p-[2px] shadow-sm">
                       {person.candidatePhoto ? (
-                        <img src={getDriveImageUrl(person.candidatePhoto, 200)} alt="Story" className="h-full w-full rounded-full object-cover bg-gray-50" />
+                        <img 
+                          src={getDriveImageUrl(person.candidatePhoto, 200)} 
+                          alt="Story" 
+                          className="h-full w-full rounded-full object-cover bg-gray-50" 
+                          onError={(e) => {
+                            if (!e.target.dataset.retried) {
+                              e.target.dataset.retried = "true";
+                              const match = person.candidatePhoto.match(/\/d\/([a-zA-Z0-9_-]+)/) || person.candidatePhoto.match(/id=([a-zA-Z0-9_-]+)/);
+                              if (match && match[1]) {
+                                e.target.src = `https://drive.google.com/uc?export=view&id=${match[1]}`;
+                              } else {
+                                e.target.src = person.candidatePhoto;
+                              }
+                            }
+                          }}
+                        />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center rounded-full bg-emerald-100">
                           <Megaphone size={24} className="text-emerald-500" />
@@ -365,7 +481,22 @@ const EmployeeMobileHome = () => {
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-100 border border-emerald-200">
                           {person.candidatePhoto ? (
-                            <img src={getDriveImageUrl(person.candidatePhoto, 150)} alt="Profile" className="h-full w-full object-cover" />
+                            <img 
+                              src={getDriveImageUrl(person.candidatePhoto, 150)} 
+                              alt="Profile" 
+                              className="h-full w-full object-cover" 
+                              onError={(e) => {
+                                if (!e.target.dataset.retried) {
+                                  e.target.dataset.retried = "true";
+                                  const match = person.candidatePhoto.match(/\/d\/([a-zA-Z0-9_-]+)/) || person.candidatePhoto.match(/id=([a-zA-Z0-9_-]+)/);
+                                  if (match && match[1]) {
+                                    e.target.src = `https://drive.google.com/uc?export=view&id=${match[1]}`;
+                                  } else {
+                                    e.target.src = person.candidatePhoto;
+                                  }
+                                }
+                              }}
+                            />
                           ) : (
                             <Megaphone size={18} className="text-emerald-500" />
                           )}
@@ -382,8 +513,23 @@ const EmployeeMobileHome = () => {
 
                     {/* Image (Instagram style) */}
                     {person.candidatePhoto && (
-                      <div className="w-full bg-slate-50">
-                        <img src={getDriveImageUrl(person.candidatePhoto, 800)} alt="Post" className="w-full object-cover max-h-[400px]" />
+                      <div className="w-full bg-slate-50 flex justify-center">
+                        <img 
+                          src={getDriveImageUrl(person.candidatePhoto, 800)} 
+                          alt="Post" 
+                          className="w-full h-auto object-contain max-h-[500px]" 
+                          onError={(e) => {
+                            if (!e.target.dataset.retried) {
+                              e.target.dataset.retried = "true";
+                              const match = person.candidatePhoto.match(/\/d\/([a-zA-Z0-9_-]+)/) || person.candidatePhoto.match(/id=([a-zA-Z0-9_-]+)/);
+                              if (match && match[1]) {
+                                e.target.src = `https://drive.google.com/uc?export=view&id=${match[1]}`;
+                              } else {
+                                e.target.src = person.candidatePhoto;
+                              }
+                            }
+                          }}
+                        />
                       </div>
                     )}
 

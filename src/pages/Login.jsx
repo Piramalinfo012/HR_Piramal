@@ -97,16 +97,18 @@ const fetchLeavingRows = async () => {
 
 const parseUsers = (rows) => {
   const headers = rows?.[0] || [];
-  const users = rows.slice(1).map((row) => {
+  const users = rows.slice(1).map((row, index) => {
     const obj = {};
-    headers.forEach((header, index) => {
-      obj[header] = row[index];
+    headers.forEach((header, i) => {
+      obj[header] = row[i];
     });
+    obj.rowIndex = index + 2; // Data starts at row 2 in sheets
     obj._displayName = getCellByHeader(headers, row, ["Name", "Sales Person Name", "Person Name", "Employee Name"], 0);
     obj._authUsername = getCellByHeader(headers, row, ["Username", "User Name", "Login Username"], 1);
     obj._authPassword = getCellByHeader(headers, row, ["Password", "Passcode"], 2);
     obj.Name = obj.Name || obj._displayName;
     obj.Username = obj.Username || obj["User Name"] || obj._authUsername;
+    obj.profilePic = row[12] || ""; // Column M
 
     const deletedMarker = getCellByHeader(headers, row, ["Deleted", "Delete", "Status", "User Status"], 10);
     obj.isDeleted = ["deleted", "inactive", "disabled"].includes(deletedMarker.toLowerCase());
