@@ -4,6 +4,7 @@ import { Bell, ChevronDown, Mail, Moon, PanelLeftClose, PanelLeftOpen, Search, S
 import Sidebar from './Sidebar';
 import useAuthStore from '../store/authStore';
 import { getUserRole } from '../utils/authRole';
+import MobileBottomNav from './MobileBottomNav';
 
 // ScrollToTop component to handle scrolling to top on route changes
 const ScrollToTop = () => {
@@ -81,11 +82,12 @@ const Layout = () => {
 
   if (isEmployeeMobile) {
     return (
-      <div className="min-h-screen bg-[#efe8df]">
+      <div className="min-h-screen bg-[#efe8df] pb-[100px]">
         <ScrollToTop />
         <main className="mx-auto min-h-screen max-w-md bg-[#f7f7f4] shadow-[0_0_35px_rgba(15,23,42,0.18)]">
           <Outlet />
         </main>
+        <MobileBottomNav />
       </div>
     );
   }
@@ -151,18 +153,19 @@ const Layout = () => {
           </div>
         </header>
 
-        <main className="erp-shell flex-1 overflow-y-auto pt-16 md:pt-16 lg:pt-4 p-3 sm:p-4 scrollbar-hide">
+        <main className="erp-shell flex-1 overflow-y-auto pt-16 md:pt-16 lg:pt-4 p-3 sm:p-4 scrollbar-hide pb-[100px] md:pb-4">
           <div className="container mx-auto max-w-[1500px]">
             <Outlet />
           </div>
         </main>
 
         {/* Fixed Footer */}
-        <footer className="erp-footer border-t border-slate-200 bg-white/90 px-4 py-2.5 shadow-[0_-10px_30px_rgba(15,23,42,0.05)] backdrop-blur flex-shrink-0 z-50">
+        <footer className="erp-footer border-t border-slate-200 bg-white/90 px-4 py-2.5 shadow-[0_-10px_30px_rgba(15,23,42,0.05)] backdrop-blur flex-shrink-0 z-50 hidden md:block">
           <div className="container mx-auto text-center text-sm font-semibold text-slate-500">
             Developed By <span className="font-black text-indigo-600">Deepak Sahu</span>
           </div>
         </footer>
+        <MobileBottomNav />
       </div>
     </div>
   );
