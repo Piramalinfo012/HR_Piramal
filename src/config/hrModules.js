@@ -41,6 +41,7 @@ export const adminNavigationItems = [
         aliases: ["Induction Or Training"],
       },
       { path: "/asset-assignment", label: "Asset Assignment (IT Team)" },
+      { path: "/feed-management", label: "Feed Management" },
     ],
   },
   {

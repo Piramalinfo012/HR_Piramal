@@ -312,6 +312,9 @@ const Attendance = () => {
       console.log('Daily data response:', result);
 
       if (!result.success) {
+        if (result.error && result.error.includes("Cannot read properties of null")) {
+          throw new Error("Report Daily sheet not found in Google Sheets. Please create it first to enable downloads.");
+        }
         throw new Error(result.error || 'Failed to fetch daily data');
       }
 

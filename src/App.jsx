@@ -58,6 +58,7 @@ import InterviewScheduled from "./pages/InterviewScheduled";
 import JoiningFollowUp from "./pages/JoiningFollowUp";
 import UserManagement from "./pages/UserManagement";
 import OutstationMaster from "./pages/OutstationMaster";
+import FeedManagement from "./pages/FeedManagement";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
 import { placeholderRoutes } from "./config/hrModules";
 function App() {
@@ -129,6 +130,7 @@ function App() {
             <Route path="hrleads" element={<HrLeads />} />
             <Route path="user-management" element={<UserManagement />} />
             <Route path="outstation-master" element={<OutstationMaster />} />
+            <Route path="feed-management" element={<FeedManagement />} />
             {placeholderRoutes.map((route) => (
               <Route
                 key={route.path}

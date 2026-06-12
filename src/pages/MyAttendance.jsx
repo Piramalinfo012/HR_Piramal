@@ -58,6 +58,11 @@ const MyAttendance = () => {
       console.log('Raw Report Daily API response:', result);
 
       if (!result.success) {
+        if (result.error && result.error.includes("Cannot read properties of null")) {
+          console.warn("Report Daily sheet not found in Google Sheets. Please create it if needed. Defaulting to empty data.");
+          setAttendanceData([]);
+          return;
+        }
         throw new Error(result.error || 'Failed to fetch data from Report Daily sheet');
       }
 
@@ -366,6 +371,66 @@ const MyAttendance = () => {
     { label: 'Hours', value: totalWorkingHours.toFixed(1), icon: Clock, tone: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
   ];
 
+  const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  const calendarStartDate = new Date(
+    selectedYear,
+    selectedMonth,
+    1 - new Date(selectedYear, selectedMonth, 1).getDay()
+  );
+
+  const calendarCells = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(calendarStartDate);
+    date.setDate(calendarStartDate.getDate() + index);
+    return {
+      key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
+      day: date.getDate(),
+      weekday: date.getDay(),
+      isCurrentMonth: date.getMonth() === selectedMonth,
+      isToday: date.toDateString() === new Date().toDateString(),
+      fullDate: date,
+    };
+  });
+
+  const getDayClass = (cell) => {
+    if (!cell.isCurrentMonth) return 'bg-transparent text-slate-300';
+
+    const record = filteredAttendance.find(r => {
+      const dateValue = r.Date || r.date || r['C'] || '';
+      if (!dateValue) return false;
+      try {
+        let recordDate;
+        if (dateValue.includes('-')) {
+          const [year, month, day] = dateValue.split('-').map(Number);
+          recordDate = new Date(year, month - 1, day);
+        } else if (dateValue.includes('/')) {
+          const [month, day, year] = dateValue.split('/').map(Number);
+          recordDate = new Date(year, month - 1, day);
+        } else {
+          return false;
+        }
+        return recordDate.toDateString() === cell.fullDate.toDateString();
+      } catch (e) {
+        return false;
+      }
+    });
+
+    let statusClass = 'bg-white text-slate-700 shadow-sm border border-slate-100';
+
+    if (record) {
+      const status = getStatus(record).toLowerCase();
+      if (status.includes('present') || status.includes('holiday')) {
+        statusClass = 'bg-emerald-100 text-emerald-800 font-bold border-emerald-200';
+      } else if (status.includes('absent')) {
+        statusClass = 'bg-rose-100 text-rose-800 font-bold border-rose-200';
+      }
+    } else if (cell.weekday === 0) {
+       statusClass = 'bg-violet-100 text-violet-800 font-bold border-violet-200';
+    }
+
+    return `${statusClass} ${cell.isToday ? 'ring-2 ring-emerald-500 ring-offset-2' : ''}`;
+  };
+
   return (
     <>
       <div className="min-h-screen bg-[#f5f7fb] px-4 pb-24 pt-4 text-slate-950 md:hidden">
@@ -437,6 +502,27 @@ const MyAttendance = () => {
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-5 rounded-3xl bg-white p-5 shadow-sm border border-slate-200">
+          <div className="mb-4 grid grid-cols-7 gap-y-3">
+            {weekDays.map((day) => (
+              <div key={day} className="text-center text-xs font-black text-slate-400 uppercase tracking-wider">{day}</div>
+            ))}
+            {calendarCells.map((cell) => (
+              <div key={cell.key} className="flex justify-center">
+                <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm ${getDayClass(cell)}`}>
+                  {cell.day}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] font-black uppercase tracking-widest mt-2 border-t border-slate-100 pt-4">
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />Today</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-200" />Present</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-rose-200" />Absent</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-violet-200" />Holiday</span>
+          </div>
         </div>
 
         <div className="mt-5">

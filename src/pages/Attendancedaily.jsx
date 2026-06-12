@@ -28,6 +28,11 @@ const Attendancedaily = () => {
       console.log('Raw Report Daily API response:', result);
 
       if (!result.success) {
+        if (result.error && result.error.includes("Cannot read properties of null")) {
+          console.warn("Report Daily sheet not found. Defaulting to empty.");
+          setAttendanceData([]);
+          return;
+        }
         throw new Error(result.error || 'Failed to fetch data from Report Daily sheet');
       }
 

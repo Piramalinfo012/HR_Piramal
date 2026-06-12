@@ -618,15 +618,7 @@ const MarkAttendance = () => {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">Reason</span>
-              <input
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                placeholder="Optional reason"
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-100"
-              />
-            </label>
+
 
             <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
               <div className="flex items-start gap-3">

@@ -11,8 +11,10 @@ import {
   Search,
   Clock,
   FileText,
-  User
+  User,
+  Megaphone
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
 
 const ATTENDANCE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_GRdhFbP5zQX_HV72t9Ofcj5IHurSBJnPC5o0yr6_HvkLkMs9hOSLHIP0e26uG1iDlA/exec';
@@ -71,6 +73,15 @@ const parseAttendanceDate = (value, monthName = '') => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const getDriveImageUrl = (url, size) => {
+  if (!url) return null;
+  const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return `https://drive.google.com/thumbnail?id=${match[1]}${size ? `&sz=w${size}` : ""}`;
+  }
+  return url;
+};
+
 const formatTime = (value) => normalize(value) || '-';
 
 const formatWorkingDuration = (inTimeValue, outTimeValue) => {
@@ -121,11 +132,41 @@ const EmployeeMobileHome = () => {
   const { logout } = useAuthStore();
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [newJoiners, setNewJoiners] = useState([]);
+  const [feedLoading, setFeedLoading] = useState(true);
 
   const rawUser = localStorage.getItem('user');
   const user = rawUser ? JSON.parse(rawUser) : {};
   const employeeName = user?.Name || user?.name || user?.Username || 'Employee';
+
+  useEffect(() => {
+    const fetchJoiners = async () => {
+      try {
+        const cb = `&_=${Date.now()}`;
+        const response = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?action=fetch&sheet=Onboard and Status${cb}`);
+        const json = await response.json();
+        const raw = json.data || [];
+        
+        if (raw.length > 1) {
+          const processed = raw.slice(1).map(row => ({
+            date: row[0] || "",
+            candidatePhoto: row[1] || "",
+            sms: row[2] || "",
+            smsType: row[3] || "Announcement",
+          })).filter(item => item.sms || item.candidatePhoto);
+          
+          setNewJoiners(processed.reverse());
+        } else {
+          setNewJoiners([]);
+        }
+      } catch (e) {
+        console.error("Failed to fetch feed:", e);
+      } finally {
+        setFeedLoading(false);
+      }
+    };
+    fetchJoiners();
+  }, []);
 
   useEffect(() => {
     const fetchAttendanceData = async () => {
@@ -175,56 +216,6 @@ const EmployeeMobileHome = () => {
     );
   }, [attendanceData, employeeName]);
 
-  useEffect(() => {
-    if (!userRows.length) return;
-
-    const currentMonthRows = userRows.filter((item) => {
-      const date = parseAttendanceDate(item.date, item.month);
-      return date && date.getMonth() === calendarDate.getMonth() && date.getFullYear() === calendarDate.getFullYear();
-    });
-
-    if (currentMonthRows.length) return;
-
-    const latestDate = userRows
-      .map((item) => parseAttendanceDate(item.date, item.month))
-      .filter(Boolean)
-      .sort((a, b) => b.getTime() - a.getTime())[0];
-
-    if (latestDate) setCalendarDate(new Date(latestDate.getFullYear(), latestDate.getMonth(), 1));
-  }, [userRows]);
-
-  const monthRows = useMemo(() => userRows.filter((item) => {
-    const date = parseAttendanceDate(item.date, item.month);
-    return date && date.getMonth() === calendarDate.getMonth() && date.getFullYear() === calendarDate.getFullYear();
-  }), [userRows, calendarDate]);
-
-  const monthSummary = summarizeRows(monthRows);
-  const rowsByDay = monthRows.reduce((days, item) => {
-    const date = parseAttendanceDate(item.date, item.month);
-    if (!date) return days;
-    const day = date.getDate();
-    if (!days[day]) days[day] = [];
-    days[day].push(item);
-    return days;
-  }, {});
-
-  const calendarStartDate = new Date(
-    calendarDate.getFullYear(),
-    calendarDate.getMonth(),
-    1 - new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1).getDay()
-  );
-  const calendarCells = Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(calendarStartDate);
-    date.setDate(calendarStartDate.getDate() + index);
-    return {
-      key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
-      day: date.getDate(),
-      weekday: date.getDay(),
-      isCurrentMonth: date.getMonth() === calendarDate.getMonth(),
-      isToday: date.toDateString() === new Date().toDateString(),
-    };
-  });
-
   const latestAttendanceRecord = [...userRows]
     .filter((item) => parseAttendanceDate(item.date, item.month))
     .sort((a, b) => parseAttendanceDate(b.date, b.month) - parseAttendanceDate(a.date, a.month))[0];
@@ -234,26 +225,6 @@ const EmployeeMobileHome = () => {
     localStorage.removeItem('employeeId');
     logout();
     navigate('/login', { replace: true });
-  };
-
-  const shiftMonth = (direction) => {
-    setCalendarDate((date) => new Date(date.getFullYear(), date.getMonth() + direction, 1));
-  };
-
-  const getDayClass = (cell) => {
-    if (!cell.isCurrentMonth) return 'bg-transparent text-gray-400';
-
-    const rows = rowsByDay[cell.day] || [];
-    const summary = summarizeRows(rows);
-    let statusClass = 'bg-white text-black';
-
-    if (summary.late > 0) statusClass = 'half-day-dot text-black';
-    else if (summary.present > 0) statusClass = 'bg-emerald-200 text-black';
-    else if (summary.absent > 0) statusClass = 'bg-red-100 text-red-800';
-    else if (summary.holiday > 0) statusClass = 'bg-violet-100 text-violet-800';
-    else if (cell.weekday === 0) statusClass = 'bg-violet-100 text-violet-800';
-
-    return `${statusClass} ${cell.isToday ? 'ring-2 ring-teal-500 ring-offset-2' : ''}`;
   };
 
   const quickActions = [
@@ -291,88 +262,132 @@ const EmployeeMobileHome = () => {
             </button>
           </div>
         </div>
-        <div className="bg-[#367f65] px-5 pb-12 pt-6">
-          <p className="text-lg font-black">Hello, {employeeName.split(' ')[0] || 'Employee'} !</p>
-          <p className="mt-2 text-xs font-semibold">Hope you are having a great day</p>
-          <p className="mt-4 text-xs font-black">Employee Self Service</p>
-          <div className="mt-2 h-1.5 w-28 rounded-full bg-white/40">
-            <div className="h-full w-full rounded-full bg-emerald-200" />
-          </div>
+      </div>
+      <div className="bg-[#367f65] px-5 pb-6 pt-6 rounded-b-[30px] shadow-sm text-white relative z-20">
+        <p className="text-lg font-black">Hello, {employeeName.split(' ')[0] || 'Employee'} !</p>
+        <p className="mt-2 text-xs font-semibold">Hope you are having a great day</p>
+        <p className="mt-4 text-xs font-black">Employee Self Service</p>
+        <div className="mt-2 h-1.5 w-28 rounded-full bg-white/40">
+          <div className="h-full w-full rounded-full bg-emerald-200" />
         </div>
       </div>
 
-      <div className="-mt-6 px-5">
-        <div className="grid grid-cols-3 gap-3 md:grid-cols-5">
-          {quickActions.map((action) => (
-            <button
+      <div className="relative z-10 pt-4">
+        <motion.div 
+          className="flex w-full snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-6 pt-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
+          {quickActions.map((action, idx) => (
+            <motion.button
               key={action.label}
               type="button"
               onClick={() => navigate(action.path)}
-              className="flex flex-col items-center justify-center rounded-2xl bg-white p-3 shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition hover:-translate-y-1 hover:shadow-lg"
+              className="flex min-w-[110px] shrink-0 snap-center flex-col items-center justify-center rounded-[24px] bg-white p-4 shadow-[0_12px_30px_rgba(0,0,0,0.08)] transition-all hover:-translate-y-1 hover:shadow-xl active:scale-95"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: idx * 0.1, duration: 0.3 }}
               aria-label={action.label}
             >
-              <div className={`mb-2 flex h-12 w-12 items-center justify-center rounded-full ${action.bg} ${action.color}`}>
-                <action.icon size={24} />
+              <div className={`mb-3 flex h-14 w-14 items-center justify-center rounded-2xl ${action.bg} ${action.color} shadow-sm`}>
+                <action.icon size={26} strokeWidth={2.5} />
               </div>
-              <span className="text-center text-[10px] font-black uppercase tracking-wide text-slate-700">
-                {action.label}
+              <span className="text-center text-[10px] font-black uppercase leading-tight tracking-widest text-slate-700">
+                {action.label.split(' ').map((word, i) => (
+                  <React.Fragment key={i}>
+                    {word}
+                    {i < action.label.split(' ').length - 1 && <br />}
+                  </React.Fragment>
+                ))}
               </span>
-            </button>
+            </motion.button>
           ))}
-        </div>
+        </motion.div>
       </div>
 
       <div className="px-5 pt-7">
-        <section>
+        <section className="mt-2">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xl font-black">Calendar</h2>
-            <button type="button" onClick={() => navigate('/my-attendance')} className="text-base font-semibold text-blue-600">
-              Go to calendar
-            </button>
+            <h2 className="text-xl font-black">Welcome Aboard 🚀</h2>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+              {newJoiners.length} New
+            </span>
           </div>
-
-          <div className="rounded-lg bg-white p-4 shadow-[0_12px_25px_rgba(0,0,0,0.12)]">
-            <div className="mb-4 flex items-start justify-between">
-              <span className="text-sm font-medium">Late Count -{monthSummary.late}</span>
-              <MoreVertical size={24} />
+          
+          {feedLoading ? (
+            <div className="flex h-32 items-center justify-center rounded-[24px] bg-white shadow-sm">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600"></div>
             </div>
+          ) : newJoiners.length > 0 ? (
+            <div className="space-y-6">
+              {/* Stories / Avatars Scroll */}
+              <motion.div 
+                className="flex w-full gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              >
+                {newJoiners.slice(0, 10).map((person, idx) => (
+                  <motion.div 
+                    key={`story-${idx}`} 
+                    className="flex flex-col items-center gap-1.5 shrink-0"
+                    initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: idx * 0.05 }}
+                  >
+                    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-[3px] border-emerald-500 bg-white p-[2px] shadow-sm">
+                      {person.candidatePhoto ? (
+                        <img src={getDriveImageUrl(person.candidatePhoto, 200)} alt="Story" className="h-full w-full rounded-full object-cover bg-gray-50" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center rounded-full bg-emerald-100">
+                          <Megaphone size={24} className="text-emerald-500" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="w-[68px] truncate text-center text-[10px] font-black text-slate-700">{person.smsType.split(' ')[0]}</span>
+                  </motion.div>
+                ))}
+              </motion.div>
 
-            <div className="mb-5 flex items-center justify-center gap-6">
-              <button type="button" onClick={() => shiftMonth(-1)} className="rounded-full p-1 text-gray-600">
-                <ChevronLeft size={25} />
-              </button>
-              <div className="flex items-center gap-4 text-lg font-black">
-                <span>{monthNames[calendarDate.getMonth()]}</span>
-                <span>{calendarDate.getFullYear()}</span>
+              {/* Feed Cards */}
+              <div className="flex flex-col gap-4">
+                {newJoiners.slice(0, 5).map((person, idx) => (
+                  <motion.div 
+                    key={`feed-${idx}`}
+                    className="relative overflow-hidden rounded-[24px] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-slate-100/50"
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + idx * 0.1 }}
+                  >
+                    <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-gradient-to-br from-emerald-50 to-teal-50 opacity-80" />
+                    <div className="relative z-10 flex items-start gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-emerald-100 shadow-inner">
+                        {person.candidatePhoto ? (
+                          <img src={getDriveImageUrl(person.candidatePhoto, 200)} alt="Profile" className="h-full w-full object-cover bg-gray-50" />
+                        ) : (
+                          <Megaphone size={24} className="text-emerald-500" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-indigo-600 mb-1">
+                          <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75"></span>
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500"></span>
+                          </span>
+                          {person.smsType}
+                        </div>
+                        <h3 className="text-[13px] font-bold text-slate-400 mt-1 uppercase tracking-wide">{person.date}</h3>
+                      </div>
+                    </div>
+                    <div className="relative z-10 mt-5 rounded-2xl bg-slate-50/80 p-3.5 border border-slate-100">
+                      <p className="text-xs font-semibold text-slate-600 leading-relaxed whitespace-pre-wrap">
+                        {person.sms}
+                      </p>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
-              <button type="button" onClick={() => shiftMonth(1)} className="rounded-full p-1 text-gray-600">
-                <ChevronRight size={25} />
-              </button>
             </div>
-
-            <div className="grid grid-cols-7 gap-y-3">
-              {weekDays.map((day) => (
-                <div key={day} className="text-center text-xl font-medium">{day}</div>
-              ))}
-              {calendarCells.map((cell) => (
-                <div key={cell.key} className="flex justify-center">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-full text-base font-medium ${getDayClass(cell)}`}>
-                    {cell.day}
-                  </div>
-                </div>
-              ))}
+          ) : (
+            <div className="rounded-[24px] bg-white p-8 text-center shadow-sm">
+              <p className="text-sm font-bold text-slate-400">No new joiners recently.</p>
             </div>
-
-            <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal-500" />Today</span>
-              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-200" />Present</span>
-              <span className="inline-flex items-center gap-1.5"><span className="half-day-dot h-2 w-2 rounded-full" />Half Day</span>
-              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-400" />Absent</span>
-              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-violet-300" />Holiday</span>
-            </div>
-
-            {loading && <p className="mt-4 text-sm font-semibold text-gray-500">Loading attendance...</p>}
-          </div>
+          )}
         </section>
 
         <section className="mt-7">
