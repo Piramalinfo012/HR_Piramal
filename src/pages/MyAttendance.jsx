@@ -1,390 +1,374 @@
-import React, { useEffect, useState } from 'react';
-import { Calendar, Clock, CheckCircle, XCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  AlertCircle,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Coffee,
+  Download,
+  ExternalLink,
+  Filter,
+  MapPin,
+  MoreVertical,
+  RefreshCw,
+  Search,
+  Table2,
+  TrendingUp,
+  User,
+  X,
+  XCircle,
+} from "lucide-react";
+import * as XLSX from "xlsx";
+import useAuthStore from "../store/authStore";
+
+const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const normalize = (value) => String(value || "").trim().toLowerCase();
+
+const pickFirst = (row, keys) => {
+  for (const key of keys) {
+    const value = row?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") return value;
+  }
+  return "";
+};
+
+const getStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const getCurrentUserName = (user = {}) =>
+  String(
+    pickFirst(user, [
+      "Sales Person Name",
+      "Person Name",
+      "Employee Name",
+      "Name",
+      "name",
+      "User Name",
+      "Username",
+      "username",
+      "salesPersonName",
+      "_authUsername",
+    ]) || ""
+  ).trim();
+
+const getUserAliases = (user = {}) =>
+  [
+    getCurrentUserName(user),
+    user._authUsername,
+    user["User Name"],
+    user.Username,
+    user.username,
+    user["Sales Person Name"],
+    user["Person Name"],
+    user["Employee Name"],
+    user.Name,
+    user.name,
+    user.salesPersonName,
+  ]
+    .map(normalize)
+    .filter(Boolean);
+
+const parseDateToObj = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+
+  if (typeof value === "number") {
+    const date = new Date((value - 25569) * 86400 * 1000);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  if (raw.includes("T") && raw.includes(":")) {
+    const date = new Date(raw);
+    if (!Number.isNaN(date.getTime())) return date;
+  }
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if (isoMatch) {
+    return new Date(
+      Number(isoMatch[1]),
+      Number(isoMatch[2]) - 1,
+      Number(isoMatch[3]),
+      Number(isoMatch[4] || 0),
+      Number(isoMatch[5] || 0),
+      Number(isoMatch[6] || 0)
+    );
+  }
+
+  const slashMatch = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if (slashMatch) {
+    const year = slashMatch[3].length === 2 ? Number(`20${slashMatch[3]}`) : Number(slashMatch[3]);
+    return new Date(
+      year,
+      Number(slashMatch[2]) - 1,
+      Number(slashMatch[1]),
+      Number(slashMatch[4] || 0),
+      Number(slashMatch[5] || 0),
+      Number(slashMatch[6] || 0)
+    );
+  }
+
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatDateValue = (value) => {
+  const date = parseDateToObj(value);
+  if (!date) return value ? String(value) : "-";
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+};
+
+const formatTimeValue = (value) => {
+  const date = parseDateToObj(value);
+  if (date) return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  if (!value) return "-";
+
+  const raw = String(value).trim();
+  if (!raw) return "-";
+  if (raw.includes(":")) return raw.split(" ").pop().substring(0, 5);
+  return raw;
+};
+
+const dateKey = (date) => {
+  if (!date) return "";
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+};
+
+const parseTimeToMinutes = (value) => {
+  if (!value || value === "-") return null;
+  const match = String(value).trim().match(/^(\d{1,2})[:.](\d{1,2})/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+};
+
+const calculateDurationHours = (inTime, outTime) => {
+  const start = parseTimeToMinutes(inTime);
+  const end = parseTimeToMinutes(outTime);
+  if (start === null || end === null) return 0;
+
+  let minutes = end - start;
+  if (minutes < 0) minutes += 24 * 60;
+  return minutes / 60;
+};
+
+const getEntryName = (entry) =>
+  String(
+    pickFirst(entry, [
+      "personName",
+      "Person Name",
+      "name",
+      "Name",
+      "employeeName",
+      "Employee Name",
+    ]) || ""
+  ).trim();
+
+const getEntryStatus = (entry) => {
+  if (entry?.inDate) return "IN";
+  if (entry?.outDate) return "OUT";
+  return String(pickFirst(entry, ["status", "Status"]) || "").trim().toUpperCase();
+};
 
 const MyAttendance = () => {
+  const authUser = useAuthStore((state) => state.user);
+  const currentUser = useMemo(() => authUser || getStoredUser(), [authUser]);
+  const currentUserName = useMemo(() => getCurrentUserName(currentUser), [currentUser]);
+  const scopedAliases = useMemo(() => getUserAliases(currentUser), [currentUser]);
+
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [attendanceView, setAttendanceView] = useState("calendar");
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [tableLoading, setTableLoading] = useState(false);
   const [error, setError] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
-  const [userAttendanceData, setUserAttendanceData] = useState([]);
 
-  // Get username from localStorage
-  const getUsername = () => {
-    try {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        const parsedUser = JSON.parse(userData);
-        return parsedUser.username || parsedUser.Name || parsedUser.salesPersonName || '';
-      }
-      return '';
-    } catch (error) {
-      console.error('Error parsing user data from localStorage:', error);
-      return '';
-    }
-  };
-
-  const formatDOB = (dateString) => {
-    if (!dateString) return '';
-
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return dateString; // Return as-is if not a valid date
-    }
-
-    const day = date.getDate();
-    const month = date.getMonth();
-    const year = date.getFullYear();
-
-    return `${day}/${month}/${year}`;
-  };
-
-  const fetchReportDailySheet = async () => {
+  const fetchOutstationAttendance = async () => {
     setLoading(true);
-    setTableLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Report Daily&action=fetch`
-      );
+      if (!OUTSTATION_SCRIPT_URL) throw new Error("VITE_OUTSTATION_SHEET_URL missing hai");
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const response = await fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData&realtime=1&_=${Date.now()}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
       const result = await response.json();
-      console.log('Raw Report Daily API response:', result);
+      if (result.status !== "success") throw new Error(result.message || "Outstation attendance fetch failed");
 
-      if (!result.success) {
-        if (result.error && result.error.includes("Cannot read properties of null")) {
-          console.warn("Report Daily sheet not found in Google Sheets. Please create it if needed. Defaulting to empty data.");
-          setAttendanceData([]);
-          return;
+      const rawAttendance = Array.isArray(result.attendance) ? result.attendance : [];
+      const grouped = {};
+
+      rawAttendance.forEach((entry) => {
+        const employeeName = getEntryName(entry);
+        if (!employeeName || scopedAliases.length === 0) return;
+        if (!scopedAliases.includes(normalize(employeeName))) return;
+
+        const status = getEntryStatus(entry);
+        const dateValue =
+          entry.inDate ||
+          entry.outDate ||
+          entry.dateTime ||
+          entry["Date & Time"] ||
+          entry.Date ||
+          entry.date;
+        const dateObj = parseDateToObj(dateValue);
+        if (!dateObj) return;
+
+        const key = `${normalize(employeeName)}_${dateKey(dateObj)}`;
+        if (!grouped[key]) {
+          grouped[key] = {
+            employeeName,
+            dateObj,
+            date: formatDateValue(dateValue),
+            month: MONTHS[dateObj.getMonth()],
+            year: String(dateObj.getFullYear()),
+            day: dateObj.getDate(),
+            inTime: "",
+            outTime: "",
+            mapLink: "",
+            address: "",
+          };
         }
-        throw new Error(result.error || 'Failed to fetch data from Report Daily sheet');
-      }
 
-      const rawData = result.data || result;
-
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
-
-      console.log('Raw data from sheet:', rawData);
-
-      // Find the header row (look for "Date" column)
-      let headerRowIndex = 0;
-      for (let i = 0; i < rawData.length; i++) {
-        if (rawData[i] && rawData[i].some(cell => cell && cell.toString().toLowerCase().includes('date'))) {
-          headerRowIndex = i;
-          break;
+        if (status === "IN") {
+          grouped[key].inTime = formatTimeValue(dateValue);
+          grouped[key].mapLink = entry.mapLink || entry["Map Link"] || grouped[key].mapLink;
+          grouped[key].address = entry.address || entry.Address || grouped[key].address;
         }
-      }
 
-      console.log('Header row index:', headerRowIndex);
-
-      // Get headers
-      const headers = rawData[headerRowIndex].map(h => h?.toString().trim() || '');
-      console.log('Headers:', headers);
-
-      // Get data rows (skip header row)
-      const dataRows = rawData.length > headerRowIndex + 1 ? rawData.slice(headerRowIndex + 1) : [];
-
-      // Map data using header names - use display values directly
-      const processedData = dataRows.map((row, index) => {
-        const obj = {};
-        headers.forEach((header, colIndex) => {
-          // Keep the exact value as it appears in the sheet
-          obj[header] = row[colIndex] !== undefined && row[colIndex] !== null ? row[colIndex].toString() : '';
-        });
-        return obj;
+        if (status === "OUT") {
+          grouped[key].outTime = formatTimeValue(dateValue);
+          grouped[key].mapLink = entry.mapLink || entry["Map Link"] || grouped[key].mapLink;
+          grouped[key].address = entry.address || entry.Address || grouped[key].address;
+        }
       });
 
-      console.log('Processed Report Daily sheet:', processedData);
-
-      // Save into state
-      setAttendanceData(processedData);
-
-    } catch (error) {
-      console.error('Error fetching Report Daily sheet:', error);
-      setError(error.message);
+      setAttendanceData(Object.values(grouped).sort((a, b) => b.dateObj - a.dateObj));
+    } catch (err) {
+      console.error("Outstation attendance fetch error:", err);
+      setAttendanceData([]);
+      setError(err.message);
     } finally {
       setLoading(false);
-      setTableLoading(false);
     }
   };
-
-  // Filter attendance data for current user
-  useEffect(() => {
-    const username = getUsername();
-    if (username && attendanceData.length > 0) {
-      console.log('Filtering for username:', username);
-
-      // Filter data to only show records where the name in Column G matches the username
-      const filteredData = attendanceData.filter(record => {
-        // Check if the name in Column G matches the username
-        const nameInColumnG = record['Name'] || record['name'] || record['G'] || '';
-        return nameInColumnG.toLowerCase().includes(username.toLowerCase());
-      });
-
-      setUserAttendanceData(filteredData);
-      console.log('Filtered attendance data:', filteredData);
-    }
-  }, [attendanceData]);
 
   useEffect(() => {
-    fetchReportDailySheet();
-  }, []);
+    fetchOutstationAttendance();
+  }, [scopedAliases.join("|")]);
 
-  // Filter attendance by selected month and year from user-specific data
-  const filteredAttendance = userAttendanceData.filter(record => {
-    const dateValue = record.Date || record.date || record['C'] || '';
-    if (!dateValue) return false;
+  const yearOptions = useMemo(() => {
+    const years = attendanceData.map((record) => Number(record.year)).filter(Boolean);
+    return [...new Set([new Date().getFullYear(), selectedYear, ...years])].sort((a, b) => b - a);
+  }, [attendanceData, selectedYear]);
 
-    try {
-      // Try to parse various date formats
-      let recordDate;
-      if (dateValue.includes('-')) {
-        // Format: YYYY-MM-DD or similar
-        const [year, month, day] = dateValue.split('-').map(Number);
-        recordDate = new Date(year, month - 1, day);
-      } else if (dateValue.includes('/')) {
-        // Format: MM/DD/YYYY or similar
-        const [month, day, year] = dateValue.split('/').map(Number);
-        recordDate = new Date(year, month - 1, day);
-      } else {
-        return true; // Show records with unknown date formats
-      }
-
-      return recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear;
-    } catch (error) {
-      console.error('Error parsing date:', dateValue, error);
-      return true; // Show records even if date parsing fails
-    }
-  });
-
-  // Calculate statistics
-  const totalDays = userAttendanceData.filter(record => {
-    const dateValue = record.Date || record.date || record['C'] || '';
-    if (!dateValue) return false;
-
-    try {
-      // Try to parse various date formats
-      let recordDate;
-      if (dateValue.includes('-')) {
-        // Format: YYYY-MM-DD or similar
-        const [year, month, day] = dateValue.split('-').map(Number);
-        recordDate = new Date(year, month - 1, day);
-      } else if (dateValue.includes('/')) {
-        // Format: MM/DD/YYYY or similar
-        const [month, day, year] = dateValue.split('/').map(Number);
-        recordDate = new Date(year, month - 1, day);
-      } else {
-        return false; // Skip records with unknown date formats
-      }
-
-      return recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear;
-    } catch (error) {
-      console.error('Error parsing date:', dateValue, error);
-      return false; // Skip records if date parsing fails
-    }
-  }).length;
-
-  const presentDays = userAttendanceData.filter(record => {
-    const dateValue = record.Date || record.date || record['C'] || '';
-    if (!dateValue) return false;
-
-    try {
-      // Try to parse various date formats
-      let recordDate;
-      if (dateValue.includes('-')) {
-        const [year, month, day] = dateValue.split('-').map(Number);
-        recordDate = new Date(year, month - 1, day);
-      } else if (dateValue.includes('/')) {
-        const [month, day, year] = dateValue.split('/').map(Number);
-        recordDate = new Date(year, month - 1, day);
-      } else {
-        return false;
-      }
-
-      // Check if record is in selected month/year
-      if (recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear) {
-        // Get status from Column L (index 11)
-        const status = record['Status'] || record['status'] || record['L'] || '';
-        return status.toLowerCase().includes('present') || status.toLowerCase().includes('holiday');
-      }
-      return false;
-    } catch (error) {
-      console.error('Error parsing date:', dateValue, error);
-      return false;
-    }
-  }).length;
-
-  const absentDays = userAttendanceData.filter(record => {
-    const dateValue = record.Date || record.date || record['C'] || '';
-    if (!dateValue) return false;
-
-    try {
-      // Try to parse various date formats
-      let recordDate;
-      if (dateValue.includes('-')) {
-        const [year, month, day] = dateValue.split('-').map(Number);
-        recordDate = new Date(year, month - 1, day);
-      } else if (dateValue.includes('/')) {
-        const [month, day, year] = dateValue.split('/').map(Number);
-        recordDate = new Date(year, month - 1, day);
-      } else {
-        return false;
-      }
-
-      // Check if record is in selected month/year
-      if (recordDate.getMonth() === selectedMonth && recordDate.getFullYear() === selectedYear) {
-        // Get status from Column L (index 11)
-        const status = record['Status'] || record['status'] || record['L'] || '';
-        return status.toLowerCase().includes('absent');
-      }
-      return false;
-    } catch (error) {
-      console.error('Error parsing date:', dateValue, error);
-      return false;
-    }
-  }).length;
-
-  // Calculate working hours based on time strings
-  const totalWorkingHours = filteredAttendance.reduce((sum, record) => {
-    const checkIn = record['Check In'] || record['check in'] || record['M'] || '';
-    const checkOut = record['Check Out'] || record['check out'] || record['N'] || '';
-
-    if (checkIn && checkOut) {
-      try {
-        const inTime = parseTimeString(checkIn);
-        const outTime = parseTimeString(checkOut);
-
-        if (inTime && outTime) {
-          let hours = (outTime - inTime) / (1000 * 60 * 60);
-          // Handle cases where out time might be next day (e.g., working past midnight)
-          if (hours < 0) hours += 24;
-          return sum + (hours > 0 ? hours : 0);
-        }
-      } catch (e) {
-        console.log('Could not calculate hours from In/Out times:', e);
-      }
-    }
-    return sum;
-  }, 0);
-
-  // Calculate overtime (assuming working hours > 8 is overtime)
-  const totalOvertime = filteredAttendance.reduce((sum, record) => {
-    const checkIn = record['Check In'] || record['check in'] || record['M'] || '';
-    const checkOut = record['Check Out'] || record['check out'] || record['N'] || '';
-
-    if (checkIn && checkOut) {
-      try {
-        const inTime = parseTimeString(checkIn);
-        const outTime = parseTimeString(checkOut);
-
-        if (inTime && outTime) {
-          let hours = (outTime - inTime) / (1000 * 60 * 60);
-          if (hours < 0) hours += 24;
-          return sum + Math.max(0, hours - 8);
-        }
-      } catch (e) {
-        console.log('Could not calculate overtime from In/Out times');
-      }
-    }
-    return sum;
-  }, 0);
-
-  // Helper function to parse time strings like "10:00:00 AM"
-  const parseTimeString = (timeStr) => {
-    if (!timeStr) return null;
-
-    let cleanTime = timeStr.toString().trim();
-
-    // Handle AM/PM format
-    let isPM = false;
-    if (cleanTime.toLowerCase().includes('pm')) {
-      isPM = true;
-      cleanTime = cleanTime.toLowerCase().replace('pm', '').trim();
-    } else if (cleanTime.toLowerCase().includes('am')) {
-      cleanTime = cleanTime.toLowerCase().replace('am', '').trim();
-    }
-
-    // Split by colon
-    const parts = cleanTime.split(':');
-    if (parts.length < 2) return null;
-
-    let hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    const seconds = parts.length > 2 ? parseInt(parts[2], 10) : 0;
-
-    // Adjust for PM
-    if (isPM && hours < 12) hours += 12;
-    if (!isPM && hours === 12) hours = 0; // 12 AM = 0 hours
-
-    // Create a date object with fixed date and the parsed time
-    return new Date(2000, 0, 1, hours, minutes, seconds);
-  };
-
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  const years = [2023, 2024, 2025];
-
-  // Determine status based on Check In time presence
-  const getStatus = (record) => {
-    const checkIn = record['Check In'] || record['check in'] || record['M'] || '';
-    const status = record['Status'] || record['status'] || record['L'] || '';
-
-    if (status && status !== '' && status !== '-') {
-      return status;
-    }
-
-    if (checkIn && checkIn !== '' && checkIn !== '-') {
-      return 'Present';
-    }
-    return 'Absent';
-  };
-
-  const getRecordValue = (record, keys) => {
-    if (!record) return '';
-    for (const key of keys) {
-      const value = record[key];
-      if (value !== undefined && value !== null && value.toString().trim() !== '') {
-        return value;
-      }
-    }
-    return '';
-  };
-
-  const yearOptions = Array.from(new Set([...years, selectedYear])).sort((a, b) => b - a);
-  const latestRecord = filteredAttendance[0] || null;
-  const latestStatus = latestRecord ? getStatus(latestRecord) : '';
-  const mobileStats = [
-    { label: 'Total', value: totalDays, icon: Calendar, tone: 'bg-blue-50 text-blue-700 border-blue-100' },
-    { label: 'Present', value: presentDays, icon: CheckCircle, tone: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-    { label: 'Absent', value: absentDays, icon: XCircle, tone: 'bg-rose-50 text-rose-700 border-rose-100' },
-    { label: 'Hours', value: totalWorkingHours.toFixed(1), icon: Clock, tone: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
-  ];
-
-  const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-  const calendarStartDate = new Date(
-    selectedYear,
-    selectedMonth,
-    1 - new Date(selectedYear, selectedMonth, 1).getDay()
+  const monthRows = useMemo(
+    () =>
+      attendanceData.filter(
+        (record) =>
+          record.dateObj.getMonth() === selectedMonth &&
+          record.dateObj.getFullYear() === selectedYear
+      ),
+    [attendanceData, selectedMonth, selectedYear]
   );
 
+  const filteredAttendance = useMemo(() => {
+    const query = normalize(searchTerm);
+    if (!query) return monthRows;
+
+    return monthRows.filter((record) =>
+      [
+        record.date,
+        record.employeeName,
+        record.inTime,
+        record.outTime,
+        record.address,
+        record.mapLink,
+        getRecordStatus(record),
+      ]
+        .map(normalize)
+        .some((value) => value.includes(query))
+    );
+  }, [monthRows, searchTerm]);
+
+  const halfDayDays = filteredAttendance.filter((record) => getRecordStatus(record) === "HD").length;
+  const presentDays = filteredAttendance.filter((record) => getRecordStatus(record) === "Present").length;
+  const punchMissDays = filteredAttendance.filter(
+    (record) => (record.inTime || record.outTime) && (!record.inTime || !record.outTime)
+  ).length;
+  const workingHours = filteredAttendance.reduce(
+    (sum, record) => sum + calculateDurationHours(record.inTime, record.outTime),
+    0
+  );
+  const attendanceDaySet = new Set(filteredAttendance.map((record) => record.day).filter(Boolean));
+  const today = new Date();
+  const selectedMonthStart = new Date(selectedYear, selectedMonth, 1);
+  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEndDay =
+    selectedMonthStart > currentMonthStart
+      ? 0
+      : selectedMonthStart < currentMonthStart
+        ? new Date(selectedYear, selectedMonth + 1, 0).getDate()
+        : today.getDate();
+  const absentDays = Array.from({ length: monthEndDay }, (_, index) => index + 1).filter((day) => {
+    const date = new Date(selectedYear, selectedMonth, day);
+    return date.getDay() !== 0 && !attendanceDaySet.has(day);
+  }).length;
+  const weekOffDays = Array.from({ length: monthEndDay }, (_, index) => index + 1).filter((day) => {
+    const date = new Date(selectedYear, selectedMonth, day);
+    return date.getDay() === 0;
+  }).length;
+
+  const calendarMonth = MONTHS[selectedMonth];
+  const calendarYear = String(selectedYear);
+  const calendarTitle = `${currentUserName || "Employee"} - ${calendarMonth} ${calendarYear}`;
+  const calendarRowsByDay = filteredAttendance.reduce((days, item) => {
+    if (!item.day) return days;
+    if (!days[item.day]) days[item.day] = [];
+    days[item.day].push(item);
+    return days;
+  }, {});
+
+  const firstCalendarWeekday = new Date(selectedYear, selectedMonth, 1).getDay();
+  const calendarStartDate = new Date(selectedYear, selectedMonth, 1 - firstCalendarWeekday);
   const calendarCells = Array.from({ length: 42 }, (_, index) => {
     const date = new Date(calendarStartDate);
     date.setDate(calendarStartDate.getDate() + index);
     return {
       key: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`,
       day: date.getDate(),
+      monthIndex: date.getMonth(),
+      year: date.getFullYear(),
       weekday: date.getDay(),
       isCurrentMonth: date.getMonth() === selectedMonth,
       isToday: date.toDateString() === new Date().toDateString(),
@@ -392,391 +376,588 @@ const MyAttendance = () => {
     };
   });
 
-  const getDayClass = (cell) => {
-    if (!cell.isCurrentMonth) return 'bg-transparent text-slate-300';
+  const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const selectedDayRows = selectedCalendarDay ? calendarRowsByDay[selectedCalendarDay] || [] : [];
+  const activeFilterCount = [searchTerm, selectedMonth !== new Date().getMonth(), selectedYear !== new Date().getFullYear()].filter(Boolean).length;
 
-    const record = filteredAttendance.find(r => {
-      const dateValue = r.Date || r.date || r['C'] || '';
-      if (!dateValue) return false;
-      try {
-        let recordDate;
-        if (dateValue.includes('-')) {
-          const [year, month, day] = dateValue.split('-').map(Number);
-          recordDate = new Date(year, month - 1, day);
-        } else if (dateValue.includes('/')) {
-          const [month, day, year] = dateValue.split('/').map(Number);
-          recordDate = new Date(year, month - 1, day);
-        } else {
-          return false;
-        }
-        return recordDate.toDateString() === cell.fullDate.toDateString();
-      } catch (e) {
-        return false;
-      }
-    });
-
-    let statusClass = 'bg-white text-slate-700 shadow-sm border border-slate-100';
-
-    if (record) {
-      const status = getStatus(record).toLowerCase();
-      if (status.includes('present') || status.includes('holiday')) {
-        statusClass = 'bg-emerald-100 text-emerald-800 font-bold border-emerald-200';
-      } else if (status.includes('absent')) {
-        statusClass = 'bg-rose-100 text-rose-800 font-bold border-rose-200';
-      }
-    } else if (cell.weekday === 0) {
-       statusClass = 'bg-violet-100 text-violet-800 font-bold border-violet-200';
-    }
-
-    return `${statusClass} ${cell.isToday ? 'ring-2 ring-emerald-500 ring-offset-2' : ''}`;
+  const shiftCalendarMonth = (direction) => {
+    const nextDate = new Date(selectedYear, selectedMonth + direction, 1);
+    setSelectedMonth(nextDate.getMonth());
+    setSelectedYear(nextDate.getFullYear());
+    setSelectedCalendarDay(null);
   };
 
-  return (
-    <>
-      <div className="min-h-screen bg-[#f5f7fb] px-4 pb-24 pt-4 text-slate-950 md:hidden">
-        <div className="overflow-hidden rounded-[28px] bg-gradient-to-br from-[#053f3a] via-[#0b5b53] to-[#12204d] p-5 text-white shadow-2xl shadow-slate-300">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-100">Attendance</p>
-              <h1 className="mt-2 text-2xl font-black">My Attendance</h1>
-              <p className="mt-1 text-xs font-semibold text-cyan-50/80">{months[selectedMonth]} {selectedYear}</p>
-            </div>
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20">
-              <Calendar size={22} />
-            </div>
-          </div>
+  const getCalendarDayClass = (cell) => {
+    if (!cell.isCurrentMonth) return "bg-transparent text-slate-300";
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-white/60">Month</span>
+    const rows = calendarRowsByDay[cell.day] || [];
+    let baseClass = "bg-white text-slate-700 border border-slate-100 shadow-sm";
+
+    if (rows.some((row) => getRecordStatus(row) === "Punch Miss")) {
+      baseClass = "bg-orange-100 text-orange-800 font-black border-orange-200";
+    } else if (rows.some((row) => getRecordStatus(row) === "HD")) {
+      baseClass = "half-day-dot text-slate-950";
+    } else if (rows.some((row) => getRecordStatus(row) === "Present")) {
+      baseClass = "bg-emerald-100 text-emerald-800 font-black border-emerald-200";
+    } else if (cell.weekday === 0) {
+      baseClass = "bg-violet-100 text-violet-800 font-black border-violet-200";
+    }
+
+    return `${baseClass} ${cell.isToday ? "ring-2 ring-cyan-500 ring-offset-2" : ""}`;
+  };
+
+  const downloadExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(
+      filteredAttendance.map((record) => ({
+        Date: record.date,
+        Employee: record.employeeName,
+        "In Time": record.inTime || "-",
+        "Out Time": record.outTime || "-",
+        Status: getRecordStatus(record),
+        Address: record.address || "-",
+        "Map Link": record.mapLink || "-",
+      }))
+    );
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Outstation Attendance");
+    XLSX.writeFile(workbook, `outstation_attendance_${calendarMonth}_${selectedYear}.xlsx`);
+  };
+
+  const summaryCards = [
+    {
+      label: "Present",
+      value: presentDays,
+      icon: CheckCircle2,
+      cardClass: "bg-emerald-50 text-emerald-700",
+      iconClass: "bg-emerald-500 text-white shadow-emerald-200",
+    },
+    {
+      label: "Absent",
+      value: absentDays,
+      icon: XCircle,
+      cardClass: "bg-rose-50 text-rose-700",
+      iconClass: "bg-rose-500 text-white shadow-rose-200",
+    },
+    {
+      label: "Half Day",
+      value: halfDayDays,
+      icon: Clock,
+      cardClass: "bg-amber-50 text-amber-700",
+      iconClass: "bg-amber-500 text-white shadow-amber-200",
+    },
+    {
+      label: "Week Off",
+      value: weekOffDays,
+      icon: Coffee,
+      cardClass: "bg-violet-50 text-violet-700",
+      iconClass: "bg-violet-500 text-white shadow-violet-200",
+    },
+    {
+      label: "Punch Miss",
+      value: punchMissDays,
+      icon: AlertCircle,
+      cardClass: "bg-orange-50 text-orange-700",
+      iconClass: "bg-orange-500 text-white shadow-orange-200",
+    },
+    {
+      label: "Working Hours",
+      value: `${workingHours.toFixed(1)}h`,
+      icon: Clock,
+      cardClass: "bg-cyan-50 text-cyan-700",
+      iconClass: "bg-cyan-500 text-white shadow-cyan-200",
+    },
+  ];
+
+  const renderMobileAttendanceLog = () => (
+    <div className="space-y-3 md:hidden">
+      {loading ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm font-bold text-slate-500">
+          Loading outstation attendance...
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 p-6 text-center text-sm font-bold text-rose-700">
+          Error: {error}
+        </div>
+      ) : filteredAttendance.length > 0 ? (
+        filteredAttendance.map((record) => (
+          <article key={`${record.employeeName}-${dateKey(record.dateObj)}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</p>
+                <h3 className="mt-1 text-base font-black text-slate-950">{record.date || "-"}</h3>
+              </div>
+              <span className={`rounded-full px-3 py-1 text-xs font-black ${getStatusBadgeClass(record)}`}>
+                {getRecordStatus(record)}
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">In Time</p>
+                <p className="mt-1 text-sm font-black text-slate-800">{record.inTime || "-"}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Out Time</p>
+                <p className="mt-1 text-sm font-black text-slate-800">{record.outTime || "-"}</p>
+              </div>
+            </div>
+            <div className="mt-3 rounded-xl bg-indigo-50 p-3">
+              <p className="text-[10px] font-black uppercase tracking-wide text-indigo-400">Address</p>
+              <p className="mt-1 text-xs font-bold leading-relaxed text-indigo-950">{record.address || "-"}</p>
+              {record.mapLink && (
+                <a
+                  href={record.mapLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-black text-indigo-700"
+                >
+                  View Map <ExternalLink size={12} />
+                </a>
+              )}
+            </div>
+          </article>
+        ))
+      ) : (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm font-bold text-slate-500">
+          No outstation attendance records found.
+        </div>
+      )}
+    </div>
+  );
+
+  const renderDesktopAttendanceLog = () => (
+    <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white md:block">
+      <table className="min-w-full divide-y divide-slate-200">
+        <thead className="bg-slate-50/90">
+          <tr>
+            <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-slate-600">Date</th>
+            <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-slate-600">Employee</th>
+            <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-slate-600">In Time</th>
+            <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-slate-600">Out Time</th>
+            <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-slate-600">Status</th>
+            <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-slate-600">Address</th>
+            <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-slate-600">Map</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200 bg-white">
+          {loading ? (
+            <tr>
+              <td colSpan="7" className="px-6 py-12 text-center">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="mb-2 h-6 w-6 animate-spin rounded-full border-4 border-indigo-500 border-dashed" />
+                  <span className="text-sm text-gray-600">Loading outstation attendance...</span>
+                </div>
+              </td>
+            </tr>
+          ) : error ? (
+            <tr>
+              <td colSpan="7" className="px-6 py-12 text-center">
+                <p className="text-red-500">Error: {error}</p>
+                <button
+                  type="button"
+                  onClick={fetchOutstationAttendance}
+                  className="mt-2 rounded-md bg-navy px-4 py-2 text-white hover:bg-navy-dark"
+                >
+                  Retry
+                </button>
+              </td>
+            </tr>
+          ) : filteredAttendance.length > 0 ? (
+            filteredAttendance.map((record) => (
+              <tr key={`${record.employeeName}-${dateKey(record.dateObj)}`} className="transition hover:bg-slate-50">
+                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-700">{record.date}</td>
+                <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{record.employeeName}</td>
+                <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.inTime || "-"}</td>
+                <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.outTime || "-"}</td>
+                <td className="whitespace-nowrap px-6 py-4 text-sm">
+                  <span className={`inline-flex min-w-20 justify-center rounded-full px-2.5 py-1 text-xs font-bold ${getStatusBadgeClass(record)}`}>
+                    {getRecordStatus(record)}
+                  </span>
+                </td>
+                <td className="max-w-[360px] px-6 py-4 text-sm text-slate-600">
+                  <span className="inline-flex items-start gap-2">
+                    <MapPin size={14} className="mt-0.5 shrink-0 text-slate-400" />
+                    <span className="line-clamp-2">{record.address || "-"}</span>
+                  </span>
+                </td>
+                <td className="whitespace-nowrap px-6 py-4 text-sm">
+                  {record.mapLink ? (
+                    <a
+                      href={record.mapLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700 transition hover:bg-indigo-100"
+                    >
+                      View <ExternalLink size={12} />
+                    </a>
+                  ) : "-"}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="7" className="px-6 py-12 text-center">
+                <p className="text-gray-500">No outstation attendance records found.</p>
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5 p-4 pb-24 page-content sm:p-6 md:pb-6">
+      <section className="relative overflow-visible rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-700 via-blue-500 to-teal-500" />
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-2xl font-black text-slate-950">Outstation Attendance</h1>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              {filteredAttendance.length} records shown from {attendanceData.length} total entries
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={fetchOutstationAttendance}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </button>
+            <button
+              type="button"
+              onClick={downloadExcel}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-emerald-100 transition hover:-translate-y-0.5"
+            >
+              <Download size={18} />
+              Download Excel
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600">
+            <Filter size={22} />
+          </div>
+          <div>
+            <h2 className="text-sm font-black text-slate-800">FILTERS</h2>
+            <p className="text-xs font-semibold text-slate-400">Smart search and focused attendance view</p>
+          </div>
+          {activeFilterCount > 0 && (
+            <span className="ml-auto rounded-full bg-indigo-100 px-3 py-1 text-xs font-black text-indigo-700">
+              {activeFilterCount} active
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_1fr_0.9fr_0.8fr]">
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">Search</span>
+            <span className="relative block">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by date, time, status, address..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 text-sm font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100"
+              />
+            </span>
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">Employee</span>
+            <span className="relative flex h-12 items-center rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-sm font-bold text-slate-700">
+              <User size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <span className="truncate">{currentUserName || "Employee"}</span>
+              <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </span>
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">Month</span>
+            <span className="relative block">
+              <CalendarDays size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <select
                 value={selectedMonth}
-                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                className="h-11 w-full rounded-2xl border border-white/20 bg-white/95 px-3 text-sm font-black text-slate-900 outline-none"
+                onChange={(event) => {
+                  setSelectedMonth(Number(event.target.value));
+                  setSelectedCalendarDay(null);
+                }}
+                className="h-12 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-sm font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100"
               >
-                {months.map((month, index) => (
-                  <option key={index} value={index}>{month}</option>
+                {MONTHS.map((month, index) => (
+                  <option key={month} value={index}>{month}</option>
                 ))}
               </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-white/60">Year</span>
+              <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </span>
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">Year</span>
+            <span className="relative block">
+              <CalendarDays size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <select
                 value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                className="h-11 w-full rounded-2xl border border-white/20 bg-white/95 px-3 text-sm font-black text-slate-900 outline-none"
+                onChange={(event) => {
+                  setSelectedYear(Number(event.target.value));
+                  setSelectedCalendarDay(null);
+                }}
+                className="h-12 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-sm font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100"
               >
-                {yearOptions.map(year => (
+                {yearOptions.map((year) => (
                   <option key={year} value={year}>{year}</option>
                 ))}
               </select>
-            </label>
-          </div>
+              <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </span>
+          </label>
+        </div>
+      </section>
 
-          <div className="mt-5 rounded-3xl bg-white/12 p-4 ring-1 ring-white/15">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100">Latest Punch</p>
-            <div className="mt-3 flex items-end justify-between gap-3">
-              <div>
-                <p className="text-lg font-black">{getRecordValue(latestRecord, ['Date']) || '-'}</p>
-                <p className="mt-1 text-xs font-semibold text-white/70">
-                  In {getRecordValue(latestRecord, ['In Time', 'Check In', 'M']) || '-'} / Out {getRecordValue(latestRecord, ['Out Time', 'Check Out', 'N']) || '-'}
-                </p>
-              </div>
-              <span className={`rounded-full px-3 py-1 text-xs font-black ${!latestStatus ? 'bg-white/15 text-white' : latestStatus.toLowerCase().includes('present') ? 'bg-emerald-300 text-emerald-950' : 'bg-rose-200 text-rose-950'}`}>
-                {latestStatus || '-'}
-              </span>
-            </div>
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">
+              {attendanceView === "calendar" ? "Outstation Calendar" : "Outstation Log"}
+            </h2>
+            <p className="mt-1 text-sm font-bold text-slate-800">{calendarTitle}</p>
+          </div>
+          <div className="flex w-full gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setAttendanceView("calendar")}
+              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-black transition sm:flex-none ${
+                attendanceView === "calendar"
+                  ? "bg-gradient-to-r from-indigo-700 to-blue-600 text-white shadow-lg shadow-indigo-100"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <CalendarDays size={16} />
+              Calendar
+            </button>
+            <button
+              type="button"
+              onClick={() => setAttendanceView("log")}
+              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-black transition sm:flex-none ${
+                attendanceView === "log"
+                  ? "bg-gradient-to-r from-indigo-700 to-blue-600 text-white shadow-lg shadow-indigo-100"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <Table2 size={16} />
+              Outstation Log
+            </button>
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          {mobileStats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <div key={stat.label} className={`rounded-3xl border bg-white p-4 shadow-sm ${stat.tone}`}>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-black uppercase tracking-wide opacity-75">{stat.label}</p>
-                  <Icon size={18} />
-                </div>
-                <p className="mt-3 text-2xl font-black">{stat.value}</p>
+        <div className="p-4 sm:p-5">
+          {attendanceView === "calendar" ? (
+            loading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+                <span className="text-sm font-semibold text-slate-500">Loading outstation data...</span>
               </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-5 rounded-3xl bg-white p-5 shadow-sm border border-slate-200">
-          <div className="mb-4 grid grid-cols-7 gap-y-3">
-            {weekDays.map((day) => (
-              <div key={day} className="text-center text-xs font-black text-slate-400 uppercase tracking-wider">{day}</div>
-            ))}
-            {calendarCells.map((cell) => (
-              <div key={cell.key} className="flex justify-center">
-                <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm ${getDayClass(cell)}`}>
-                  {cell.day}
-                </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 py-16">
+                <p className="text-sm font-bold text-rose-600">Error: {error}</p>
+                <button
+                  type="button"
+                  onClick={fetchOutstationAttendance}
+                  className="mt-3 rounded-xl bg-navy px-4 py-2 text-sm font-bold text-white transition hover:bg-navy-dark"
+                >
+                  Retry
+                </button>
               </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] font-black uppercase tracking-widest mt-2 border-t border-slate-100 pt-4">
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />Today</span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-200" />Present</span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-rose-200" />Absent</span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-violet-200" />Holiday</span>
-          </div>
-        </div>
+            ) : (
+              <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(340px,520px)_1fr]">
+                <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-lg font-black text-slate-950 sm:text-xl">Calendar</h3>
+                    <button type="button" className="text-sm font-black text-blue-600 transition hover:text-blue-700">
+                      Go to calendar
+                    </button>
+                  </div>
 
-        <div className="mt-5">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-black text-slate-950">Attendance Log</h2>
-              <p className="text-xs font-semibold text-slate-500">{filteredAttendance.length} records</p>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm font-bold text-slate-500 shadow-sm">
-              Loading attendance data...
-            </div>
-          ) : error ? (
-            <div className="rounded-3xl border border-rose-100 bg-rose-50 p-6 text-center text-sm font-bold text-rose-700 shadow-sm">
-              Error: {error}
-            </div>
-          ) : filteredAttendance.length > 0 ? (
-            <div className="space-y-3">
-              {filteredAttendance.map((record, index) => {
-                const dateValue = getRecordValue(record, ['Date', 'date', 'C']);
-                const checkIn = getRecordValue(record, ['In Time', 'Check In', 'check in', 'M']);
-                const checkOut = getRecordValue(record, ['Out Time', 'Check Out', 'check out', 'N']);
-                const status = getStatus(record);
-                const workingHours = getRecordValue(record, ['Working Hours']) || '0';
-                const overtime = getRecordValue(record, ['Overtime Hours']) || '0';
-                const isPresent = status.toLowerCase().includes('present') || status.toLowerCase().includes('holiday');
-
-                return (
-                  <article key={`${dateValue}-${index}`} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</p>
-                        <h3 className="mt-1 text-base font-black text-slate-950">{dateValue || '-'}</h3>
-                      </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-black ${isPresent ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                        {status}
+                  <div className="rounded-xl bg-white p-3 shadow-[0_14px_32px_rgba(15,23,42,0.12)] sm:rounded-2xl sm:p-5">
+                    <div className="mb-4 flex items-start justify-between">
+                      <span className="rounded-md bg-orange-100 px-2.5 py-1.5 text-sm font-semibold text-slate-900">
+                        Half Day - {halfDayDays}
                       </span>
+                      <button type="button" className="rounded-full p-1 text-slate-700 transition hover:bg-slate-100 sm:p-1.5" aria-label="Calendar options">
+                        <MoreVertical size={20} />
+                      </button>
                     </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <div className="rounded-2xl bg-slate-50 p-3">
-                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Check In</p>
-                        <p className="mt-1 text-sm font-black text-slate-800">{checkIn || '-'}</p>
+
+                    <div className="mb-4 flex items-center justify-center gap-4 sm:mb-5 sm:gap-7">
+                      <button type="button" onClick={() => shiftCalendarMonth(-1)} className="rounded-full p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 sm:p-2" aria-label="Previous month">
+                        <ChevronLeft size={21} />
+                      </button>
+                      <div className="flex items-center gap-3 text-base font-black text-slate-950 sm:gap-4 sm:text-lg">
+                        <span>{calendarMonth}</span>
+                        <span>{calendarYear}</span>
                       </div>
-                      <div className="rounded-2xl bg-slate-50 p-3">
-                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Check Out</p>
-                        <p className="mt-1 text-sm font-black text-slate-800">{checkOut || '-'}</p>
-                      </div>
-                      <div className="rounded-2xl bg-indigo-50 p-3">
-                        <p className="text-[10px] font-black uppercase tracking-wide text-indigo-400">Working</p>
-                        <p className="mt-1 text-sm font-black text-indigo-800">{workingHours} hrs</p>
-                      </div>
-                      <div className="rounded-2xl bg-amber-50 p-3">
-                        <p className="text-[10px] font-black uppercase tracking-wide text-amber-500">Overtime</p>
-                        <p className="mt-1 text-sm font-black text-amber-800">{overtime} hrs</p>
-                      </div>
+                      <button type="button" onClick={() => shiftCalendarMonth(1)} className="rounded-full p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 sm:p-2" aria-label="Next month">
+                        <ChevronRight size={21} />
+                      </button>
                     </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-              <p className="text-sm font-bold text-slate-500">No attendance records found for this period.</p>
-            </div>
-          )}
-        </div>
-      </div>
 
-      <div className="hidden space-y-6 page-content p-6 md:block">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">My Attendance</h1>
-      </div>
+                    <div className="grid grid-cols-7 gap-x-1 gap-y-2 sm:gap-y-3">
+                      {weekDays.map((dayName) => (
+                        <div key={dayName} className="text-center text-[17px] font-medium text-black sm:text-2xl">
+                          {dayName}
+                        </div>
+                      ))}
+                      {calendarCells.map((cell) => (
+                        <div key={cell.key} className="flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => cell.isCurrentMonth && setSelectedCalendarDay(selectedCalendarDay === cell.day ? null : cell.day)}
+                            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition hover:scale-105 sm:h-10 sm:w-10 sm:text-xl ${getCalendarDayClass(cell)} ${
+                              cell.isCurrentMonth && selectedCalendarDay === cell.day ? "ring-2 ring-indigo-500 ring-offset-2" : ""
+                            }`}
+                          >
+                            {cell.day}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
 
-      {/* Filter Section */}
-      <div className="bg-white p-4 rounded-lg shadow border flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex items-center space-x-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-            >
-              {months.map((month, index) => (
-                <option key={index} value={index}>{month}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-            >
-              {years.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <div className="bg-white rounded-xl shadow-lg border p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 mr-4">
-              <Calendar size={24} className="text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Total Days</p>
-              <h3 className="text-2xl font-bold text-gray-800">{totalDays}</h3>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg border p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-green-100 mr-4">
-              <CheckCircle size={24} className="text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Present Days</p>
-              <h3 className="text-2xl font-bold text-gray-800">{presentDays}</h3>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg border p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-red-100 mr-4">
-              <XCircle size={24} className="text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Absent Days</p>
-              <h3 className="text-2xl font-bold text-gray-800">{absentDays}</h3>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg border p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-indigo-100 mr-4">
-              <Clock size={24} className="text-navy" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Working Hours</p>
-              <h3 className="text-2xl font-bold text-gray-800">{totalWorkingHours.toFixed(1)}</h3>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg border p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-amber-100 mr-4">
-              <Clock size={24} className="text-amber-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 font-medium">Overtime Hours</p>
-              <h3 className="text-2xl font-bold text-gray-800">{totalOvertime.toFixed(1)}</h3>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Attendance Table */}
-      <div className="bg-white rounded-lg shadow border overflow-hidden">
-        <div className="p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">
-            Attendance Records - {months[selectedMonth]} {selectedYear}
-          </h2>
-          {loading ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-gray-500">Loading attendance data...</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Working Hours</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overtime</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredAttendance.map((record, index) => {
-                    const dateValue = record['Date'] || '';
-                    const checkIn = record['In Time'] || '';
-                    const checkOut = record['Out Time'] || '';
-                    const status = record['Status'] || (checkIn ? 'Present' : 'Absent');
-                    const workingHoursValue = record['Working Hours'] || '';
-                    const overtimeValue = record['Overtime Hours'] || '';
-
-                    let workingHours = 0;
-                    let overtime = 0;
-
-                    if (workingHoursValue && !isNaN(parseFloat(workingHoursValue))) {
-                      workingHours = parseFloat(workingHoursValue);
-                    }
-                    if (overtimeValue && !isNaN(parseFloat(overtimeValue))) {
-                      overtime = parseFloat(overtimeValue);
-                    } else {
-                      overtime = Math.max(0, workingHours - 8);
-                    }
-
-                    return (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {dateValue || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {checkIn || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {checkOut || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs rounded-full ${status.toLowerCase() === 'present'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                            }`}>
-                            {status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {workingHours || 0} hrs
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {overtime || 0} hrs
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-
-              </table>
-              {filteredAttendance.length === 0 && !loading && (
-                <div className="px-6 py-12 text-center">
-                  <p className="text-gray-500">No attendance records found for the selected period.</p>
+                    <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-slate-700 sm:mt-5 sm:gap-x-5 sm:text-sm">
+                      <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-cyan-500" />Today</span>
+                      <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-300" />Present</span>
+                      <span className="inline-flex items-center gap-2"><span className="half-day-dot h-2 w-2 rounded-full" />Half Day</span>
+                      <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-orange-300" />Punch Miss</span>
+                      <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-violet-300" />Sunday</span>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Summary</p>
+                      <h3 className="text-sm font-black text-slate-800">{calendarTitle}</h3>
+                    </div>
+                    <TrendingUp size={14} className="text-slate-300" />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {summaryCards.map((card) => {
+                      const Icon = card.icon;
+                      return (
+                        <div key={card.label} className={`group flex flex-col items-center rounded-xl py-2.5 transition-all hover:shadow-md ${card.cardClass}`}>
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-full shadow-sm ${card.iconClass}`}>
+                            <Icon size={14} />
+                          </div>
+                          <p className="mt-1.5 text-lg font-black">{card.value}</p>
+                          <p className="text-[9px] font-bold uppercase tracking-wide">{card.label}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-slate-50 py-1.5 text-[10px] font-semibold text-slate-400">
+                    <CalendarDays size={11} />
+                    <span className="font-bold text-slate-500">{filteredAttendance.length}</span> records
+                  </div>
+
+                  {selectedCalendarDay && (
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Day Log</p>
+                          <h3 className="text-sm font-black text-slate-800">{selectedCalendarDay} {calendarMonth} {calendarYear}</h3>
+                        </div>
+                        <button type="button" onClick={() => setSelectedCalendarDay(null)} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      {selectedDayRows.length > 0 ? (
+                        <div className="overflow-x-auto rounded-xl border border-slate-100">
+                          <table className="w-full text-left text-xs">
+                            <thead>
+                              <tr className="bg-slate-50">
+                                <th className="px-3 py-2 font-bold uppercase tracking-wide text-slate-500">In</th>
+                                <th className="px-3 py-2 font-bold uppercase tracking-wide text-slate-500">Out</th>
+                                <th className="px-3 py-2 font-bold uppercase tracking-wide text-slate-500">Status</th>
+                                <th className="px-3 py-2 font-bold uppercase tracking-wide text-slate-500">Map</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {selectedDayRows.map((row) => (
+                                <tr key={`${row.employeeName}-${dateKey(row.dateObj)}`} className="transition hover:bg-slate-50">
+                                  <td className="px-3 py-2 font-medium text-slate-600">{row.inTime || "-"}</td>
+                                  <td className="px-3 py-2 font-medium text-slate-600">{row.outTime || "-"}</td>
+                                  <td className="px-3 py-2">
+                                    <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${getStatusBadgeClass(row)}`}>
+                                      {getRecordStatus(row)}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    {row.mapLink ? (
+                                      <a href={row.mapLink} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-indigo-600 hover:underline">
+                                        View
+                                      </a>
+                                    ) : "-"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-xs font-medium text-slate-400">No outstation records for this date.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          ) : (
+            <>
+              {renderMobileAttendanceLog()}
+              {renderDesktopAttendanceLog()}
+            </>
           )}
         </div>
-      </div>
-      </div>
-    </>
+      </section>
+    </div>
+  );
+};
+
+const getRecordStatus = (record) => {
+  if (!record) return "-";
+  if ((record.inTime || record.outTime) && (!record.inTime || !record.outTime)) return "Punch Miss";
+  if (isHalfDayRecord(record)) return "HD";
+  if (record.inTime && record.outTime) return "Present";
+  return "Present";
+};
+
+const getStatusBadgeClass = (record) => {
+  const status = getRecordStatus(record);
+  if (status === "Present") return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+  if (status === "HD") return "bg-amber-50 text-amber-700 border border-amber-200";
+  if (status === "Punch Miss") return "bg-orange-50 text-orange-700 border border-orange-200";
+  return "bg-blue-50 text-blue-700 border border-blue-200";
+};
+
+const isHalfDayRecord = (record) => {
+  if (!record?.inTime || !record?.outTime) return false;
+
+  const inMinutes = parseTimeToMinutes(record.inTime);
+  const outMinutes = parseTimeToMinutes(record.outTime);
+  const lateInLimit = 9 * 60 + 15;
+  const earlyOutLimit = 18 * 60;
+
+  return (
+    (inMinutes !== null && inMinutes > lateInLimit) ||
+    (outMinutes !== null && outMinutes < earlyOutLimit)
   );
 };
 

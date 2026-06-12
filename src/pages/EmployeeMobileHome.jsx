@@ -330,7 +330,7 @@ const EmployeeMobileHome = () => {
 
   const quickActions = [
     { icon: Clock, label: 'Mark Attendance', path: '/mark-attendance', color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { icon: CalendarDays, label: 'My Attendance', path: '/my-attendance', color: 'text-blue-600', bg: 'bg-blue-100' },
+    { icon: CalendarDays, label: 'Outstation Attendance', path: '/my-attendance', color: 'text-blue-600', bg: 'bg-blue-100' },
     { icon: HandHeart, label: 'Leave Request', path: '/leave-request', color: 'text-rose-600', bg: 'bg-rose-100' },
     { icon: FileText, label: 'Leave Management', path: '/leave-management', color: 'text-purple-600', bg: 'bg-purple-100' },
     { icon: User, label: 'Profile', path: '/employee-profile', color: 'text-amber-600', bg: 'bg-amber-100' },

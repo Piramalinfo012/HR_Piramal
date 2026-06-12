@@ -20,7 +20,7 @@ const MobileBottomNav = () => {
 
   const navItems = [
     { id: 'home', path: homePath, icon: Home, label: 'Home' },
-    { id: 'attendance', path: '/my-attendance', icon: Clock, label: 'Attendance' },
+    { id: 'attendance', path: '/my-attendance', icon: Clock, label: 'Outstation' },
     { id: 'leave', path: '/leave-request', icon: CalendarRange, label: 'Leave' },
     { id: 'profile', path: '/employee-profile', icon: User, label: 'Profile' },
   ];

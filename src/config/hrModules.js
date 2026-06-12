@@ -114,7 +114,7 @@ export const adminNavigationItems = [
 export const employeeNavigationItems = [
   { path: "/employee-mobile", icon: "Home", label: "Home" },
   { path: "/mark-attendance", icon: "Clock", label: "Mark Attendance" },
-  { path: "/my-attendance", icon: "Clock", label: "My Attendance" },
+  { path: "/my-attendance", icon: "Clock", label: "Outstation Attendance" },
   { path: "/leave-request", icon: "LeaveIcon", label: "Leave Request" },
 ];
 
