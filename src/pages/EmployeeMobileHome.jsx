@@ -212,7 +212,8 @@ const EmployeeMobileHome = () => {
     const fetchJoiners = async () => {
       try {
         const cb = `&_=${Date.now()}`;
-        const response = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?action=fetch&sheet=Onboard and Status${cb}`);
+        const sheetName = encodeURIComponent('Onboard and Status');
+        const response = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?action=fetch&sheet=${sheetName}${cb}`);
         const json = await response.json();
         const raw = json.data || [];
         
