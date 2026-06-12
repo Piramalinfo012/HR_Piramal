@@ -206,6 +206,7 @@ const MyAttendance = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [attendanceView, setAttendanceView] = useState("calendar");
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
@@ -606,17 +607,37 @@ const MyAttendance = () => {
   );
 
   return (
-    <div className="space-y-5 p-4 pb-24 page-content sm:p-6 md:pb-6">
-      <section className="relative overflow-visible rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-700 via-blue-500 to-teal-500" />
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="text-2xl font-black text-slate-950">Outstation Attendance</h1>
-            <p className="mt-1 text-sm font-semibold text-slate-500">
+    <div className="space-y-4 p-3 pb-24 page-content sm:space-y-5 sm:p-6 md:pb-6">
+      <section className="relative overflow-visible rounded-3xl border border-emerald-800/10 bg-gradient-to-br from-[#006241] via-[#0f766e] to-[#144272] p-4 text-white shadow-lg shadow-emerald-100/60 sm:rounded-2xl sm:border-slate-200 sm:bg-white sm:bg-none sm:p-7 sm:text-slate-950 sm:shadow-sm">
+        <div className="absolute inset-x-0 top-0 hidden h-1 bg-gradient-to-r from-indigo-700 via-blue-500 to-teal-500 sm:block" />
+        <div className="flex items-start justify-between gap-3 lg:items-center">
+          <div className="min-w-0">
+            <h1 className="text-xl font-black leading-tight text-white sm:text-2xl sm:text-slate-950">Outstation Attendance</h1>
+            <p className="mt-1 text-xs font-semibold text-emerald-50/90 sm:text-sm sm:text-slate-500">
               {filteredAttendance.length} records shown from {attendanceData.length} total entries
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex shrink-0 items-center gap-2 sm:hidden">
+            <button
+              type="button"
+              onClick={fetchOutstationAttendance}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/20 transition active:scale-95"
+              aria-label="Refresh"
+            >
+              <RefreshCw size={19} className={loading ? "animate-spin" : ""} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowMobileFilters((visible) => !visible)}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-white/20 transition active:scale-95 ${
+                showMobileFilters ? "bg-white text-emerald-700" : "bg-white/15 text-white"
+              }`}
+              aria-label="Toggle filters"
+            >
+              <Filter size={19} />
+            </button>
+          </div>
+          <div className="hidden flex-col gap-2 sm:flex sm:flex-row">
             <button
               type="button"
               onClick={fetchOutstationAttendance}
@@ -637,23 +658,33 @@ const MyAttendance = () => {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600">
-            <Filter size={22} />
+      <section className={`${showMobileFilters ? "block" : "hidden"} rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:block sm:p-5`}>
+        <div className="mb-3 flex items-center gap-3 sm:mb-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600 sm:h-11 sm:w-11">
+            <Filter size={20} />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-sm font-black text-slate-800">FILTERS</h2>
-            <p className="text-xs font-semibold text-slate-400">Smart search and focused attendance view</p>
+            <p className="truncate text-[11px] font-semibold text-slate-400 sm:text-xs">Smart search and focused attendance view</p>
           </div>
-          {activeFilterCount > 0 && (
-            <span className="ml-auto rounded-full bg-indigo-100 px-3 py-1 text-xs font-black text-indigo-700">
-              {activeFilterCount} active
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {activeFilterCount > 0 && (
+              <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-black text-indigo-700">
+                {activeFilterCount} active
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowMobileFilters(false)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 sm:hidden"
+              aria-label="Close filters"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_1fr_0.9fr_0.8fr]">
+        <div className="grid grid-cols-1 gap-2.5 sm:gap-3 lg:grid-cols-[1.4fr_1fr_0.9fr_0.8fr]">
           <label className="block">
             <span className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">Search</span>
             <span className="relative block">
@@ -663,14 +694,14 @@ const MyAttendance = () => {
                 placeholder="Search by date, time, status, address..."
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 text-sm font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100"
+                className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 text-xs font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100 sm:h-12 sm:text-sm"
               />
             </span>
           </label>
 
           <label className="block">
             <span className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">Employee</span>
-            <span className="relative flex h-12 items-center rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-sm font-bold text-slate-700">
+            <span className="relative flex h-11 items-center rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-xs font-bold text-slate-700 sm:h-12 sm:text-sm">
               <User size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <span className="truncate">{currentUserName || "Employee"}</span>
               <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -687,7 +718,7 @@ const MyAttendance = () => {
                   setSelectedMonth(Number(event.target.value));
                   setSelectedCalendarDay(null);
                 }}
-                className="h-12 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-sm font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100"
+                className="h-11 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-xs font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100 sm:h-12 sm:text-sm"
               >
                 {MONTHS.map((month, index) => (
                   <option key={month} value={index}>{month}</option>
@@ -707,7 +738,7 @@ const MyAttendance = () => {
                   setSelectedYear(Number(event.target.value));
                   setSelectedCalendarDay(null);
                 }}
-                className="h-12 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-sm font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100"
+                className="h-11 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-xs font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100 sm:h-12 sm:text-sm"
               >
                 {yearOptions.map((year) => (
                   <option key={year} value={year}>{year}</option>
@@ -720,12 +751,12 @@ const MyAttendance = () => {
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/70 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div>
             <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">
               {attendanceView === "calendar" ? "Outstation Calendar" : "Outstation Log"}
             </h2>
-            <p className="mt-1 text-sm font-bold text-slate-800">{calendarTitle}</p>
+            <p className="mt-1 text-xs font-bold text-slate-800 sm:text-sm">{calendarTitle}</p>
           </div>
           <div className="flex w-full gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm sm:w-auto">
             <button
@@ -755,7 +786,7 @@ const MyAttendance = () => {
           </div>
         </div>
 
-        <div className="p-4 sm:p-5">
+        <div className="p-3 sm:p-5">
           {attendanceView === "calendar" ? (
             loading ? (
               <div className="flex flex-col items-center justify-center py-16">
@@ -774,10 +805,10 @@ const MyAttendance = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(340px,520px)_1fr]">
-                <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
+              <div className="grid min-w-0 gap-3 sm:gap-4 xl:grid-cols-[minmax(340px,520px)_1fr]">
+                <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-2.5 sm:p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-lg font-black text-slate-950 sm:text-xl">Calendar</h3>
+                    <h3 className="text-base font-black text-slate-950 sm:text-xl">Calendar</h3>
                     <button type="button" className="text-sm font-black text-blue-600 transition hover:text-blue-700">
                       Go to calendar
                     </button>
