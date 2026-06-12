@@ -20,6 +20,8 @@ const emptyForm = {
   imageFile: null,
   sms: "",
   smsType: "New Joining",
+  name: "",
+  designation: "",
 };
 
 const uploadFile = async (file) => {
@@ -89,6 +91,8 @@ const fetchRows = async () => {
       image: row[1] || "",
       sms: row[2] || "",
       smsType: row[3] || "",
+      name: row[4] || "",
+      designation: row[5] || "",
       raw: row,
     })).filter(row => row.smsType);
   } catch (error) {
@@ -99,7 +103,7 @@ const fetchRows = async () => {
 };
 
 const formToRow = (form) => {
-  return [form.date, form.image, form.sms, form.smsType];
+  return [form.date, form.image, form.sms, form.smsType, form.name, form.designation];
 };
 
 const FeedManagement = () => {
@@ -128,6 +132,8 @@ const FeedManagement = () => {
             image: row[1] || "",
             sms: row[2] || "",
             smsType: row[3] || "",
+            name: row[4] || "",
+            designation: row[5] || "",
             raw: row,
           })).filter(row => row.smsType);
           setRows(parsed);
@@ -167,6 +173,8 @@ const FeedManagement = () => {
       imageFile: null,
       sms: "",
       smsType: "New Joining",
+      name: "",
+      designation: "",
     });
     setModalOpen(true);
   };
@@ -180,6 +188,8 @@ const FeedManagement = () => {
       imageFile: null,
       sms: row.sms || "",
       smsType: row.smsType || "New Joining",
+      name: row.name || "",
+      designation: row.designation || "",
     });
     setModalOpen(true);
   };
@@ -223,7 +233,7 @@ const FeedManagement = () => {
         }
       }
 
-      const rowData = [form.date, finalImageUrl, form.sms, form.smsType];
+      const rowData = [form.date, finalImageUrl, form.sms, form.smsType, form.name, form.designation];
       
       const payload = {
         sheetName: SHEET_NAME,
@@ -440,6 +450,9 @@ const FeedManagement = () => {
                   <option value="Notice">Notice</option>
                 </select>
               </label>
+
+              <Input label="Name" name="name" value={form.name} onChange={updateForm} placeholder="e.g. John Doe" />
+              <Input label="Designation" name="designation" value={form.designation} onChange={updateForm} placeholder="e.g. Software Engineer" />
 
               <div className="sm:col-span-2">
                 <label className="block">

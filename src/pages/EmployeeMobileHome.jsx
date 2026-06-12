@@ -12,7 +12,8 @@ import {
   Clock,
   FileText,
   User,
-  Megaphone
+  Megaphone,
+  LogOut
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
@@ -153,6 +154,8 @@ const EmployeeMobileHome = () => {
             candidatePhoto: row[1] || "",
             sms: row[2] || "",
             smsType: row[3] || "Announcement",
+            name: row[4] || "",
+            designation: row[5] || ""
           })).filter(item => item.sms || item.candidatePhoto);
           
           setNewJoiners(processed.reverse());
@@ -255,10 +258,13 @@ const EmployeeMobileHome = () => {
             {employeeName}
           </p>
           <div className="flex items-center gap-4">
-            <Search size={24} />
-            <button type="button" onClick={handleLogout} className="relative" aria-label="Logout">
+            <Search size={22} />
+            <button type="button" className="relative" aria-label="Notifications">
               <Bell size={22} />
-              <span className="absolute -right-0.5 -top-1 h-2.5 w-2.5 rounded-full border border-white bg-red-500" />
+              <span className="absolute -right-0.5 -top-1 h-2.5 w-2.5 rounded-full border border-[#006241] bg-red-500" />
+            </button>
+            <button type="button" onClick={handleLogout} className="text-white hover:text-red-200" aria-label="Logout">
+              <LogOut size={22} />
             </button>
           </div>
         </div>
@@ -351,33 +357,43 @@ const EmployeeMobileHome = () => {
                 {newJoiners.slice(0, 5).map((person, idx) => (
                   <motion.div 
                     key={`feed-${idx}`}
-                    className="relative overflow-hidden rounded-[24px] bg-white p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-slate-100/50"
+                    className="relative overflow-hidden rounded-[24px] bg-white shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-slate-100/50 mb-2 pb-2"
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + idx * 0.1 }}
                   >
-                    <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-gradient-to-br from-emerald-50 to-teal-50 opacity-80" />
-                    <div className="relative z-10 flex items-start gap-4">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-emerald-100 shadow-inner">
-                        {person.candidatePhoto ? (
-                          <img src={getDriveImageUrl(person.candidatePhoto, 200)} alt="Profile" className="h-full w-full object-cover bg-gray-50" />
-                        ) : (
-                          <Megaphone size={24} className="text-emerald-500" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-indigo-600 mb-1">
-                          <span className="relative flex h-2 w-2">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75"></span>
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500"></span>
-                          </span>
-                          {person.smsType}
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-4 pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-emerald-100 border border-emerald-200">
+                          {person.candidatePhoto ? (
+                            <img src={getDriveImageUrl(person.candidatePhoto, 150)} alt="Profile" className="h-full w-full object-cover" />
+                          ) : (
+                            <Megaphone size={18} className="text-emerald-500" />
+                          )}
                         </div>
-                        <h3 className="text-[13px] font-bold text-slate-400 mt-1 uppercase tracking-wide">{person.date}</h3>
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-800">{person.name || "HR Updates"}</h3>
+                          <p className="text-[11px] font-semibold text-slate-500">{person.designation || person.date}</p>
+                        </div>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-indigo-600">
+                        {person.smsType}
                       </div>
                     </div>
-                    <div className="relative z-10 mt-5 rounded-2xl bg-slate-50/80 p-3.5 border border-slate-100">
-                      <p className="text-xs font-semibold text-slate-600 leading-relaxed whitespace-pre-wrap">
+
+                    {/* Image (Instagram style) */}
+                    {person.candidatePhoto && (
+                      <div className="w-full bg-slate-50">
+                        <img src={getDriveImageUrl(person.candidatePhoto, 800)} alt="Post" className="w-full object-cover max-h-[400px]" />
+                      </div>
+                    )}
+
+                    {/* Caption / Message */}
+                    <div className="px-4 pt-3 pb-2">
+                      <p className="text-[13px] font-medium text-slate-700 leading-relaxed whitespace-pre-wrap">
+                        {person.name && <span className="font-bold text-slate-900 mr-2">{person.name}</span>}
                         {person.sms}
                       </p>
+                      <p className="text-[10px] font-semibold text-slate-400 mt-2 uppercase tracking-wide">{person.date}</p>
                     </div>
                   </motion.div>
                 ))}
