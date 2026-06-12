@@ -78,9 +78,6 @@ const getDriveImageUrl = (url, size) => {
   if (!url) return null;
   const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
   if (match && match[1]) {
-    if (size >= 800) {
-      return `https://drive.google.com/uc?export=view&id=${match[1]}`;
-    }
     return `https://drive.google.com/thumbnail?id=${match[1]}${size ? `&sz=w${size}` : ""}`;
   }
   return url;
