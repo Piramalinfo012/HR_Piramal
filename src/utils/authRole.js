@@ -20,6 +20,8 @@ export const getUserRole = (user = {}) => {
     user.Type,
     user['ID Type'],
     user.IDType,
+    user.Admin,
+    user.admin,
   ]
     .map(normalize)
     .find(Boolean);

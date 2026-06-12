@@ -58,7 +58,8 @@ export const adminNavigationItems = [
     icon: "Clock",
     label: "Attendance Management",
     items: [
-      { path: "/attendance", label: "Attendance" },
+      { path: "/mark-attendance", label: "Mark Attendance" },
+      { path: "/attendance", label: "Biometric Attendance", aliases: ["Attendance"] },
       { path: "/shift-management", label: "Shift Management", placeholder: true },
       { path: "/outstation-attendance", label: "Outstation Attendance" },
       { path: "/ta-da", label: "TA & DA" },
@@ -101,6 +102,7 @@ export const adminNavigationItems = [
     label: "User & Access Management",
     items: [
       { path: "/user-management", label: "User Management" },
+      { path: "/outstation-master", label: "Outstation Master" },
       { path: "/role-management", label: "Role Management", placeholder: true },
       { path: "/permission-management", label: "Permission Management", placeholder: true },
       { path: "/login-activity-logs", label: "Login Activity Logs", placeholder: true },
@@ -109,6 +111,7 @@ export const adminNavigationItems = [
 ];
 
 export const employeeNavigationItems = [
+  { path: "/mark-attendance", icon: "Clock", label: "Mark Attendance" },
   { path: "/my-attendance", icon: "Clock", label: "My Attendance" },
   { path: "/leave-request", icon: "LeaveIcon", label: "Leave Request" },
 ];

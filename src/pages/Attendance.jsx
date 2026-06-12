@@ -114,8 +114,8 @@ const Attendance = () => {
   const downloadExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(attendanceData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
-    XLSX.writeFile(workbook, "attendance_data.xlsx");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Biometric Attendance");
+    XLSX.writeFile(workbook, "biometric_attendance_data.xlsx");
   };
 
   const monthOrder = [
@@ -284,8 +284,8 @@ const Attendance = () => {
       header: ['Month', 'Employee Name', 'Total Present', 'Total Absent', 'WO', 'Late Coming/Half Day'],
     });
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance Report');
-    XLSX.writeFile(workbook, `attendance_report_${reportMonth}_${reportYear}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Biometric Attendance Report');
+    XLSX.writeFile(workbook, `biometric_attendance_report_${reportMonth}_${reportYear}.xlsx`);
     setShowReportModal(false);
   };
 
@@ -553,13 +553,80 @@ const Attendance = () => {
     return `Present: ${summary.present}, Absent: ${summary.absent}, Half Day: ${summary.halfDay}, WO: ${summary.wo}`;
   };
 
+  const renderMobileAttendanceLog = () => {
+    if (tableLoading) {
+      return (
+        <div className="md:hidden rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto mb-3 h-7 w-7 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+          <p className="text-sm font-bold text-slate-500">Loading attendance data...</p>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="md:hidden rounded-3xl border border-rose-100 bg-rose-50 p-6 text-center shadow-sm">
+          <p className="text-sm font-bold text-rose-700">Error: {error}</p>
+          <button
+            onClick={fetchAttendanceData}
+            className="mt-3 rounded-2xl bg-navy px-4 py-2 text-sm font-black text-white"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+
+    if (!filteredData.length) {
+      return (
+        <div className="md:hidden rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-sm font-bold text-slate-500">No attendance records found.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3 md:hidden">
+        {filteredData.map((item, index) => (
+          <article key={`${item.employeeName}-${item.date}-${index}`} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  {formatAttendanceDate(item.date, item.month) || '-'}
+                </p>
+                <h3 className="mt-1 truncate text-base font-black text-slate-950">{item.employeeName || '-'}</h3>
+              </div>
+              <span className={`inline-flex shrink-0 rounded-full border px-3 py-1 text-xs font-black ${getStatusBadgeClass(item.status)}`}>
+                {item.status || '-'}
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl bg-emerald-50 p-3">
+                <p className="text-[10px] font-black uppercase tracking-wide text-emerald-500">In</p>
+                <p className="mt-1 text-sm font-black text-emerald-800">{item.inTime || '-'}</p>
+              </div>
+              <div className="rounded-2xl bg-rose-50 p-3">
+                <p className="text-[10px] font-black uppercase tracking-wide text-rose-500">Out</p>
+                <p className="mt-1 text-sm font-black text-rose-800">{item.outTime || '-'}</p>
+              </div>
+              <div className="rounded-2xl bg-indigo-50 p-3">
+                <p className="text-[10px] font-black uppercase tracking-wide text-indigo-500">Month</p>
+                <p className="mt-1 truncate text-sm font-black text-indigo-800">{item.month || '-'}</p>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4 p-3 sm:space-y-6 sm:p-6">
       <div className="relative overflow-hidden rounded-2xl border border-slate-300/80 bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.08)] sm:p-6">
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-navy via-indigo-500 to-emerald-500" />
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-2xl font-black text-slate-950">Attendance Records Monthly</h1>
+            <h1 className="text-2xl font-black text-slate-950">Biometric Attendance</h1>
             <p className="mt-1 text-sm text-slate-500">
               {filteredData.length} records shown from {attendanceData.length} total entries
             </p>
@@ -570,7 +637,7 @@ const Attendance = () => {
               className="inline-flex items-center justify-center rounded-xl bg-navy px-5 py-3 text-sm font-bold text-white shadow-[0_12px_24px_rgba(49,46,129,0.24)] transition hover:-translate-y-0.5 hover:bg-navy-dark"
             >
               <Download size={18} className="mr-2" />
-              Download Attendance Report
+              Download Biometric Report
             </button>
             <button
               onClick={downloadExcel}
@@ -708,7 +775,7 @@ const Attendance = () => {
         <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/80 px-3 py-3 sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-sm font-black uppercase tracking-wide text-slate-600">
-              {attendanceView === 'calendar' ? 'Attendance Calendar' : 'Attendance Log'}
+              {attendanceView === 'calendar' ? 'Biometric Calendar' : 'Biometric Log'}
             </h2>
             <p className="mt-1 text-sm font-semibold text-slate-900">{calendarTitle}</p>
           </div>
@@ -735,7 +802,7 @@ const Attendance = () => {
               }`}
             >
               <Table2 size={17} className="mr-2" />
-              Attendance Log
+              Biometric Log
             </button>
           </div>
         </div>
@@ -963,7 +1030,9 @@ const Attendance = () => {
               )}
             </>
           ) : (
-            <div className="overflow-x-auto table-container rounded-2xl border border-slate-200 bg-white">
+            <>
+            {renderMobileAttendanceLog()}
+            <div className="hidden overflow-x-auto table-container rounded-2xl border border-slate-200 bg-white md:block">
               <table className="min-w-full divide-y divide-slate-200">
                 <thead className="bg-slate-50/90">
                   <tr>
@@ -1022,6 +1091,7 @@ const Attendance = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </div>
@@ -1030,8 +1100,8 @@ const Attendance = () => {
           <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Download Attendance Report</h2>
-                <p className="mt-1 text-sm text-slate-500">Select a month and year to export employee summary.</p>
+                <h2 className="text-lg font-bold text-slate-900">Download Biometric Report</h2>
+                <p className="mt-1 text-sm text-slate-500">Select a month and year to export biometric employee summary.</p>
               </div>
               <button
                 onClick={() => setShowReportModal(false)}

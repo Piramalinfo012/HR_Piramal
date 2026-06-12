@@ -26,6 +26,7 @@ import CompanyCalendar from "./pages/CompanyCalendar";
 import JoiningCalendar from "./pages/JoiningCalendar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Attendance from "./pages/Attendance";
+import MarkAttendance from "./pages/MarkAttendance";
 import OutstationAttendance from "./pages/OutstationAttendance";
 import TaDa from "./pages/TaDa";
 import LeaveManagement from "./pages/LeaveManagement";
@@ -56,6 +57,7 @@ import InterviewSelection from "./pages/InterviewSelection";
 import InterviewScheduled from "./pages/InterviewScheduled";
 import JoiningFollowUp from "./pages/JoiningFollowUp";
 import UserManagement from "./pages/UserManagement";
+import OutstationMaster from "./pages/OutstationMaster";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
 import { placeholderRoutes } from "./config/hrModules";
 function App() {
@@ -99,6 +101,7 @@ function App() {
             <Route path="leave-management" element={<LeaveManagement />} />
             <Route path="gate-pass" element={<GatePass />} />
             <Route path="gate-pass-request" element={<GatePassRequest />} />
+            <Route path="mark-attendance" element={<MarkAttendance />} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="outstation-attendance" element={<OutstationAttendance />} />
             <Route path="ta-da" element={<TaDa />} />
@@ -125,6 +128,7 @@ function App() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="hrleads" element={<HrLeads />} />
             <Route path="user-management" element={<UserManagement />} />
+            <Route path="outstation-master" element={<OutstationMaster />} />
             {placeholderRoutes.map((route) => (
               <Route
                 key={route.path}

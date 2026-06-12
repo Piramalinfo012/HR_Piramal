@@ -469,6 +469,33 @@ html.erp-dark-root body {
   background-color: rgba(59, 130, 246, 0.12) !important;
 }
 
+.hrms-sidebar-panel {
+  color: #ffffff;
+}
+
+.hrms-sidebar-panel nav :is(a, button),
+.hrms-sidebar-panel nav :is(a, button) :is(span, svg),
+.hrms-sidebar-panel [class*="border-t"] :is(button, span, p, svg) {
+  color: rgba(255, 255, 255, 0.94) !important;
+}
+
+.hrms-sidebar-panel nav :is(a, button):hover,
+.hrms-sidebar-panel nav :is(a, button):hover :is(span, svg),
+.hrms-sidebar-panel nav a[aria-current="page"],
+.hrms-sidebar-panel nav a[aria-current="page"] :is(span, svg) {
+  color: #ffffff !important;
+}
+
+.hrms-sidebar-panel nav [class*="bg-emerald-400"],
+.hrms-sidebar-panel nav [class*="bg-emerald-400"] span {
+  color: #ffffff !important;
+}
+
+.hrms-sidebar-panel nav [class*="bg-white/9"],
+.hrms-sidebar-panel nav [class*="bg-white/9"] svg {
+  color: #ffffff !important;
+}
+
 .erp-dark .erp-topbar {
   border-color: rgba(96, 165, 250, 0.16) !important;
   background: rgba(5, 13, 28, 0.92) !important;

@@ -345,8 +345,169 @@ const MyAttendance = () => {
     return 'Absent';
   };
 
+  const getRecordValue = (record, keys) => {
+    if (!record) return '';
+    for (const key of keys) {
+      const value = record[key];
+      if (value !== undefined && value !== null && value.toString().trim() !== '') {
+        return value;
+      }
+    }
+    return '';
+  };
+
+  const yearOptions = Array.from(new Set([...years, selectedYear])).sort((a, b) => b - a);
+  const latestRecord = filteredAttendance[0] || null;
+  const latestStatus = latestRecord ? getStatus(latestRecord) : '';
+  const mobileStats = [
+    { label: 'Total', value: totalDays, icon: Calendar, tone: 'bg-blue-50 text-blue-700 border-blue-100' },
+    { label: 'Present', value: presentDays, icon: CheckCircle, tone: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+    { label: 'Absent', value: absentDays, icon: XCircle, tone: 'bg-rose-50 text-rose-700 border-rose-100' },
+    { label: 'Hours', value: totalWorkingHours.toFixed(1), icon: Clock, tone: 'bg-indigo-50 text-indigo-700 border-indigo-100' },
+  ];
+
   return (
-    <div className="space-y-6 page-content p-6">
+    <>
+      <div className="min-h-screen bg-[#f5f7fb] px-4 pb-24 pt-4 text-slate-950 md:hidden">
+        <div className="overflow-hidden rounded-[28px] bg-gradient-to-br from-[#053f3a] via-[#0b5b53] to-[#12204d] p-5 text-white shadow-2xl shadow-slate-300">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-cyan-100">Attendance</p>
+              <h1 className="mt-2 text-2xl font-black">My Attendance</h1>
+              <p className="mt-1 text-xs font-semibold text-cyan-50/80">{months[selectedMonth]} {selectedYear}</p>
+            </div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20">
+              <Calendar size={22} />
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-white/60">Month</span>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                className="h-11 w-full rounded-2xl border border-white/20 bg-white/95 px-3 text-sm font-black text-slate-900 outline-none"
+              >
+                {months.map((month, index) => (
+                  <option key={index} value={index}>{month}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-widest text-white/60">Year</span>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                className="h-11 w-full rounded-2xl border border-white/20 bg-white/95 px-3 text-sm font-black text-slate-900 outline-none"
+              >
+                {yearOptions.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="mt-5 rounded-3xl bg-white/12 p-4 ring-1 ring-white/15">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100">Latest Punch</p>
+            <div className="mt-3 flex items-end justify-between gap-3">
+              <div>
+                <p className="text-lg font-black">{getRecordValue(latestRecord, ['Date']) || '-'}</p>
+                <p className="mt-1 text-xs font-semibold text-white/70">
+                  In {getRecordValue(latestRecord, ['In Time', 'Check In', 'M']) || '-'} / Out {getRecordValue(latestRecord, ['Out Time', 'Check Out', 'N']) || '-'}
+                </p>
+              </div>
+              <span className={`rounded-full px-3 py-1 text-xs font-black ${!latestStatus ? 'bg-white/15 text-white' : latestStatus.toLowerCase().includes('present') ? 'bg-emerald-300 text-emerald-950' : 'bg-rose-200 text-rose-950'}`}>
+                {latestStatus || '-'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {mobileStats.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <div key={stat.label} className={`rounded-3xl border bg-white p-4 shadow-sm ${stat.tone}`}>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-wide opacity-75">{stat.label}</p>
+                  <Icon size={18} />
+                </div>
+                <p className="mt-3 text-2xl font-black">{stat.value}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-black text-slate-950">Attendance Log</h2>
+              <p className="text-xs font-semibold text-slate-500">{filteredAttendance.length} records</p>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm font-bold text-slate-500 shadow-sm">
+              Loading attendance data...
+            </div>
+          ) : error ? (
+            <div className="rounded-3xl border border-rose-100 bg-rose-50 p-6 text-center text-sm font-bold text-rose-700 shadow-sm">
+              Error: {error}
+            </div>
+          ) : filteredAttendance.length > 0 ? (
+            <div className="space-y-3">
+              {filteredAttendance.map((record, index) => {
+                const dateValue = getRecordValue(record, ['Date', 'date', 'C']);
+                const checkIn = getRecordValue(record, ['In Time', 'Check In', 'check in', 'M']);
+                const checkOut = getRecordValue(record, ['Out Time', 'Check Out', 'check out', 'N']);
+                const status = getStatus(record);
+                const workingHours = getRecordValue(record, ['Working Hours']) || '0';
+                const overtime = getRecordValue(record, ['Overtime Hours']) || '0';
+                const isPresent = status.toLowerCase().includes('present') || status.toLowerCase().includes('holiday');
+
+                return (
+                  <article key={`${dateValue}-${index}`} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</p>
+                        <h3 className="mt-1 text-base font-black text-slate-950">{dateValue || '-'}</h3>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-black ${isPresent ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                        {status}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Check In</p>
+                        <p className="mt-1 text-sm font-black text-slate-800">{checkIn || '-'}</p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Check Out</p>
+                        <p className="mt-1 text-sm font-black text-slate-800">{checkOut || '-'}</p>
+                      </div>
+                      <div className="rounded-2xl bg-indigo-50 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-indigo-400">Working</p>
+                        <p className="mt-1 text-sm font-black text-indigo-800">{workingHours} hrs</p>
+                      </div>
+                      <div className="rounded-2xl bg-amber-50 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-amber-500">Overtime</p>
+                        <p className="mt-1 text-sm font-black text-amber-800">{overtime} hrs</p>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+              <p className="text-sm font-bold text-slate-500">No attendance records found for this period.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="hidden space-y-6 page-content p-6 md:block">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">My Attendance</h1>
       </div>
@@ -528,7 +689,8 @@ const MyAttendance = () => {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

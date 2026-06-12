@@ -1006,29 +1006,177 @@ const LeaveManagement = () => {
     }
   };
 
+  const getActiveMobileRows = () => {
+    if (activeTab === 'approved') return displayedApprovedLeaves;
+    if (activeTab === 'rejected') return displayedRejectedLeaves;
+    return displayedPendingLeaves;
+  };
+
+  const getActiveEmptyMessage = () => {
+    if (activeTab === 'approved') return 'No approved leave requests found.';
+    if (activeTab === 'rejected') return 'No rejected leave requests found.';
+    return 'No pending leave requests found.';
+  };
+
+  const renderLeaveMobileCards = () => {
+    const rows = getActiveMobileRows();
+
+    if (!rows.length) {
+      return (
+        <div className="md:hidden rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-sm font-bold text-slate-500">{getActiveEmptyMessage()}</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3 md:hidden">
+        {rows.map((item, index) => {
+          const isPending = activeTab === 'pending';
+          const isSelected = selectedRow?.serialNo === item.serialNo;
+          const statusLabel = isPending ? 'Pending' : item.approvalStatus || item.status || activeTab;
+          const statusClass = activeTab === 'approved'
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+            : activeTab === 'rejected'
+              ? 'bg-rose-50 text-rose-700 border-rose-100'
+              : 'bg-amber-50 text-amber-700 border-amber-100';
+
+          return (
+            <article key={item.serialNo || index} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.leaveRequestId || '-'}</p>
+                  <h3 className="mt-1 truncate text-base font-black text-slate-950">{item.requestedBy || '-'}</h3>
+                  <p className="mt-1 truncate text-xs font-semibold text-slate-500">{item.department || '-'} / {item.jobLocation || '-'}</p>
+                </div>
+                <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black capitalize ${statusClass}`}>
+                  {statusLabel}
+                </span>
+              </div>
+
+              {isPending && (
+                <label className="mt-4 flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-2 text-sm font-black text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => handleCheckboxChange(item.serialNo, item)}
+                    className="h-4 w-4 rounded border-slate-300 text-navy focus:ring-navy"
+                  />
+                  Select for approval
+                </label>
+              )}
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">From</p>
+                  {isPending && isSelected ? (
+                    <input
+                      type="date"
+                      value={editableDates.from}
+                      onChange={(e) => handleDateChange('from', e.target.value)}
+                      className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold text-slate-800 outline-none"
+                    />
+                  ) : (
+                    <p className="mt-1 text-sm font-black text-slate-800">{formatDate(item.startDate)}</p>
+                  )}
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">To</p>
+                  {isPending && isSelected ? (
+                    <input
+                      type="date"
+                      value={editableDates.to}
+                      onChange={(e) => handleDateChange('to', e.target.value)}
+                      className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold text-slate-800 outline-none"
+                    />
+                  ) : (
+                    <p className="mt-1 text-sm font-black text-slate-800">{formatDate(item.endDate)}</p>
+                  )}
+                </div>
+                <div className="rounded-2xl bg-indigo-50 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-indigo-400">Leaves</p>
+                  <p className="mt-1 text-sm font-black text-indigo-800">
+                    {isPending && isSelected ? calculateDays(editableDates.from, editableDates.to) : item.days || '-'}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-cyan-50 p-3">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-cyan-500">Planned</p>
+                  <p className="mt-1 text-sm font-black text-cyan-800">{formatDate(item.approvalPlanned)}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Reason</p>
+                <p className="mt-1 text-sm font-bold text-slate-700">{item.leaveReason || '-'}</p>
+                {item.remark && <p className="mt-2 text-xs font-semibold text-slate-500">{item.remark}</p>}
+                {item.imageUrl && (
+                  <a href={item.imageUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-xs font-black text-indigo-600">
+                    View attachment
+                  </a>
+                )}
+              </div>
+
+              {!isPending && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl bg-slate-50 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Actual</p>
+                    <p className="mt-1 text-sm font-black text-slate-800">{formatDate(item.approvalActual)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">By</p>
+                    <p className="mt-1 truncate text-sm font-black text-slate-800">{item.approvedBy || '-'}</p>
+                  </div>
+                </div>
+              )}
+
+              {isPending && (
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleLeaveAction('accept')}
+                    disabled={!isSelected || loading}
+                    className={`h-11 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-lg shadow-emerald-100 transition ${!isSelected || loading ? 'cursor-not-allowed opacity-60' : 'hover:bg-emerald-700'}`}
+                  >
+                    {loading && isSelected && actionInProgress === 'accept' ? 'Accepting...' : 'Accept'}
+                  </button>
+                  <button
+                    onClick={() => handleLeaveAction('rejected')}
+                    disabled={!isSelected || loading}
+                    className={`h-11 rounded-2xl bg-rose-600 text-sm font-black text-white shadow-lg shadow-rose-100 transition ${!isSelected || loading ? 'cursor-not-allowed opacity-60' : 'hover:bg-rose-700'}`}
+                  >
+                    {loading && isSelected && actionInProgress === 'rejected' ? 'Rejecting...' : 'Reject'}
+                  </button>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">Leave Management</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-black text-slate-950 sm:text-2xl">Leave Management</h1>
           <span className="text-xs font-normal bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200">v1.1 (Sync Fixed)</span>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-navy hover:bg-navy-dark"
+          className="inline-flex w-full items-center justify-center rounded-2xl border border-transparent bg-navy px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-navy-dark sm:w-auto sm:rounded-md sm:py-2 sm:font-medium"
         >
           <Plus size={16} className="mr-2" />
           New Leave Request
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-        <div className="flex flex-1 max-w-md">
+      <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-lg sm:p-4 sm:shadow">
+        <div className="flex flex-1 sm:max-w-md">
           <div className="relative w-full">
             <input
               type="text"
               placeholder="Search by name or employee ID..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-500"
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 sm:h-auto sm:rounded-lg sm:border-gray-300 sm:py-2 sm:font-normal sm:text-gray-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -1037,12 +1185,12 @@ const LeaveManagement = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm sm:rounded-lg sm:border-0 sm:shadow">
         <div className="border-b border-gray-200">
-          <nav className="flex -mb-px">
+          <nav className="-mb-px flex overflow-x-auto px-2 sm:px-0">
             <button
               onClick={() => setActiveTab('pending')}
-              className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'pending'
+              className={`whitespace-nowrap py-4 px-4 text-center border-b-2 text-sm font-black sm:px-6 sm:font-medium ${activeTab === 'pending'
                 ? 'border-indigo-500 text-navy'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
@@ -1051,7 +1199,7 @@ const LeaveManagement = () => {
             </button>
             <button
               onClick={() => setActiveTab('approved')}
-              className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'approved'
+              className={`whitespace-nowrap py-4 px-4 text-center border-b-2 text-sm font-black sm:px-6 sm:font-medium ${activeTab === 'approved'
                 ? 'border-indigo-500 text-navy'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
@@ -1060,7 +1208,7 @@ const LeaveManagement = () => {
             </button>
             <button
               onClick={() => setActiveTab('rejected')}
-              className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'rejected'
+              className={`whitespace-nowrap py-4 px-4 text-center border-b-2 text-sm font-black sm:px-6 sm:font-medium ${activeTab === 'rejected'
                 ? 'border-indigo-500 text-navy'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
@@ -1070,8 +1218,8 @@ const LeaveManagement = () => {
           </nav>
         </div>
 
-        <div className="p-6">
-          <div className="overflow-x-auto">
+        <div className="p-3 sm:p-6">
+          <div>
             {tableLoading ? (
               <div className="px-6 py-12 text-center">
                 <div className="flex justify-center flex-col items-center">
@@ -1093,7 +1241,10 @@ const LeaveManagement = () => {
               </div>
             ) : (
               <>
-                {renderTable()}
+                {renderLeaveMobileCards()}
+                <div className="hidden overflow-x-auto md:block">
+                  {renderTable()}
+                </div>
                 {activeFilteredCount > 0 && (
                   <div className="flex flex-col gap-3 border-t border-gray-100 px-2 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-gray-500">

@@ -19,7 +19,7 @@ import { getUserRole, isMobileViewport } from "../utils/authRole";
 
 const SHEET_API_URL = `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`;
 const LEAVING_API_URL = `${import.meta.env.VITE_LEAVING_SHEET_URL}?sheet=LEAVING&action=fetch`;
-const USER_CACHE_KEY = "hr-fms-user-cache-v2";
+const USER_CACHE_KEY = "hr-fms-user-cache-v3";
 const USER_CACHE_TTL = 5 * 60 * 1000;
 const USER_FETCH_TIMEOUT = 8000;
 const LEAVING_FETCH_TIMEOUT = 2500;
@@ -57,6 +57,20 @@ const writeUserCache = (rows) => {
   }
 };
 
+const normalizeHeader = (value) => value?.toString().trim().toLowerCase().replace(/\s+/g, " ");
+
+const findHeaderIndex = (headers, names) => {
+  const normalizedNames = names.map(normalizeHeader);
+  return headers.findIndex((header) => normalizedNames.includes(normalizeHeader(header)));
+};
+
+const getCellByHeader = (headers, row, names, fallbackIndex = -1) => {
+  const headerIndex = findHeaderIndex(headers, names);
+  const index = headerIndex !== -1 ? headerIndex : fallbackIndex;
+  if (index === -1) return "";
+  return row[index] !== undefined && row[index] !== null ? row[index].toString().trim() : "";
+};
+
 const fetchUserRows = async () => {
   const cachedRows = readUserCache();
   if (cachedRows) return cachedRows;
@@ -88,9 +102,14 @@ const parseUsers = (rows) => {
     headers.forEach((header, index) => {
       obj[header] = row[index];
     });
-    obj._authUsername = row[0] ? row[0].toString().trim() : "";
-    obj._authPassword = row[1] ? row[1].toString().trim() : "";
-    obj.isDeleted = row[10] === "Deleted";
+    obj._displayName = getCellByHeader(headers, row, ["Name", "Sales Person Name", "Person Name", "Employee Name"], 0);
+    obj._authUsername = getCellByHeader(headers, row, ["Username", "User Name", "Login Username"], 1);
+    obj._authPassword = getCellByHeader(headers, row, ["Password", "Passcode"], 2);
+    obj.Name = obj.Name || obj._displayName;
+    obj.Username = obj.Username || obj["User Name"] || obj._authUsername;
+
+    const deletedMarker = getCellByHeader(headers, row, ["Deleted", "Delete", "Status", "User Status"], 10);
+    obj.isDeleted = ["deleted", "inactive", "disabled"].includes(deletedMarker.toLowerCase());
     return obj;
   });
 
@@ -153,8 +172,9 @@ const Login = () => {
       const userRows = await userRowsPromise;
       const { headers: userHeaders, users } = parseUsers(userRows);
 
+      const normalizedUsername = username.trim().toLowerCase();
       const matchedUser = users.find(
-        (user) => user._authUsername === username.trim() && user._authPassword === password.trim() && !user.isDeleted
+        (user) => user._authUsername.toLowerCase() === normalizedUsername && user._authPassword === password.trim() && !user.isDeleted
       );
 
       if (!matchedUser) {
@@ -165,7 +185,7 @@ const Login = () => {
 
       const leavingRows = await leavingRowsPromise;
       const { headers: leavingHeaders, data: leavingData } = parseLeavingData(leavingRows);
-      const userName = matchedUser[userHeaders[2]];
+      const userName = matchedUser._displayName || matchedUser.Name || matchedUser["Sales Person Name"] || matchedUser._authUsername;
       const isUserLeaving = leavingData.some((record) => {
         const leavingName = record[leavingHeaders[2]];
         const leavingStatus = record[leavingHeaders[13]];
