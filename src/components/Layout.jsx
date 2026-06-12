@@ -58,7 +58,7 @@ const Layout = () => {
   const currentUser = user || storedUser;
   const isEmployee = getUserRole(currentUser || {}) === 'employee';
   const isEmployeeMobile = isEmployee && isMobile;
-  const employeeAllowedPaths = ['/employee-mobile', '/my-attendance', '/mark-attendance', '/leave-request'];
+  const employeeAllowedPaths = ['/employee-mobile', '/my-attendance', '/mark-attendance', '/leave-request', '/leave-management', '/employee-profile'];
 
   useEffect(() => {
     const updateViewport = () => setIsMobile(window.matchMedia('(max-width: 767px)').matches);

@@ -9,6 +9,9 @@ import {
   Menu,
   MoreVertical,
   Search,
+  Clock,
+  FileText,
+  User
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 
@@ -254,8 +257,11 @@ const EmployeeMobileHome = () => {
   };
 
   const quickActions = [
-    { icon: CalendarDays, label: 'Attendance', path: '/my-attendance' },
-    { icon: HandHeart, label: 'Leave', path: '/leave-request' },
+    { icon: Clock, label: 'Mark Attendance', path: '/mark-attendance', color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { icon: CalendarDays, label: 'My Attendance', path: '/my-attendance', color: 'text-blue-600', bg: 'bg-blue-100' },
+    { icon: HandHeart, label: 'Leave Request', path: '/leave-request', color: 'text-rose-600', bg: 'bg-rose-100' },
+    { icon: FileText, label: 'Leave Management', path: '/leave-management', color: 'text-purple-600', bg: 'bg-purple-100' },
+    { icon: User, label: 'Profile', path: '/employee-profile', color: 'text-amber-600', bg: 'bg-amber-100' },
   ];
 
   const leaveBalances = [
@@ -296,16 +302,21 @@ const EmployeeMobileHome = () => {
       </div>
 
       <div className="-mt-6 px-5">
-        <div className="mx-auto flex w-fit items-center rounded-lg bg-white px-3 py-2 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-          {quickActions.map((action, index) => (
+        <div className="grid grid-cols-3 gap-3 md:grid-cols-5">
+          {quickActions.map((action) => (
             <button
               key={action.label}
               type="button"
               onClick={() => navigate(action.path)}
-              className={`px-3 py-1 text-[#006241] ${index > 0 ? 'border-l border-gray-200' : ''}`}
+              className="flex flex-col items-center justify-center rounded-2xl bg-white p-3 shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition hover:-translate-y-1 hover:shadow-lg"
               aria-label={action.label}
             >
-              <action.icon size={22} />
+              <div className={`mb-2 flex h-12 w-12 items-center justify-center rounded-full ${action.bg} ${action.color}`}>
+                <action.icon size={24} />
+              </div>
+              <span className="text-center text-[10px] font-black uppercase tracking-wide text-slate-700">
+                {action.label}
+              </span>
             </button>
           ))}
         </div>
@@ -412,16 +423,6 @@ const EmployeeMobileHome = () => {
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-md border-t border-gray-200 bg-white px-4 py-2 shadow-[0_-10px_25px_rgba(0,0,0,0.10)] md:hidden">
-        <div className="grid grid-cols-2 text-center text-[11px] font-bold text-slate-600">
-          <button type="button" onClick={() => navigate('/my-attendance')} className="flex flex-col items-center gap-1 text-[#006241]">
-            <CalendarDays size={20} />Attend
-          </button>
-          <button type="button" onClick={() => navigate('/leave-request')} className="flex flex-col items-center gap-1">
-            <HandHeart size={20} />Leave
-          </button>
-        </div>
-      </div>
     </div>
   );
 };
