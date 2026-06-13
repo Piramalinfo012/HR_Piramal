@@ -23,6 +23,10 @@ import toast from 'react-hot-toast';
 const ATTENDANCE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_GRdhFbP5zQX_HV72t9Ofcj5IHurSBJnPC5o0yr6_HvkLkMs9hOSLHIP0e26uG1iDlA/exec';
 const ATTENDANCE_SHEET_NAME = 'Data';
 const FEED_REFRESH_INTERVAL_MS = 30000;
+const FEED_CACHE_KEY = 'employee_mobile_feed_cache_v1';
+const FEED_CACHE_TTL_MS = 10 * 60 * 1000;
+const MOBILE_ATTENDANCE_CACHE_KEY = 'employee_mobile_latest_attendance_cache_v1';
+const MOBILE_ATTENDANCE_CACHE_TTL_MS = 10 * 60 * 1000;
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -30,6 +34,25 @@ const monthNames = [
 const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 const normalize = (value) => (value || '').toString().trim();
+
+const readCachedList = (key, maxAgeMs) => {
+  try {
+    const cached = JSON.parse(localStorage.getItem(key) || 'null');
+    if (!cached || !Array.isArray(cached.data)) return [];
+    if (Date.now() - Number(cached.savedAt || 0) > maxAgeMs) return [];
+    return cached.data;
+  } catch {
+    return [];
+  }
+};
+
+const writeCachedList = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), data }));
+  } catch {
+    // Cache is only for faster paint; ignore storage quota/private mode failures.
+  }
+};
 
 const parseTimeToMinutes = (value) => {
   if (!value) return null;
@@ -143,10 +166,15 @@ const summarizeRows = (rows) => rows.reduce((summary, item) => {
 const EmployeeMobileHome = () => {
   const navigate = useNavigate();
   const { logout } = useAuthStore();
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [newJoiners, setNewJoiners] = useState([]);
-  const [feedLoading, setFeedLoading] = useState(true);
+  const initialAttendanceData = useMemo(
+    () => readCachedList(MOBILE_ATTENDANCE_CACHE_KEY, MOBILE_ATTENDANCE_CACHE_TTL_MS),
+    []
+  );
+  const initialFeedData = useMemo(() => readCachedList(FEED_CACHE_KEY, FEED_CACHE_TTL_MS), []);
+  const [attendanceData, setAttendanceData] = useState(initialAttendanceData);
+  const [loading, setLoading] = useState(initialAttendanceData.length === 0);
+  const [newJoiners, setNewJoiners] = useState(initialFeedData);
+  const [feedLoading, setFeedLoading] = useState(initialFeedData.length === 0);
 
   const rawUser = localStorage.getItem('user');
   const user = rawUser ? JSON.parse(rawUser) : {};
@@ -211,8 +239,12 @@ const EmployeeMobileHome = () => {
 
   useEffect(() => {
     let isMounted = true;
+    let feedRequestRunning = false;
 
     const fetchJoiners = async ({ silent = false } = {}) => {
+      if (feedRequestRunning) return;
+      feedRequestRunning = true;
+
       try {
         if (!silent) setFeedLoading(true);
         const cb = `&_=${Date.now()}&realtime=1`;
@@ -235,13 +267,17 @@ const EmployeeMobileHome = () => {
             designation: row[5] || ""
           })).filter(item => item.sms || item.candidatePhoto);
           
-          setNewJoiners(processed.reverse());
+          const nextJoiners = processed.reverse();
+          writeCachedList(FEED_CACHE_KEY, nextJoiners);
+          React.startTransition(() => setNewJoiners(nextJoiners));
         } else {
+          writeCachedList(FEED_CACHE_KEY, []);
           setNewJoiners([]);
         }
       } catch (e) {
         console.error("Failed to fetch feed:", e);
       } finally {
+        feedRequestRunning = false;
         if (isMounted) {
           setFeedLoading(false);
         }
@@ -255,7 +291,7 @@ const EmployeeMobileHome = () => {
       }
     };
 
-    fetchJoiners();
+    fetchJoiners({ silent: initialFeedData.length > 0 });
 
     const intervalId = window.setInterval(refreshFeed, FEED_REFRESH_INTERVAL_MS);
     window.addEventListener('focus', refreshFeed);
@@ -267,7 +303,7 @@ const EmployeeMobileHome = () => {
       window.removeEventListener('focus', refreshFeed);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [initialFeedData.length]);
 
   useEffect(() => {
     const fetchAttendanceData = async () => {
@@ -297,10 +333,11 @@ const EmployeeMobileHome = () => {
           month: row[getIndex('Month')] || '',
         })).filter((item) => item.date || item.employeeName || item.status);
 
-        setAttendanceData(processedRows);
+        writeCachedList(MOBILE_ATTENDANCE_CACHE_KEY, processedRows);
+        React.startTransition(() => setAttendanceData(processedRows));
       } catch (error) {
         console.error('Employee mobile attendance fetch failed:', error);
-        setAttendanceData([]);
+        setAttendanceData((current) => (current.length ? current : []));
       } finally {
         setLoading(false);
       }
@@ -317,9 +354,12 @@ const EmployeeMobileHome = () => {
     );
   }, [attendanceData, employeeName]);
 
-  const latestAttendanceRecord = [...userRows]
-    .filter((item) => parseAttendanceDate(item.date, item.month))
-    .sort((a, b) => parseAttendanceDate(b.date, b.month) - parseAttendanceDate(a.date, a.month))[0];
+  const latestAttendanceRecord = useMemo(() => {
+    return userRows
+      .map((item) => ({ ...item, _dateObj: parseAttendanceDate(item.date, item.month) }))
+      .filter((item) => item._dateObj)
+      .sort((a, b) => b._dateObj - a._dateObj)[0];
+  }, [userRows]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -385,6 +425,7 @@ const EmployeeMobileHome = () => {
               <img 
                 src={getDriveImageUrl(profilePic, 150)} 
                 alt="Profile" 
+                decoding="async"
                 className="h-full w-full object-cover" 
                 onError={(e) => {
                   if (!e.target.dataset.retried) {
@@ -474,6 +515,8 @@ const EmployeeMobileHome = () => {
                         <img 
                           src={getDriveImageUrl(person.candidatePhoto, 200)} 
                           alt="Story" 
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full rounded-full object-cover bg-gray-50" 
                           onError={(e) => {
                             if (!e.target.dataset.retried) {
@@ -514,6 +557,8 @@ const EmployeeMobileHome = () => {
                             <img 
                               src={getDriveImageUrl(person.candidatePhoto, 150)} 
                               alt="Profile" 
+                              loading="lazy"
+                              decoding="async"
                               className="h-full w-full object-cover" 
                               onError={(e) => {
                                 if (!e.target.dataset.retried) {
@@ -545,8 +590,10 @@ const EmployeeMobileHome = () => {
                     {person.candidatePhoto && (
                       <div className="w-full bg-slate-50 flex justify-center">
                         <img 
-                          src={getDriveImageUrl(person.candidatePhoto, 800)} 
+                          src={getDriveImageUrl(person.candidatePhoto, 600)} 
                           alt="Post" 
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-auto object-contain max-h-[500px]" 
                           onError={(e) => {
                             if (!e.target.dataset.retried) {

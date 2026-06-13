@@ -25,6 +25,8 @@ import * as XLSX from "xlsx";
 import useAuthStore from "../store/authStore";
 
 const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
+const OUTSTATION_ATTENDANCE_CACHE_PREFIX = "my_outstation_attendance_cache_v1";
+const OUTSTATION_ATTENDANCE_CACHE_TTL_MS = 10 * 60 * 1000;
 
 const MONTHS = [
   "January",
@@ -195,11 +197,47 @@ const getEntryStatus = (entry) => {
   return String(pickFirst(entry, ["status", "Status"]) || "").trim().toUpperCase();
 };
 
+const readCachedAttendanceRows = (cacheKey) => {
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
+    if (!cached || !Array.isArray(cached.data)) return [];
+    if (Date.now() - Number(cached.savedAt || 0) > OUTSTATION_ATTENDANCE_CACHE_TTL_MS) return [];
+
+    return cached.data
+      .map((record) => {
+        const dateObj = parseDateToObj(record.dateObj || record.date);
+        return dateObj ? { ...record, dateObj } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.dateObj - a.dateObj);
+  } catch {
+    return [];
+  }
+};
+
+const writeCachedAttendanceRows = (cacheKey, data) => {
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), data }));
+  } catch {
+    // Cache is only for faster first paint; ignore storage failures.
+  }
+};
+
 const MyAttendance = () => {
   const authUser = useAuthStore((state) => state.user);
   const currentUser = useMemo(() => authUser || getStoredUser(), [authUser]);
   const currentUserName = useMemo(() => getCurrentUserName(currentUser), [currentUser]);
   const scopedAliases = useMemo(() => getUserAliases(currentUser), [currentUser]);
+  const scopedAliasKey = useMemo(() => scopedAliases.join("|"), [scopedAliases]);
+  const scopedAliasSet = useMemo(() => new Set(scopedAliases), [scopedAliasKey]);
+  const attendanceCacheKey = useMemo(
+    () => `${OUTSTATION_ATTENDANCE_CACHE_PREFIX}_${scopedAliasKey || "guest"}`,
+    [scopedAliasKey]
+  );
+  const initialAttendanceRows = useMemo(
+    () => readCachedAttendanceRows(attendanceCacheKey),
+    [attendanceCacheKey]
+  );
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -207,12 +245,18 @@ const MyAttendance = () => {
   const [attendanceView, setAttendanceView] = useState("calendar");
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(initialAttendanceRows.length === 0);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [attendanceData, setAttendanceData] = useState([]);
+  const [attendanceData, setAttendanceData] = useState(initialAttendanceRows);
 
-  const fetchOutstationAttendance = async () => {
-    setLoading(true);
+  const fetchOutstationAttendance = async (options = {}) => {
+    const silent = options?.silent === true;
+    if (silent) {
+      setRefreshing(true);
+    } else {
+      setLoading(attendanceData.length === 0);
+    }
     setError(null);
 
     try {
@@ -232,7 +276,7 @@ const MyAttendance = () => {
       rawAttendance.forEach((entry) => {
         const employeeName = getEntryName(entry);
         if (!employeeName || scopedAliases.length === 0) return;
-        if (!scopedAliases.includes(normalize(employeeName))) return;
+        if (!scopedAliasSet.has(normalize(employeeName))) return;
 
         const status = getEntryStatus(entry);
         const dateValue =
@@ -274,19 +318,31 @@ const MyAttendance = () => {
         }
       });
 
-      setAttendanceData(Object.values(grouped).sort((a, b) => b.dateObj - a.dateObj));
+      const nextRows = Object.values(grouped).sort((a, b) => b.dateObj - a.dateObj);
+      writeCachedAttendanceRows(attendanceCacheKey, nextRows);
+      React.startTransition(() => setAttendanceData(nextRows));
     } catch (err) {
       console.error("Outstation attendance fetch error:", err);
-      setAttendanceData([]);
-      setError(err.message);
+      setAttendanceData((current) => (current.length ? current : []));
+      if (attendanceData.length === 0) setError(err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
+    const cachedRows = readCachedAttendanceRows(attendanceCacheKey);
+    if (cachedRows.length) {
+      setAttendanceData(cachedRows);
+      setLoading(false);
+      fetchOutstationAttendance({ silent: true });
+      return;
+    }
+
+    setAttendanceData([]);
     fetchOutstationAttendance();
-  }, [scopedAliases.join("|")]);
+  }, [attendanceCacheKey]);
 
   const yearOptions = useMemo(() => {
     const years = attendanceData.map((record) => Number(record.year)).filter(Boolean);
@@ -620,11 +676,11 @@ const MyAttendance = () => {
           <div className="flex shrink-0 items-center gap-2 sm:hidden">
             <button
               type="button"
-              onClick={fetchOutstationAttendance}
+              onClick={() => fetchOutstationAttendance({ silent: true })}
               className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/20 transition active:scale-95"
               aria-label="Refresh"
             >
-              <RefreshCw size={19} className={loading ? "animate-spin" : ""} />
+              <RefreshCw size={19} className={loading || refreshing ? "animate-spin" : ""} />
             </button>
             <button
               type="button"
@@ -640,10 +696,10 @@ const MyAttendance = () => {
           <div className="hidden flex-col gap-2 sm:flex sm:flex-row">
             <button
               type="button"
-              onClick={fetchOutstationAttendance}
+              onClick={() => fetchOutstationAttendance({ silent: true })}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
-              <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
+              <RefreshCw size={18} className={loading || refreshing ? "animate-spin" : ""} />
               Refresh
             </button>
             <button
