@@ -352,8 +352,9 @@ const MarkAttendance = () => {
     [currentUser, masterUsers, matchedMasterUser]
   );
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (options = {}) => {
+    const silent = options?.silent === true;
+    if (!silent) setLoading(true);
     setError(null);
 
     try {
@@ -433,7 +434,7 @@ const MarkAttendance = () => {
       console.error("Mark attendance fetch error:", err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -441,6 +442,72 @@ const MarkAttendance = () => {
     window.scrollTo(0, 0);
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!locationRule.source) return;
+
+    if (locationRule.requiresLocationMatch && (locationRule.latitude === null || locationRule.longitude === null)) {
+      setLocationCheck({ status: "error", message: "Master location is not configured." });
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setLocationCheck({ status: "error", message: "Browser location is not supported." });
+      return;
+    }
+
+    let active = true;
+    setLocationCheck({ status: "checking", message: "Checking location..." });
+
+    const updateLocationCheck = (position) => {
+      if (!active) return;
+
+      const latitude = Number(position.coords.latitude.toFixed(7));
+      const longitude = Number(position.coords.longitude.toFixed(7));
+      const distance = locationRule.requiresLocationMatch
+        ? haversineDistanceMeters(
+          { latitude, longitude },
+          { latitude: locationRule.latitude, longitude: locationRule.longitude }
+        )
+        : 0;
+      const roundedDistance = Math.round(distance);
+      const allowed = !locationRule.requiresLocationMatch || distance <= locationRule.rangeMeters;
+
+      setLocationCheck({
+        status: allowed ? "inside" : "outside",
+        distance: roundedDistance,
+        latitude,
+        longitude,
+        message: !locationRule.requiresLocationMatch
+          ? "Location ready"
+          : allowed
+            ? `Inside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`
+            : `Outside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`,
+      });
+    };
+
+    const handleLocationError = (err) => {
+      if (!active) return;
+      setLocationCheck({ status: "error", message: err.message || "Location check failed." });
+    };
+
+    const watchId = navigator.geolocation.watchPosition(updateLocationCheck, handleLocationError, {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 10000,
+    });
+
+    return () => {
+      active = false;
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [
+    locationRule.source,
+    locationRule.requiresLocationMatch,
+    locationRule.latitude,
+    locationRule.longitude,
+    locationRule.rangeMeters,
+  ]);
 
   const nextStatus = useMemo(() => {
     const today = dateKey(new Date());
@@ -458,52 +525,51 @@ const MarkAttendance = () => {
 
   const handleMarkAttendance = async () => {
     if (marking) return;
+    const now = new Date();
 
     if (!punchPersonName) {
-      toast.error("Current user name nahi mila");
+      toast.error("Current user name was not found.");
+      return;
+    }
+
+    if (!locationRule.source) {
+      toast.error("Location settings are still loading. Please try again in a moment.");
       return;
     }
 
     if (locationRule.requiresLocationMatch && (locationRule.latitude === null || locationRule.longitude === null)) {
-      toast.error("User latitude/longitude Master me set nahi hai");
+      toast.error("User latitude/longitude is not set in Master.");
+      return;
+    }
+
+    if (!locationCheck || locationCheck.status === "checking") {
+      toast.error("Location is still being checked. Please try again in a moment.");
+      return;
+    }
+
+    if (locationCheck.status === "outside") {
+      toast.error(`You are outside the allowed range (${locationCheck.distance}m / ${locationRule.rangeMeters}m). Attendance was not marked.`);
+      return;
+    }
+
+    if (locationCheck.status === "error") {
+      toast.error(locationCheck.message || "Location check failed.");
+      return;
+    }
+
+    if (locationCheck.latitude === undefined || locationCheck.longitude === undefined) {
+      toast.error("Location is not ready. Please try again.");
       return;
     }
 
     setMarking(true);
-    setLocationCheck({ status: "checking", message: "Location checking..." });
 
     try {
       const statusToMark = nextStatus;
-      const position = await getBrowserPosition();
-      const latitude = Number(position.coords.latitude.toFixed(7));
-      const longitude = Number(position.coords.longitude.toFixed(7));
-      const distance = locationRule.requiresLocationMatch
-        ? haversineDistanceMeters(
-          { latitude, longitude },
-          { latitude: locationRule.latitude, longitude: locationRule.longitude }
-        )
-        : 0;
-      const roundedDistance = Math.round(distance);
-      const allowed = !locationRule.requiresLocationMatch || distance <= locationRule.rangeMeters;
-
-      setLocationCheck({
-        status: allowed ? "inside" : "outside",
-        distance: roundedDistance,
-        message: !locationRule.requiresLocationMatch
-          ? "Out Off Office - anywhere punch allowed"
-          : allowed
-            ? `Inside range (${roundedDistance}m)`
-            : `Outside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`,
-      });
-
-      if (!allowed) {
-        toast.error(`Attendance mark nahi hua. Aap ${roundedDistance}m door hain.`);
-        return;
-      }
-
-      const now = new Date();
+      const latitude = locationCheck.latitude;
+      const longitude = locationCheck.longitude;
       const mapLink = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-      const address = (await reverseGeocode(latitude, longitude)) || `Lat ${latitude}, Lng ${longitude}`;
+      const address = locationCheck.address || `Lat ${latitude}, Lng ${longitude}`;
       const timestamp = formatDateTimeForSheet(now);
       const rowData = [
         timestamp,
@@ -538,7 +604,7 @@ const MarkAttendance = () => {
 
       toast.success(`${statusToMark} attendance marked`);
       setReason("");
-      await fetchData();
+      await fetchData({ silent: true });
     } catch (err) {
       console.error("Mark attendance error:", err);
       toast.error(err.message || "Attendance mark failed");
@@ -632,11 +698,11 @@ const MarkAttendance = () => {
                   <LocateFixed size={18} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-black text-slate-800">{locationCheck?.message || "Location abhi check nahi hua"}</p>
+                  <p className="text-sm font-black text-slate-800">{locationCheck?.message || "Location is not ready yet"}</p>
                   <p className="mt-0.5 text-xs font-semibold text-slate-500">
                     {locationRule.requiresLocationMatch
-                      ? "In Office user ke liye 100 meter range verify hoga."
-                      : "Out Off Office user kahi se bhi punch kar sakta hai."}
+                      ? `In Office users must be within ${locationRule.rangeMeters}m to mark attendance.`
+                      : "Out of Office users can punch from anywhere."}
                   </p>
                 </div>
               </div>
@@ -646,23 +712,14 @@ const MarkAttendance = () => {
               type="button"
               onClick={handleMarkAttendance}
               disabled={marking}
-              className={`mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 ${
+              className={`mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 ${
                 nextStatus === "IN"
                   ? "bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-100"
                   : "bg-gradient-to-r from-rose-600 to-orange-500 shadow-rose-100"
               }`}
             >
-              {marking ? (
-                <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  Marking...
-                </>
-              ) : (
-                <>
-                  <Clock size={18} />
-                  Mark {nextStatus}
-                </>
-              )}
+              <Clock size={18} />
+              Mark {nextStatus}
             </button>
           </div>
         </div>
