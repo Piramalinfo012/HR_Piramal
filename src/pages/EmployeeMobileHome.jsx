@@ -376,15 +376,6 @@ const EmployeeMobileHome = () => {
     { icon: User, label: 'Profile', path: '/employee-profile', color: 'text-amber-600', bg: 'bg-amber-100' },
   ];
 
-  const leaveBalances = [
-    { value: '10.5', label: 'Provisiona...' },
-    { value: '7', label: 'Wedding L...' },
-    { value: '3', label: 'Medical L...' },
-    { value: '2', label: 'Short Leave' },
-    { value: '0.5', label: 'Birthday L...' },
-    { value: '0.5', label: 'Marriage ...' },
-  ];
-
   return (
     <div className="min-h-screen bg-[#f7f7f4] pb-20 text-black">
       <div className="sticky top-0 z-30 bg-[#006241] text-white shadow-md md:hidden">
@@ -627,30 +618,6 @@ const EmployeeMobileHome = () => {
               <p className="text-sm font-bold text-slate-400">No new joiners recently.</p>
             </div>
           )}
-        </section>
-
-        <section className="mt-7">
-          <h2 className="text-xl font-black">Leave balance</h2>
-          <div className="mt-3 rounded-lg bg-white p-5 shadow-[0_12px_25px_rgba(0,0,0,0.12)]">
-            <div className="grid grid-cols-3 gap-y-5 divide-x divide-gray-200">
-              {leaveBalances.map((leave) => (
-                <div key={`${leave.value}-${leave.label}`} className="px-2">
-                  <p className="text-2xl font-black">{leave.value}</p>
-                  <p className="mt-2 truncate text-base text-slate-800">{leave.label}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-7 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => navigate('/leave-request')}
-                className="rounded-md border border-red-400 px-6 py-2.5 text-base font-black text-red-500 shadow-sm"
-              >
-                Apply Leave
-              </button>
-              <button type="button" className="text-sm font-bold text-[#006241]">View less</button>
-            </div>
-          </div>
         </section>
 
         <section className="mt-7">

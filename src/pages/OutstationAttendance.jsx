@@ -3,6 +3,9 @@ import { Search, Download, X, Filter, User, ChevronDown, CalendarDays, Table2, C
 import * as XLSX from 'xlsx';
 
 const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
+const LEAVE_API_URL = import.meta.env.VITE_LEAVE_REQUEST_SHEET_URL;
+const LEAVE_SHEET_NAME = 'FMS';
+const LEAVE_DATA_START_INDEX = 6;
 
 const OutstationAttendance = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,6 +15,7 @@ const OutstationAttendance = () => {
   const [attendanceView, setAttendanceView] = useState('calendar');
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
+  const [leaveData, setLeaveData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -57,6 +61,37 @@ const OutstationAttendance = () => {
     return null;
   };
 
+  const getDateKey = (date) =>
+    date ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}` : '';
+
+  const normalizeName = (value) => (value || '').toString().trim().toLowerCase();
+
+  const getLeaveDateKeys = (fromDate, toDate) => {
+    const startDate = parseDateToObj(fromDate);
+    const endDate = parseDateToObj(toDate || fromDate);
+    if (!startDate || !endDate) return [];
+
+    const start = startDate <= endDate ? new Date(startDate) : new Date(endDate);
+    const end = startDate <= endDate ? new Date(endDate) : new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    const dateKeys = [];
+    for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+      dateKeys.push(getDateKey(date));
+    }
+    return dateKeys;
+  };
+
+  const normalizeLeaveRows = (rows = []) =>
+    rows
+      .slice(LEAVE_DATA_START_INDEX)
+      .map((row) => ({
+        employeeName: (row[2] || '').toString().trim(),
+        dateKeys: getLeaveDateKeys(row[6], row[7]),
+      }))
+      .filter((leave) => leave.employeeName && leave.dateKeys.length > 0);
+
   const formatTimeValue = (value) => {
     if (!value) return '-';
     const raw = value.toString().trim();
@@ -84,6 +119,19 @@ const OutstationAttendance = () => {
       if (result.status !== 'success') throw new Error(result.message || 'Failed to fetch data');
 
       const rawAttendance = result.attendance || [];
+      const rawLeaves = LEAVE_API_URL
+        ? await fetch(`${LEAVE_API_URL}?sheet=${encodeURIComponent(LEAVE_SHEET_NAME)}&action=fetch`)
+          .then(async (leaveResponse) => {
+            if (!leaveResponse.ok) throw new Error(`Leave HTTP error! status: ${leaveResponse.status}`);
+            const leaveResult = await leaveResponse.json();
+            if (!leaveResult.success) throw new Error(leaveResult.error || 'Failed to fetch leave data');
+            return Array.isArray(leaveResult.data || leaveResult) ? (leaveResult.data || leaveResult) : [];
+          })
+          .catch((leaveError) => {
+            console.warn('Leave data skipped for absent calculation:', leaveError);
+            return [];
+          })
+        : [];
 
       // Group IN/OUT entries by person + date
       const grouped = {};
@@ -124,6 +172,7 @@ const OutstationAttendance = () => {
       const processed = Object.values(grouped);
       processed.sort((a, b) => b.dateObj - a.dateObj);
       setAttendanceData(processed);
+      setLeaveData(normalizeLeaveRows(rawLeaves));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -184,19 +233,29 @@ const OutstationAttendance = () => {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const daysInCalendarMonth = hasCalendarMonth ? new Date(Number(calendarYear), calendarMonthIndex + 1, 0).getDate() : 0;
+  const hasLeaveFormOnDay = (day) => {
+    if (!employeeFilter || !hasCalendarMonth || !day) return false;
+    const selectedEmployee = normalizeName(employeeFilter);
+    const dateKey = getDateKey(new Date(Number(calendarYear), calendarMonthIndex, day));
+    return leaveData.some((leave) =>
+      normalizeName(leave.employeeName) === selectedEmployee && leave.dateKeys.includes(dateKey)
+    );
+  };
+
   const isAbsentCalendarDay = (day) => {
     if (!employeeFilter || !hasCalendarMonth || !day) return false;
     if ((calendarRowsByDay[day] || []).length > 0) return false;
+    if (hasLeaveFormOnDay(day)) return false;
 
     const date = new Date(Number(calendarYear), calendarMonthIndex, day);
     date.setHours(0, 0, 0, 0);
 
     return date <= todayStart && date.getDay() !== 0;
   };
-  const absentDayCount = hasCalendarMonth
-    ? Array.from({ length: daysInCalendarMonth }, (_, index) => index + 1)
-      .filter(isAbsentCalendarDay).length
-    : 0;
+  const absentCalendarDays = hasCalendarMonth
+    ? new Set(Array.from({ length: daysInCalendarMonth }, (_, index) => index + 1).filter(isAbsentCalendarDay))
+    : new Set();
+  const absentDayCount = absentCalendarDays.size;
 
   const calendarSummary = calendarRows.reduce((s, item) => {
     s.present += 1;
@@ -242,7 +301,7 @@ const OutstationAttendance = () => {
     let baseClass = 'bg-white text-slate-900';
     if (rows.length > 0) baseClass = 'bg-emerald-200 text-slate-950';
     else if (cell.weekday === 0) baseClass = 'bg-violet-100 text-violet-800';
-    else if (isAbsentCalendarDay(cell.day)) baseClass = 'bg-red-100 text-red-800';
+    else if (absentCalendarDays.has(cell.day)) baseClass = 'bg-rose-500 text-white shadow-sm shadow-rose-200';
     return `${baseClass} ${isToday ? 'ring-2 ring-cyan-500 ring-offset-2' : ''}`;
   };
 
@@ -379,9 +438,13 @@ const OutstationAttendance = () => {
                         <div key={cell.key} className="flex justify-center">
                           <div
                             onClick={() => cell.isCurrentMonth && setSelectedCalendarDay(selectedCalendarDay === cell.day ? null : cell.day)}
-                            className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-sm font-medium transition hover:scale-105 sm:h-10 sm:w-10 sm:text-xl ${getCompactCalendarDayClass(cell)} ${cell.isCurrentMonth && selectedCalendarDay === cell.day ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
+                            className={`relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-sm font-medium transition hover:scale-105 sm:h-10 sm:w-10 sm:text-xl ${getCompactCalendarDayClass(cell)} ${cell.isCurrentMonth && selectedCalendarDay === cell.day ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}
+                            style={cell.isCurrentMonth && absentCalendarDays.has(cell.day) ? { backgroundColor: '#ef4444', color: '#ffffff', boxShadow: '0 8px 18px rgba(239, 68, 68, 0.28)' } : undefined}
                           >
                             {cell.day}
+                            {cell.isCurrentMonth && absentCalendarDays.has(cell.day) && (
+                              <span className="absolute -bottom-1 h-1.5 w-1.5 rounded-full bg-white ring-2 ring-rose-500" />
+                            )}
                           </div>
                         </div>
                       ))}
@@ -467,7 +530,9 @@ const OutstationAttendance = () => {
                         <h3 className="text-sm font-black text-slate-800">{selectedCalendarDay} {calendarMonth} {calendarYear}</h3>
                         <button type="button" onClick={() => setSelectedCalendarDay(null)} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"><X size={16} /></button>
                       </div>
-                      <p className="text-xs font-medium text-slate-400">No outstation records for this date.</p>
+                      <p className={`text-xs font-medium ${absentCalendarDays.has(selectedCalendarDay) ? 'text-rose-600' : 'text-slate-400'}`}>
+                        {absentCalendarDays.has(selectedCalendarDay) ? 'Absent: no attendance mark and no leave form found for this date.' : 'No outstation records for this date.'}
+                      </p>
                     </div>
                   )}
                 </div>

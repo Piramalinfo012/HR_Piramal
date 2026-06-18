@@ -397,10 +397,11 @@ const MyAttendance = () => {
       : selectedMonthStart < currentMonthStart
         ? new Date(selectedYear, selectedMonth + 1, 0).getDate()
         : today.getDate();
-  const absentDays = Array.from({ length: monthEndDay }, (_, index) => index + 1).filter((day) => {
+  const absentDaySet = new Set(Array.from({ length: monthEndDay }, (_, index) => index + 1).filter((day) => {
     const date = new Date(selectedYear, selectedMonth, day);
     return date.getDay() !== 0 && !attendanceDaySet.has(day);
-  }).length;
+  }));
+  const absentDays = absentDaySet.size;
   const weekOffDays = Array.from({ length: monthEndDay }, (_, index) => index + 1).filter((day) => {
     const date = new Date(selectedYear, selectedMonth, day);
     return date.getDay() === 0;
@@ -456,6 +457,8 @@ const MyAttendance = () => {
       baseClass = "half-day-dot text-slate-950";
     } else if (rows.some((row) => getRecordStatus(row) === "Present")) {
       baseClass = "bg-emerald-100 text-emerald-800 font-black border-emerald-200";
+    } else if (absentDaySet.has(cell.day)) {
+      baseClass = "bg-rose-500 text-white font-black border-rose-500 shadow-sm shadow-rose-200";
     } else if (cell.weekday === 0) {
       baseClass = "bg-violet-100 text-violet-800 font-black border-violet-200";
     }
@@ -907,6 +910,7 @@ const MyAttendance = () => {
                             className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition hover:scale-105 sm:h-10 sm:w-10 sm:text-xl ${getCalendarDayClass(cell)} ${
                               cell.isCurrentMonth && selectedCalendarDay === cell.day ? "ring-2 ring-indigo-500 ring-offset-2" : ""
                             }`}
+                            style={cell.isCurrentMonth && absentDaySet.has(cell.day) ? { backgroundColor: "#ef4444", color: "#ffffff" } : undefined}
                           >
                             {cell.day}
                           </button>
@@ -917,6 +921,7 @@ const MyAttendance = () => {
                     <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-slate-700 sm:mt-5 sm:gap-x-5 sm:text-sm">
                       <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-cyan-500" />Today</span>
                       <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-300" />Present</span>
+                      <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-red-500" />Absent</span>
                       <span className="inline-flex items-center gap-2"><span className="half-day-dot h-2 w-2 rounded-full" />Half Day</span>
                       <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-orange-300" />Punch Miss</span>
                       <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-violet-300" />Sunday</span>
@@ -999,7 +1004,9 @@ const MyAttendance = () => {
                           </table>
                         </div>
                       ) : (
-                        <p className="text-xs font-medium text-slate-400">No outstation records for this date.</p>
+                        <p className={`text-xs font-medium ${absentDaySet.has(selectedCalendarDay) ? "text-rose-600" : "text-slate-400"}`}>
+                          {absentDaySet.has(selectedCalendarDay) ? "Absent: no attendance mark found for this date." : "No outstation records for this date."}
+                        </p>
                       )}
                     </div>
                   )}
