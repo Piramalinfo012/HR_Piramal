@@ -12,9 +12,7 @@ export const adminNavigationItems = [
     label: "Recruitment Management",
     items: [
       { path: "/indent", label: "Indent" },
-      { path: "/online_posting", label: "Online Posting" },
-      { path: "/calling_for_job_agencies", label: "Calling for Job Agencies" },
-      { path: "/whatsapp", label: "WhatsApp Recruitment", aliases: ["Whatsapp"] },
+      { path: "/online_posting", label: "Online Posting & Job Agency Calling", aliases: ["Online Posting", "Calling for Job Agencies", "Job Agency Calling"] },
       { path: "/call-tracker", label: "Call Tracker" },
       { path: "/interview-scheduled", label: "Interview Scheduled" },
       {
@@ -22,9 +20,8 @@ export const adminNavigationItems = [
         label: "Candidate Shortlisted",
         aliases: ["Candidate Sortlisted"],
       },
-      { path: "/verification_before_interview", label: "Verification Before Interview" },
+      { path: "/verification_before_interview", label: "Verification After Interview" },
       { path: "/interview_final_selection", label: "Final Selection", aliases: ["Interview & Final Selection"] },
-      { path: "/joining_follow_up", label: "Joining Follow Up" },
     ],
   },
   {

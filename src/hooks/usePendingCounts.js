@@ -7,7 +7,6 @@ export const usePendingCounts = () => {
         whatsappCount: 0,
         verificationCount: 0,
         interviewSelectionCount: 0,
-        joiningFollowUpCount: 0,
         joiningManagementCount: 0,
         checkSalarySlipCount: 0,
         joiningLetterCount: 0,
@@ -30,7 +29,7 @@ export const usePendingCounts = () => {
                 ]);
 
                 let onlinePosting = 0, jobConsultancy = 0, whatsapp = 0;
-                let verification = 0, interviewSelection = 0, joiningFollowUp = 0;
+                let verification = 0, interviewSelection = 0;
                 let checkSalarySlip = 0, joiningLetter = 0, inductionTraining = 0, assetAssignment = 0;
                 let joiningManagement = 0;
 
@@ -115,7 +114,7 @@ export const usePendingCounts = () => {
                     cRows.forEach(row => {
                         if (!row) return;
                         
-                        // Verification Before Interview (25 vs 26)
+                        // Verification After Interview (25 vs 26)
                         const z = row[25]?.toString().trim() || "";
                         const aa = row[26]?.toString().trim() || "";
                         if (z !== "" && aa === "") verification++;
@@ -124,11 +123,6 @@ export const usePendingCounts = () => {
                         const ad = row[29]?.toString().trim() || "";
                         const ae = row[30]?.toString().trim() || "";
                         if (ad !== "" && ae === "") interviewSelection++;
-
-                        // Joining Follow Up (34 vs 35)
-                        const ai = row[34]?.toString().trim() || "";
-                        const aj = row[35]?.toString().trim() || "";
-                        if (ai !== "" && aj === "") joiningFollowUp++;
 
                         // Joining Management
                         const actualAJ = row[35];
@@ -153,7 +147,6 @@ export const usePendingCounts = () => {
                     whatsappCount: whatsapp,
                     verificationCount: verification,
                     interviewSelectionCount: interviewSelection,
-                    joiningFollowUpCount: joiningFollowUp,
                     joiningManagementCount: joiningManagement,
                     checkSalarySlipCount: checkSalarySlip,
                     joiningLetterCount: joiningLetter,

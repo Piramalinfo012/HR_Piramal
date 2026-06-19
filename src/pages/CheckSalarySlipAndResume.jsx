@@ -73,6 +73,7 @@ const CheckSalarySlipAndResume = () => {
         const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
         const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
         const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
+        const hasSheetValue = (value) => value !== null && value !== undefined && value.toString().trim() !== "";
 
         const processedData = dataRows.map((row) => {
             if (!row || row.length === 0) return null;
@@ -94,8 +95,8 @@ const CheckSalarySlipAndResume = () => {
                 columnAM: columnAM,
                 columnAN: columnAN,
                 status: status || "",
-                isPending: (columnAM != null && columnAM !== "") && (columnAN == null || columnAN === ""),
-                isHistory: (columnAM != null && columnAM !== "") && (columnAN != null && columnAN !== "")
+                isPending: hasSheetValue(columnAM) && !hasSheetValue(columnAN),
+                isHistory: hasSheetValue(columnAM) && hasSheetValue(columnAN)
             };
         }).filter(item => item !== null);
 

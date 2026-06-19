@@ -55,7 +55,6 @@ import CandidateSortlisted from "./pages/CandidateSortlisted";
 import VerificationBeforeInterview from "./pages/VerificationBeforeInterview";
 import InterviewSelection from "./pages/InterviewSelection";
 import InterviewScheduled from "./pages/InterviewScheduled";
-import JoiningFollowUp from "./pages/JoiningFollowUp";
 import UserManagement from "./pages/UserManagement";
 import OutstationMaster from "./pages/OutstationMaster";
 import FeedManagement from "./pages/FeedManagement";
@@ -121,7 +120,6 @@ function App() {
             <Route path="verification_before_interview" element={<VerificationBeforeInterview />} />
             <Route path="interview-scheduled" element={<InterviewScheduled />} />
             <Route path="interview_final_selection" element={<InterviewSelection />} />
-            <Route path="joining_follow_up" element={<JoiningFollowUp />} />
 
             <Route path="documents" element={<Documents />} />
             <Route path="vendor" element={<Vendors />} />
