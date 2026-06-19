@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { Bell, ChevronDown, Mail, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, User } from 'lucide-react';
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Bell, LogOut, Mail, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, User } from 'lucide-react';
 import Sidebar from './Sidebar';
 import useAuthStore from '../store/authStore';
 import { getUserRole } from '../utils/authRole';
@@ -43,8 +43,9 @@ const ScrollToTop = () => {
 
 
 const Layout = () => {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('hrms-theme') === 'dark');
@@ -56,9 +57,34 @@ const Layout = () => {
     }
   })();
   const currentUser = user || storedUser;
-  const isEmployee = getUserRole(currentUser || {}) === 'employee';
+  const currentRole = getUserRole(currentUser || {});
+  const isEmployee = currentRole === 'employee';
   const isEmployeeMobile = isEmployee && isMobile;
   const employeeAllowedPaths = ['/employee-mobile', '/my-attendance', '/mark-attendance', '/leave-request', '/leave-management', '/employee-profile'];
+  const displayName =
+    currentUser?._displayName ||
+    currentUser?.Name ||
+    currentUser?.name ||
+    currentUser?.["Sales Person Name"] ||
+    currentUser?.["Employee Name"] ||
+    currentUser?.Username ||
+    currentUser?.["User Name"] ||
+    "User";
+  const displayId =
+    currentUser?._authUsername ||
+    currentUser?.Username ||
+    currentUser?.["User Name"] ||
+    currentUser?.["User ID"] ||
+    currentUser?.id ||
+    "";
+  const displayRole = currentRole ? currentRole.charAt(0).toUpperCase() + currentRole.slice(1) : "User";
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("employeeId");
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   useEffect(() => {
     const updateViewport = () => setIsMobile(window.matchMedia('(max-width: 767px)').matches);
@@ -143,12 +169,28 @@ const Layout = () => {
             <button className="erp-icon-button flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100">
               <Mail size={18} />
             </button>
-            <button className="erp-profile-button ml-2 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm transition hover:bg-slate-50">
+            <div className="erp-profile-button ml-2 flex min-w-[220px] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-white">
                 <User size={18} />
               </span>
+              <span className="min-w-0 flex-1 text-left leading-tight">
+                <span className="block max-w-[145px] truncate text-sm font-black text-slate-800">
+                  {displayName}
+                </span>
+                <span className="block max-w-[155px] truncate text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  {displayId ? `${displayId} - ${displayRole}` : displayRole}
+                </span>
+              </span>
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
-              <ChevronDown size={16} className="text-slate-500" />
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Logout"
+              aria-label="Logout"
+              className="erp-icon-button flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-rose-50 hover:text-rose-600"
+            >
+              <LogOut size={18} />
             </button>
           </div>
         </header>

@@ -2,6 +2,75 @@ import React, { useEffect, useState } from "react";
 import { Search, Clock, History as HistoryIcon, CheckCircle, Plus, X, Image, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 
+const normalizeValue = (value) => (value || "").toString().trim().toLowerCase();
+
+const getStoredUser = () => {
+    try {
+        return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+        return {};
+    }
+};
+
+const getUserDisplayName = (user = {}) => (
+    user._displayName ||
+    user.Name ||
+    user["Sales Person Name"] ||
+    user["Employee Name"] ||
+    user["Person Name"] ||
+    user.Username ||
+    user["User Name"] ||
+    user._authUsername ||
+    ""
+).toString().trim();
+
+const getUserId = (user = {}) => (
+    user.Username ||
+    user["User Name"] ||
+    user["User ID"] ||
+    user["User Id"] ||
+    user.UserID ||
+    user.id ||
+    user._authUsername ||
+    ""
+).toString().trim();
+
+const getSheetCell = (headers, row, names, fallbackIndex = -1) => {
+    const normalizedNames = names.map(normalizeValue);
+    const headerIndex = headers.findIndex((header) => normalizedNames.includes(normalizeValue(header)));
+    const index = headerIndex !== -1 ? headerIndex : fallbackIndex;
+    if (index === -1) return "";
+    return (row[index] || "").toString().trim();
+};
+
+const resolveEntryByName = (rows = []) => {
+    const storedUser = getStoredUser();
+    const storedUserId = normalizeValue(getUserId(storedUser));
+    const storedName = getUserDisplayName(storedUser);
+    const headers = rows[0] || [];
+
+    if (storedUserId && rows.length > 1) {
+        const matchedRow = rows.slice(1).find((row) => {
+            const possibleIds = [
+                getSheetCell(headers, row, ["Username", "User Name", "Login Username"], 1),
+                getSheetCell(headers, row, ["User ID", "User Id", "UserID", "Employee ID", "Employee Id"], -1),
+                getSheetCell(headers, row, ["Name", "Sales Person Name", "Person Name", "Employee Name"], 0),
+            ];
+            return possibleIds.some((value) => normalizeValue(value) === storedUserId);
+        });
+
+        if (matchedRow) {
+            return (
+                (matchedRow[8] || "").toString().trim() ||
+                getSheetCell(headers, matchedRow, ["Name", "Sales Person Name", "Person Name", "Employee Name"], 0) ||
+                storedName
+            );
+        }
+    }
+
+    return storedName;
+};
+
 
 const CandidateSortlisted = () => {
     const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
@@ -58,8 +127,9 @@ const CandidateSortlisted = () => {
     const [candidateSelectionData, setCandidateSelectionData] = useState([]);
     const [globalFmsData, setGlobalFmsData] = useState([]);
     const [storeLoading, setStoreLoading] = useState(true);
-    const [users, setUsers] = useState([]);
+    const [currentEntryByName, setCurrentEntryByName] = useState(() => resolveEntryByName());
     const [candidateStatusOptions, setCandidateStatusOptions] = useState([]);
+    const getDefaultEntryBy = () => currentEntryByName || resolveEntryByName();
 
     const fetchUsers = async () => {
         try {
@@ -69,13 +139,7 @@ const CandidateSortlisted = () => {
             const json = await res.json();
 
             if (json.success && json.data) {
-                // Column I = index 8
-                const entryByList = json.data
-                    .slice(1) // remove header
-                    .map((row) => row[8]) // column I
-                    .filter(Boolean); // remove empty values
-
-                setUsers([...new Set(entryByList)]);
+                setCurrentEntryByName(resolveEntryByName(json.data));
 
                 // Column L = index 11
                 const statusList = json.data
@@ -94,6 +158,15 @@ const CandidateSortlisted = () => {
     useEffect(() => {
         fetchUsers();
     }, []);
+
+    useEffect(() => {
+        if (showModal && !editingId && currentEntryByName && !formData.entryBy) {
+            setFormData((prev) => ({
+                ...prev,
+                entryBy: currentEntryByName,
+            }));
+        }
+    }, [currentEntryByName, editingId, formData.entryBy, showModal]);
 
     const fetchData = async () => {
         setStoreLoading(true);
@@ -307,7 +380,7 @@ const CandidateSortlisted = () => {
             rowData[18] = formData.noticePeriod;
             rowData[19] = formData.interviewDate;
             rowData[20] = formData.resumeUrl;
-            rowData[22] = formData.entryBy || ""; // Column W (index 22)
+            rowData[22] = formData.entryBy || getDefaultEntryBy(); // Column W (index 22)
             rowData[23] = formData.candidateStatus || ""; // Column X (index 23)
             
             // Pad array with empty strings to avoid nulls which break Google Sheets setValues
@@ -397,7 +470,7 @@ const CandidateSortlisted = () => {
                     noticePeriod: "",
                     interviewDate: "",
                     resumeUrl: "",
-                    entryBy: "",
+                    entryBy: getDefaultEntryBy(),
                     candidateStatus: "",
                     references: [],
                 });
@@ -434,7 +507,7 @@ const CandidateSortlisted = () => {
             expectedCTC: candidate.expectedCTC || "",
             noticePeriod: candidate.noticePeriod || "",
             interviewDate: candidate.interviewDate || "",
-            entryBy: candidate.entryBy || "",
+            entryBy: candidate.entryBy || getDefaultEntryBy(),
             resumeUrl: candidate.resumeUrl || "",
             candidateStatus: candidate.candidateStatus || "",
             references: [],
@@ -589,7 +662,7 @@ const CandidateSortlisted = () => {
                             noticePeriod: "",
                             interviewDate: "",
                             resumeUrl: "",
-                            entryBy: "",
+                            entryBy: getDefaultEntryBy(),
                         });
                         setShowModal(true);
                     }}
@@ -1000,12 +1073,7 @@ const CandidateSortlisted = () => {
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">Entry by</label>
-                                            <select name="entryBy" value={formData.entryBy} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
-                                                <option value="">Select Entry By</option>
-                                                {users.map((user, i) => (
-                                                    <option key={i} value={user}>{user}</option>
-                                                ))}
-                                            </select>
+                                            <input type="text" name="entryBy" value={formData.entryBy || getDefaultEntryBy()} readOnly className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-gray-50" required />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">Candidate Status</label>

@@ -5,6 +5,8 @@ import toast from "react-hot-toast";
 
 const InductionTraining = () => {
     const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
+    const INDUCTION_PLANNED_COL_AV = 47;
+    const INDUCTION_ACTUAL_COL_AW = 48;
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -87,13 +89,18 @@ const InductionTraining = () => {
         const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
         const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
         const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
-        const idxAV = 47; // Column AV
-        const idxAW = 48; // Column AW
+        const hasSheetValue = (value) => value !== null && value !== undefined && value.toString().trim() !== "";
 
         const processed = dataRows.map((row) => {
             if (!row || row.length === 0) return null;
-            const columnAV = row[idxAV];
-            const columnAW = row[idxAW];
+            const columnAV = row[INDUCTION_PLANNED_COL_AV];
+            const columnAW = row[INDUCTION_ACTUAL_COL_AW];
+            const valAV = columnAV ? String(columnAV).trim() : "";
+            const valAW = columnAW ? String(columnAW).trim() : "";
+            
+            const isAVFilled = valAV !== "" && valAV !== "-";
+            const isAWFilled = valAW !== "" && valAW !== "-";
+
             return {
                 indentNumber: row[idxIndent] || "",
                 candidateName: row[idxName] || "",
@@ -101,12 +108,12 @@ const InductionTraining = () => {
                 designation: row[idxDesig] || "",
                 contactNo: row[idxMobile] || "",
                 email: row[idxEmail] || "",
-                columnAV,
-                columnAW,
-                // Pending: AV not null && AW null
-                isPending: (columnAV != null && columnAV !== "") && (columnAW == null || columnAW === ""),
-                // History: both not null
-                isHistory: (columnAV != null && columnAV !== "") && (columnAW != null && columnAW !== "")
+                columnAV: valAV,
+                columnAW: valAW,
+                // Pending: AV filled + AW blank
+                isPending: isAVFilled && !isAWFilled,
+                // History: AV filled + AW filled
+                isHistory: isAVFilled && isAWFilled
             };
         }).filter(item => item !== null && (item.isPending || item.isHistory)); // Filter irrelevant rows
 

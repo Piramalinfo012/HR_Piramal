@@ -73,6 +73,7 @@ export const usePendingCounts = () => {
 
                 const cRows = parseData(candidateRes).rows;
                 const jRows = parseData(joiningRes).rows;
+                const hasSheetValue = (value) => value !== null && value !== undefined && value.toString().trim() !== "";
 
                 // 2. JOINING_FMS Data
                 const blockedIds = new Set();
@@ -98,9 +99,7 @@ export const usePendingCounts = () => {
                         if (aq !== "" && ar === "") joiningLetter++;
 
                         // Induction Training (47 vs 48)
-                        const av = row[47]?.toString().trim() || "";
-                        const aw = row[48]?.toString().trim() || "";
-                        if (av !== "" && aw === "") inductionTraining++;
+                        if (hasSheetValue(row[47]) && !hasSheetValue(row[48])) inductionTraining++;
 
                         // Asset Assignment (56 vs 57)
                         const be = row[56]?.toString().trim() || "";
