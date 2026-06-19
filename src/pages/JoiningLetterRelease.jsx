@@ -69,6 +69,7 @@ const JoiningLetterRelease = () => {
         const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
         const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
         const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
+        const hasSheetValue = (value) => value !== null && value !== undefined && value.toString().trim() !== "";
 
         const processedData = dataRows.map((row) => {
             if (!row || row.length === 0) return null;
@@ -85,8 +86,8 @@ const JoiningLetterRelease = () => {
                 email: row[idxEmail] || "",
                 columnAQ: columnAQ,
                 columnAR: columnAR,
-                isPending: (columnAQ != null && columnAQ !== "") && (columnAR == null || columnAR === ""),
-                isHistory: (columnAQ != null && columnAQ !== "") && (columnAR != null && columnAR !== "")
+                isPending: hasSheetValue(columnAQ) && !hasSheetValue(columnAR),
+                isHistory: hasSheetValue(columnAQ) && hasSheetValue(columnAR)
             };
         }).filter(item => item !== null);
 
