@@ -63,11 +63,13 @@ textarea {
   from {
     opacity: 0;
     backdrop-filter: blur(0);
+    -webkit-backdrop-filter: blur(0);
   }
 
   to {
     opacity: 1;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 }
 
@@ -247,10 +249,9 @@ textarea {
 }
 
 .erp-shell [class*="fixed"][class*="inset-0"] {
-  background:
-    radial-gradient(circle at 50% 22%, rgba(20, 184, 166, 0.18), transparent 34%),
-    rgba(2, 6, 23, 0.62) !important;
-  backdrop-filter: blur(12px) saturate(1.1);
+  background: rgba(255, 255, 255, 0.24) !important;
+  backdrop-filter: blur(6px) saturate(1.03);
+  -webkit-backdrop-filter: blur(6px) saturate(1.03);
   animation: erp-modal-backdrop-in 180ms ease both;
 }
 
@@ -306,6 +307,31 @@ textarea {
   margin-bottom: 0 !important;
   margin-top: 0 !important;
   vertical-align: middle !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] .candidate-shortlist-modal[class*="bg-white"][class*="rounded"] {
+  margin-top: -10rem !important;
+  max-height: calc(100dvh - 4rem) !important;
+  overflow: hidden !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] .candidate-shortlist-modal-content {
+  overflow: hidden !important;
+  padding-top: 1.1rem !important;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] .candidate-shortlist-fields {
+  max-height: clamp(24rem, calc(100dvh - 22rem), 42rem);
+  overflow-y: auto !important;
+  padding-bottom: 1rem;
+  padding-right: 0.35rem;
+}
+
+.erp-shell [class*="fixed"][class*="inset-0"] .candidate-shortlist-actions {
+  margin-top: 1rem !important;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding-top: 1rem;
 }
 
 .erp-shell [class*="fixed"][class*="inset-0"] [class*="border-b"] {
@@ -758,9 +784,7 @@ html.erp-dark-root body {
 }
 
 .erp-dark .erp-shell [class*="fixed"][class*="inset-0"] {
-  background:
-    radial-gradient(circle at 50% 18%, rgba(37, 99, 235, 0.2), transparent 34%),
-    rgba(2, 6, 23, 0.82) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
 }
 
 .erp-dark .erp-shell [class*="fixed"][class*="inset-0"] [class*="bg-white"][class*="rounded"],
@@ -868,8 +892,9 @@ html.erp-dark-root body {
 }
 
 .modal-backdrop {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(5px);
+  background: rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .page-content {

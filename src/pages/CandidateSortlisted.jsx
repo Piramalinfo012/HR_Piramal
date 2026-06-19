@@ -7,7 +7,7 @@ const CandidateSortlisted = () => {
     const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
     const getSubmitUrl = () => import.meta.env.VITE_SUBMIT_URL || FETCH_URL;
 
-    const [activeTab, setActiveTab] = useState("all");
+    const [activeTab, setActiveTab] = useState("new");
     const [candidateData, setCandidateData] = useState([]);
     const [referenceData, setReferenceData] = useState([]);
     const [refLoading, setRefLoading] = useState(false);
@@ -605,18 +605,18 @@ const CandidateSortlisted = () => {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg w-fit">
                         <button
-                            onClick={() => setActiveTab("all")}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "all" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
-                        >
-                            <HistoryIcon size={18} />
-                            All Candidates
-                        </button>
-                        <button
                             onClick={() => setActiveTab("new")}
                             className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "new" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
                         >
                             <Clock size={18} />
                             Pending Candidates
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("all")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all ${activeTab === "all" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        >
+                            <HistoryIcon size={18} />
+                            All Candidates
                         </button>
                         <button
                             onClick={() => setActiveTab("reference")}
@@ -905,9 +905,9 @@ const CandidateSortlisted = () => {
                             <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
                         </div>
                         <span className="hidden sm:inline-block sm:align-middle sm:h-screen"></span>&#8203;
-                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                <div className="flex justify-between items-center mb-6">
+                        <div className="candidate-shortlist-modal inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                            <div className="candidate-shortlist-modal-content bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <div className="candidate-shortlist-modal-header flex justify-between items-center mb-6">
                                     <h3 className="text-xl font-bold text-gray-900">{editingId ? "Edit Candidate" : "Shortlist New Candidate"}</h3>
                                     <button onClick={() => {
                                         setShowModal(false);
@@ -916,8 +916,8 @@ const CandidateSortlisted = () => {
                                         <X size={24} />
                                     </button>
                                 </div>
-                                <form onSubmit={handleSubmit} className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <form onSubmit={handleSubmit} className="candidate-shortlist-form space-y-4">
+                                    <div className="candidate-shortlist-fields grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">Indent Number</label>
                                             <select name="indentNumber" value={formData.indentNumber} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required>
@@ -958,10 +958,6 @@ const CandidateSortlisted = () => {
                                             <input type="text" name="highestQualification" value={formData.highestQualification} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Native Place</label>
-                                            <input type="text" name="nativePlace" value={formData.nativePlace} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
                                             <label className="block text-sm font-medium text-gray-700">Current Working Location</label>
                                             <input type="text" name="currentWorkingLocation" value={formData.currentWorkingLocation} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                                         </div>
@@ -977,10 +973,6 @@ const CandidateSortlisted = () => {
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">Current Company</label>
                                             <input type="text" name="currentCompany" value={formData.currentCompany} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Current Designation</label>
-                                            <input type="text" name="currentDesignation" value={formData.currentDesignation} onChange={handleInputChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">Tenure with current company</label>
@@ -1085,7 +1077,7 @@ const CandidateSortlisted = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="mt-8 flex justify-end gap-3">
+                                    <div className="candidate-shortlist-actions mt-8 flex justify-end gap-3">
                                         <button type="button" onClick={() => {
                                             setShowModal(false);
                                             setEditingId(null);
