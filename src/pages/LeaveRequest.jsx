@@ -19,6 +19,7 @@ const LeaveRequest = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [selectedLeaveRequest, setSelectedLeaveRequest] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState('all');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [requestedByFilter, setRequestedByFilter] = useState(isAdmin ? 'all' : (user.Name || ''));
@@ -666,6 +667,9 @@ const LeaveRequest = () => {
     </div>
   );
 
+  const selectedLeaveStatusMeta = selectedLeaveRequest ? getStatusMeta(selectedLeaveRequest.status) : null;
+  const SelectedLeaveStatusIcon = selectedLeaveStatusMeta?.icon;
+
   return (
     <div className="page-content min-h-screen bg-[#f4f7fb] px-4 pb-24 pt-5 text-slate-950 sm:p-6">
       <div className="mx-auto max-w-md space-y-5 lg:max-w-6xl">
@@ -823,7 +827,7 @@ const LeaveRequest = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy"></div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 sm:block sm:space-y-4">
               {filteredLeaveRequests.length > 0 ? (
                 displayedLeaveRequests.map((request) => {
                   const statusMeta = getStatusMeta(request.status);
@@ -831,7 +835,39 @@ const LeaveRequest = () => {
                   const isRejected = statusMeta.label === 'Rejected';
 
                   return (
-                    <article key={request.leaveRequestId || request.id} className={`rounded-[24px] border p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] ${statusMeta.cardClass}`}>
+                    <React.Fragment key={request.leaveRequestId || request.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLeaveRequest(request)}
+                      className={`min-h-[142px] rounded-[22px] border p-3 text-left shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:hidden ${statusMeta.cardClass}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-black text-slate-950">{request.leaveRequestId || 'Leave'}</h3>
+                          <p className="mt-1 text-[11px] font-bold leading-snug text-slate-600">
+                            {formatDOB(request.startDate)} to {formatDOB(request.endDate)}
+                          </p>
+                        </div>
+                        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-2xl border bg-white/70 ${statusMeta.badgeClass}`}>
+                          <StatusIcon size={15} className={statusMeta.iconClass} />
+                        </span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded-2xl bg-white/70 p-2">
+                          <p className="text-[9px] font-black uppercase text-slate-400">Days</p>
+                          <p className="mt-0.5 truncate text-xs font-black text-slate-900">{request.days || '-'}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white/70 p-2">
+                          <p className="text-[9px] font-black uppercase text-slate-400">Dept</p>
+                          <p className="mt-0.5 truncate text-xs font-black text-slate-900">{request.department || '-'}</p>
+                        </div>
+                      </div>
+                      <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-black text-slate-700">
+                        View details
+                        <ChevronRight size={13} />
+                      </span>
+                    </button>
+                    <article className={`hidden rounded-[24px] border p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] sm:block ${statusMeta.cardClass}`}>
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -883,15 +919,16 @@ const LeaveRequest = () => {
                         </div>
                       </div>
                     </article>
+                    </React.Fragment>
                   );
                 })
               ) : (
-                <div className="px-6 py-12 text-center">
+                <div className="col-span-2 px-6 py-12 text-center">
                   <p className="text-gray-500">No leave requests found.</p>
                 </div>
               )}
               {filteredLeaveRequests.length > 0 && (
-                <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="col-span-2 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-gray-500">
                     Showing {Math.min(visibleLimit, filteredLeaveRequests.length)} of {filteredLeaveRequests.length} records
                   </p>
@@ -911,10 +948,76 @@ const LeaveRequest = () => {
         </div>
       </div>
 
+      {selectedLeaveRequest && selectedLeaveStatusMeta && (
+        <div className="fixed inset-0 z-[130] flex items-end justify-center bg-slate-950/55 p-4 pb-24 sm:hidden">
+          <div className="max-h-[78dvh] w-full max-w-md overflow-y-auto rounded-[28px] bg-white shadow-[0_24px_54px_rgba(15,23,42,0.22)]">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 bg-white px-5 py-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="truncate text-lg font-black text-slate-950">{selectedLeaveRequest.leaveRequestId || 'Leave Request'}</h3>
+                  <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${selectedLeaveStatusMeta.badgeClass}`}>
+                    {SelectedLeaveStatusIcon ? <SelectedLeaveStatusIcon size={14} className={selectedLeaveStatusMeta.iconClass} /> : null}
+                    {selectedLeaveStatusMeta.label}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm font-bold text-slate-500">
+                  {formatDOB(selectedLeaveRequest.startDate)} to {formatDOB(selectedLeaveRequest.endDate)} | {selectedLeaveRequest.days || '-'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedLeaveRequest(null)}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-slate-500"
+                aria-label="Close details"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className={`m-4 rounded-[24px] border p-4 ${selectedLeaveStatusMeta.cardClass}`}>
+              <div className="grid grid-cols-2 gap-3">
+                <DetailItem label="Department" value={selectedLeaveRequest.department} />
+                <DetailItem label="Job Location" value={selectedLeaveRequest.jobLocation} />
+                <DetailItem label="Planned" value={formatDOB(selectedLeaveRequest.approvalPlanned)} />
+                <DetailItem label="Actual" value={formatDOB(selectedLeaveRequest.approvalActual)} />
+                <DetailItem label="Approved By" value={selectedLeaveRequest.approvedBy} />
+                <DetailItem label="Applied Date" value={formatDOB(selectedLeaveRequest.appliedDate)} />
+                <DetailItem label="Delay" value={selectedLeaveRequest.approvalDelay} />
+                <DetailItem label="Request Remark" value={selectedLeaveRequest.remark} />
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div className="rounded-2xl bg-white/70 p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Reason</p>
+                  <p className="mt-1 text-sm text-gray-900 break-words">{selectedLeaveRequest.reason || '-'}</p>
+                </div>
+                <div className={`rounded-2xl p-3 ${selectedLeaveStatusMeta.label === 'Rejected' ? 'bg-red-100/70' : 'bg-white/70'}`}>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    {selectedLeaveStatusMeta.label === 'Rejected' ? 'Rejected Reason' : 'Approval Remarks'}
+                  </p>
+                  <p className="mt-1 text-sm text-gray-900 break-words">{selectedLeaveRequest.approvalRemarks || '-'}</p>
+                </div>
+                {selectedLeaveRequest.imageUrl && (
+                  <a
+                    href={selectedLeaveRequest.imageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 text-sm font-black text-white"
+                  >
+                    View Image
+                    <ChevronRight size={15} />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal for new leave request - Updated to match LeaveManagement */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto scrollbar-hide">
+        <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black bg-opacity-50 p-4 pb-28 pt-10 sm:items-center sm:p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[calc(100dvh-7rem)] overflow-y-auto scrollbar-hide sm:max-h-[90vh]">
             <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white z-10">
               <h3 className="text-lg font-medium">New Leave Request</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700">

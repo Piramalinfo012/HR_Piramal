@@ -417,6 +417,12 @@ const EmployeeMobileHome = () => {
 
   const monthSummary = useMemo(() => summarizeRows(currentMonthRows), [currentMonthRows]);
   const firstName = employeeName.split(' ')[0] || 'Employee';
+  const greetingLabel = useMemo(() => {
+    const hour = now.getHours();
+    if (hour >= 5 && hour < 12) return 'Good Morning';
+    if (hour >= 12 && hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }, [now]);
   const currentTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
   const currentDate = now.toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long' });
   const attendanceStatusLabel = latestAttendanceRecord?.inTime
@@ -460,7 +466,7 @@ const EmployeeMobileHome = () => {
   return (
     <div className="min-h-screen bg-[#f4f7fb] pb-24 text-slate-950 lg:bg-[#f0f2f5] lg:pb-10">
       <div className="mx-auto max-w-md px-4 pt-5 lg:max-w-[1480px] lg:px-8 lg:pt-8">
-        <header className="sticky top-0 z-40 -mx-4 flex items-center justify-between bg-[#f4f7fb]/95 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <header className="hidden">
           <button
             type="button"
             onClick={() => !uploadingPic && fileInputRef.current?.click()}
@@ -595,7 +601,7 @@ const EmployeeMobileHome = () => {
           <div className="relative z-10 flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Attendance Overview</p>
-              <h1 className="mt-1 text-xl font-black leading-tight">Good Morning, {firstName}</h1>
+              <h1 className="mt-1 text-xl font-black leading-tight">{greetingLabel}, {firstName}</h1>
               <p className="mt-1 text-xs font-semibold text-slate-300">{currentDate}</p>
             </div>
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-black text-white ring-1 ring-white/15">
