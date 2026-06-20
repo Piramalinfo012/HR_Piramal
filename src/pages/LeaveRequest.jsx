@@ -726,18 +726,24 @@ const LeaveRequest = () => {
       </section>
 
       {/* Month and Year Filter */}
-      <div className="rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_14px_30px_rgba(15,23,42,0.07)]">
-        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Filter size={18} className="text-slate-500 mr-2" />
-            <label htmlFor="monthFilter" className="text-sm font-black text-slate-700 mr-3">
+      <div className="rounded-[28px] border border-slate-200/80 bg-white/95 p-4 shadow-[0_14px_30px_rgba(15,23,42,0.07)] sm:rounded-[24px]">
+        <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-50 text-slate-500 ring-1 ring-slate-200 sm:hidden">
+          <Filter size={18} />
+        </div>
+        <div className="hidden items-center gap-2 sm:mb-3 sm:flex">
+          <Filter size={18} className="text-slate-500" />
+          <p className="text-sm font-black text-slate-700">Filters</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3 sm:items-end">
+          <div className="min-w-0">
+            <label htmlFor="monthFilter" className="block text-sm font-black text-slate-700">
               Filter by Month:
             </label>
             <select
               id="monthFilter"
               value={selectedMonth}
               onChange={handleMonthChange}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-900 focus:bg-white sm:w-auto"
+              className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-800 outline-none focus:border-slate-900 focus:bg-white"
             >
               {monthOptions.map(option => (
                 <option key={option.value} value={option.value}>
@@ -747,15 +753,15 @@ const LeaveRequest = () => {
             </select>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <label htmlFor="yearFilter" className="text-sm font-black text-slate-700 mr-3">
+          <div className="min-w-0">
+            <label htmlFor="yearFilter" className="block text-sm font-black text-slate-700">
               Year:
             </label>
             <select
               id="yearFilter"
               value={selectedYear}
               onChange={handleYearChange}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-900 focus:bg-white sm:w-auto"
+              className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-800 outline-none focus:border-slate-900 focus:bg-white"
             >
               {yearOptions.map(year => (
                 <option key={year} value={year}>
@@ -765,15 +771,15 @@ const LeaveRequest = () => {
             </select>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <label htmlFor="requestedByFilter" className="text-sm font-black text-slate-700 mr-3">
+          <div className="min-w-0">
+            <label htmlFor="requestedByFilter" className="block text-sm font-black text-slate-700">
               Requested By:
             </label>
             <select
               id="requestedByFilter"
               value={requestedByFilter}
               onChange={handleRequestedByChange}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-900 focus:bg-white sm:w-auto"
+              className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-800 outline-none focus:border-slate-900 focus:bg-white"
             >
               {isAdmin && <option value="all">All</option>}
               {requestedByOptions.map((name) => (
