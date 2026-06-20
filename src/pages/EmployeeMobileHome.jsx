@@ -18,8 +18,11 @@ import {
   Users,
   FolderKanban,
   Gift,
+  MessageCircle,
   Sparkles,
-  Play
+  Play,
+  Share2,
+  ThumbsUp
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
@@ -455,9 +458,9 @@ const EmployeeMobileHome = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb] pb-24 text-slate-950 lg:pb-10">
-      <div className="mx-auto max-w-md px-4 pt-5 lg:max-w-7xl lg:px-8 lg:pt-8">
-        <header className="relative flex items-center justify-between">
+    <div className="min-h-screen bg-[#f4f7fb] pb-24 text-slate-950 lg:bg-[#f0f2f5] lg:pb-10">
+      <div className="mx-auto max-w-md px-4 pt-5 lg:max-w-[1480px] lg:px-8 lg:pt-8">
+        <header className="sticky top-0 z-40 -mx-4 flex items-center justify-between bg-[#f4f7fb]/95 px-4 py-3 backdrop-blur-xl lg:hidden">
           <button
             type="button"
             onClick={() => !uploadingPic && fileInputRef.current?.click()}
@@ -579,9 +582,10 @@ const EmployeeMobileHome = () => {
           ) : null}
         </header>
 
-        <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:items-start lg:gap-6">
+        <div className="mt-5 space-y-6 lg:grid lg:grid-cols-[320px_minmax(0,680px)_360px] lg:items-start lg:gap-6 lg:space-y-0">
+        <div className="lg:sticky lg:top-20 lg:col-start-3 lg:row-start-1 lg:-mt-2 lg:space-y-5">
         <motion.section
-          className="relative overflow-hidden rounded-[28px] bg-slate-950 p-4 text-white shadow-[0_24px_48px_rgba(15,23,42,0.24)] lg:min-h-[330px] lg:rounded-[34px] lg:p-7"
+          className="relative overflow-hidden rounded-[28px] bg-slate-950 p-4 text-white shadow-[0_24px_48px_rgba(15,23,42,0.24)] lg:min-h-0 lg:rounded-[24px] lg:p-5"
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: "easeOut" }}
@@ -681,8 +685,8 @@ const EmployeeMobileHome = () => {
         </section>
         </div>
 
-        <div className="mt-6 space-y-6 lg:grid lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
-          <section>
+        <div className="mt-6 space-y-6 lg:contents">
+          <section className="lg:sticky lg:top-24 lg:col-start-1 lg:row-start-1">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-black text-slate-950">Today Activity</h2>
               <button type="button" onClick={() => navigate('/my-attendance')} className="text-xs font-black text-slate-500">
@@ -720,8 +724,8 @@ const EmployeeMobileHome = () => {
               </div>
             </div>
           </section>
-        <section className="mt-2 lg:mt-0">
-          <div className="mb-3 flex items-center justify-between">
+        <section className="mt-2 lg:col-start-2 lg:row-start-1 lg:mt-0">
+          <div className="mb-3 flex items-center justify-between lg:mx-auto lg:max-w-[680px]">
             <h2 className="text-base font-black text-slate-950">Company Updates</h2>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-600">
               {newJoiners.length} New
@@ -736,7 +740,7 @@ const EmployeeMobileHome = () => {
             <div className="space-y-6">
               {/* Stories / Avatars Scroll */}
               <motion.div 
-                className="flex w-full gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                className="flex w-full gap-4 overflow-x-auto pb-2 lg:mx-auto lg:max-w-[680px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
               >
                 {newJoiners.slice(0, 10).map((person, idx) => (
@@ -777,18 +781,18 @@ const EmployeeMobileHome = () => {
               </motion.div>
 
               {/* Feed Cards */}
-              <div className="-mx-5 mt-4 flex flex-col gap-6 lg:mx-0 lg:grid lg:grid-cols-2 lg:gap-5">
+              <div className="-mx-5 mt-4 flex flex-col gap-6 lg:mx-auto lg:max-w-[680px] lg:gap-5">
                 {newJoiners.slice(0, 10).map((person, idx) => (
                   <motion.div 
                     key={`feed-${idx}`}
                     data-feed-notification-id={person.notificationId}
-                    className="relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white pb-2 shadow-[0_14px_30px_rgba(15,23,42,0.07)] transition-all"
+                    className="relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white pb-2 shadow-[0_14px_30px_rgba(15,23,42,0.07)] transition-all lg:rounded-[18px] lg:pb-0 lg:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + idx * 0.1 }}
                   >
                     {/* Header */}
-                    <div className="flex items-center justify-between p-4 pb-3">
+                    <div className="flex items-center justify-between p-4 pb-3 lg:px-4 lg:py-3">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 lg:rounded-full">
                           {person.candidatePhoto ? (
                             <img 
                               src={getDriveImageUrl(person.candidatePhoto, 150)} 
@@ -822,15 +826,15 @@ const EmployeeMobileHome = () => {
                       </div>
                     </div>
 
-                    {/* Image (Instagram style) */}
+                    {/* Image */}
                     {person.candidatePhoto && (
-                      <div className="flex w-full justify-center bg-slate-50">
+                      <div className="flex w-full justify-center bg-slate-50 lg:border-y lg:border-slate-100 lg:bg-slate-100">
                         <img 
                           src={getDriveImageUrl(person.candidatePhoto, 600)} 
                           alt="Post" 
                           loading="lazy"
                           decoding="async"
-                          className="w-full h-auto object-contain max-h-[500px]" 
+                          className="h-auto w-full object-contain max-h-[500px] lg:max-h-[620px]" 
                           onError={(e) => {
                             if (!e.target.dataset.retried) {
                               e.target.dataset.retried = "true";
@@ -847,12 +851,28 @@ const EmployeeMobileHome = () => {
                     )}
 
                     {/* Caption / Message */}
-                    <div className="px-4 pt-3 pb-2">
+                    <div className="px-4 pt-3 pb-2 lg:pb-3">
                       <p className="whitespace-pre-wrap text-[13px] font-medium leading-relaxed text-slate-700">
                         {person.name && <span className="mr-2 font-bold text-slate-900">{person.name}</span>}
                         {person.sms}
                       </p>
                       <p className="text-[10px] font-semibold text-slate-400 mt-2 uppercase tracking-wide">{person.date}</p>
+                    </div>
+                    <div className="hidden border-t border-slate-100 px-2 py-1.5 lg:flex">
+                      {[
+                        { icon: ThumbsUp, label: 'Like' },
+                        { icon: MessageCircle, label: 'Comment' },
+                        { icon: Share2, label: 'Share' },
+                      ].map((action) => (
+                        <button
+                          key={action.label}
+                          type="button"
+                          className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg text-sm font-black text-slate-500 transition hover:bg-slate-50"
+                        >
+                          <action.icon size={17} />
+                          {action.label}
+                        </button>
+                      ))}
                     </div>
                   </motion.div>
                 ))}
@@ -864,6 +884,8 @@ const EmployeeMobileHome = () => {
             </div>
           )}
         </section>
+      </div>
+
       </div>
 
       </div>
