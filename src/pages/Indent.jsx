@@ -30,6 +30,7 @@ const Indent = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
   const [desigFilter, setDesigFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   // Dropdown options from Master sheet
   const [departments, setDepartments] = useState([]);
@@ -470,6 +471,16 @@ const Indent = () => {
               <option key={post} value={post}>{post}</option>
             ))}
           </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm"
+          >
+            <option value="">All Statuses</option>
+            {[...new Set(indentData.map(item => item.status))].filter(Boolean).sort().map(status => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
           <button
             onClick={() => setShowModal(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-navy hover:bg-navy-dark transition-all duration-200"
@@ -894,7 +905,8 @@ const Indent = () => {
                       );
                       const matchesDept = !deptFilter || item.department === deptFilter;
                       const matchesDesig = !desigFilter || item.post === desigFilter;
-                      return matchesSearch && matchesDept && matchesDesig;
+                      const matchesStatus = !statusFilter || item.status === statusFilter;
+                      return matchesSearch && matchesDept && matchesDesig && matchesStatus;
                     })
                     .map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50">

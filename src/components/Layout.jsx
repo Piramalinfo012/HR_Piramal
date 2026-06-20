@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Mail, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, User } from 'lucide-react';
+import { Bell, LogOut, Mail, Moon, Search, Sun, User } from 'lucide-react';
 import Sidebar from './Sidebar';
 import useAuthStore from '../store/authStore';
 import { getUserRole } from '../utils/authRole';
@@ -47,7 +47,6 @@ const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('hrms-theme') === 'dark');
   const storedUser = (() => {
     try {
@@ -124,21 +123,12 @@ const Layout = () => {
       <ScrollToTop />
 
       {/* Sidebar - Remove the key prop that was causing re-render issues */}
-      <Sidebar isCollapsed={isSidebarCollapsed} />
+      <Sidebar />
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="erp-topbar z-40 hidden h-[64px] flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white/95 px-5 shadow-[0_8px_30px_rgba(15,23,42,0.05)] backdrop-blur lg:flex">
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setIsSidebarCollapsed((collapsed) => !collapsed)}
-              aria-pressed={isSidebarCollapsed}
-              title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className={`erp-icon-button flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition duration-100 hover:bg-slate-50 ${isSidebarCollapsed ? "border-teal-300 bg-teal-50 text-teal-700" : ""}`}
-            >
-              {isSidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
-            </button>
             <label className="relative block w-[360px]">
               <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
               <input

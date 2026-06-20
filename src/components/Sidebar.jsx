@@ -133,7 +133,7 @@ const SidebarContent = ({
                     }`}
                 >
                   <div className="flex items-center min-w-0">
-                    <div className={`${isCollapsed ? "mx-auto" : "mr-3"} flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ring-1 transition-all duration-200 ${item.isOpen ? "bg-white text-emerald-700 shadow-lg shadow-black/15 ring-white/30" : "bg-white/9 text-teal-50 ring-white/10 group-hover:bg-white/16 group-hover:text-white group-hover:ring-white/20"}`}>
+                    <div className={`${isCollapsed ? "mx-auto" : "mr-3"} flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ring-1 transition-all duration-200 ${item.isOpen ? "bg-emerald-300/18 text-emerald-100 shadow-lg shadow-black/15 ring-emerald-200/25" : "bg-white/9 text-teal-50 ring-white/10 group-hover:bg-white/16 group-hover:text-white group-hover:ring-white/20"}`}>
                       <item.icon size={20} strokeWidth={2.3} />
                     </div>
                     {!isCollapsed && (
