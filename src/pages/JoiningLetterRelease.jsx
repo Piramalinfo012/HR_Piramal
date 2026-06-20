@@ -5,6 +5,11 @@ import toast from "react-hot-toast";
 
 const JoiningLetterRelease = () => {
     const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
+    const JOINING_LETTER_PLANNED_COL_AQ = 42;
+    const JOINING_LETTER_ACTUAL_COL_AR = 43;
+    const FAST_STAGE_TTL_MS = 10 * 60 * 1000;
+    const JOINING_LETTER_DONE_KEY = "hrms_stage_done_joining_letter_v1";
+    const INDUCTION_FAST_PENDING_KEY = "hrms_stage_pending_induction_v1";
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -51,6 +56,32 @@ const JoiningLetterRelease = () => {
 
     const refreshData = fetchData;
 
+    const readFastStageRows = (key) => {
+        try {
+            const rows = JSON.parse(localStorage.getItem(key) || "[]");
+            const freshRows = Array.isArray(rows)
+                ? rows.filter((row) => Date.now() - Number(row._savedAt || 0) < FAST_STAGE_TTL_MS)
+                : [];
+            if (freshRows.length !== rows.length) localStorage.setItem(key, JSON.stringify(freshRows));
+            return freshRows;
+        } catch {
+            return [];
+        }
+    };
+
+    const addFastStageRow = (key, row) => {
+        const rows = readFastStageRows(key).filter((item) => item.indentNumber !== row.indentNumber);
+        localStorage.setItem(key, JSON.stringify([{ ...row, _savedAt: Date.now() }, ...rows]));
+    };
+
+    const refreshAfterSubmit = () => {
+        window.dispatchEvent(new Event("refresh-pending-counts"));
+        setTimeout(refreshData, 1500);
+        setTimeout(refreshData, 4000);
+        setTimeout(() => window.dispatchEvent(new Event("refresh-pending-counts")), 2000);
+        setTimeout(() => window.dispatchEvent(new Event("refresh-pending-counts")), 4500);
+    };
+
     useEffect(() => {
         if (!joiningFmsData || joiningFmsData.length === 0) {
             setCandidateData([]);
@@ -70,26 +101,30 @@ const JoiningLetterRelease = () => {
         const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
         const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
         const hasSheetValue = (value) => value !== null && value !== undefined && value.toString().trim() !== "";
+        const completedByIndent = new Map(readFastStageRows(JOINING_LETTER_DONE_KEY).map((item) => [item.indentNumber, item]));
 
         const processedData = dataRows.map((row) => {
             if (!row || row.length === 0) return null;
 
-            const columnAQ = row[42];
-            const columnAR = row[43];
+            const indentNumber = row[idxIndent] || "";
+            const columnAQ = row[JOINING_LETTER_PLANNED_COL_AQ];
+            const columnAR = row[JOINING_LETTER_ACTUAL_COL_AR];
+            const completedRow = completedByIndent.get(indentNumber);
+            const effectiveColumnAR = hasSheetValue(columnAR) ? columnAR : completedRow?.columnAR;
 
             return {
-                indentNumber: row[idxIndent] || "",
+                indentNumber,
                 candidateName: row[idxName] || "",
                 department: row[idxDept] || "",
                 designation: row[idxDesig] || "",
                 contactNo: row[idxMobile] || "",
                 email: row[idxEmail] || "",
                 columnAQ: columnAQ,
-                columnAR: columnAR,
-                isPending: hasSheetValue(columnAQ) && !hasSheetValue(columnAR),
-                isHistory: hasSheetValue(columnAQ) && hasSheetValue(columnAR)
+                columnAR: effectiveColumnAR,
+                isPending: hasSheetValue(columnAQ) && !hasSheetValue(effectiveColumnAR),
+                isHistory: hasSheetValue(columnAQ) && hasSheetValue(effectiveColumnAR)
             };
-        }).filter(item => item !== null);
+        }).filter(item => item !== null && (item.isPending || item.isHistory));
 
         setCandidateData(processedData);
     }, [joiningFmsData]);
@@ -239,8 +274,17 @@ const JoiningLetterRelease = () => {
 
             if (result.success) {
                 toast.success("Status submitted successfully!");
+                addFastStageRow(JOINING_LETTER_DONE_KEY, { ...selectedCandidate, columnAR: timestamp });
+                addFastStageRow(INDUCTION_FAST_PENDING_KEY, { ...selectedCandidate, columnAV: timestamp, columnAW: "" });
+                setCandidateData((prev) =>
+                    prev.map((item) =>
+                        item.indentNumber === selectedCandidate.indentNumber
+                            ? { ...item, columnAR: timestamp, isPending: false, isHistory: true }
+                            : item
+                    )
+                );
                 handleCloseModal();
-                refreshData();
+                refreshAfterSubmit();
             } else {
                 toast.error(result.error || "Failed to submit status");
             }

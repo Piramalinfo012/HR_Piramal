@@ -7,6 +7,10 @@ const InductionTraining = () => {
     const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
     const INDUCTION_PLANNED_COL_AV = 47;
     const INDUCTION_ACTUAL_COL_AW = 48;
+    const FAST_STAGE_TTL_MS = 10 * 60 * 1000;
+    const INDUCTION_FAST_PENDING_KEY = "hrms_stage_pending_induction_v1";
+    const INDUCTION_DONE_KEY = "hrms_stage_done_induction_v1";
+    const ASSET_FAST_PENDING_KEY = "hrms_stage_pending_asset_v1";
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -65,6 +69,32 @@ const InductionTraining = () => {
 
     const refreshData = fetchData;
 
+    const readFastStageRows = (key) => {
+        try {
+            const rows = JSON.parse(localStorage.getItem(key) || "[]");
+            const freshRows = Array.isArray(rows)
+                ? rows.filter((row) => Date.now() - Number(row._savedAt || 0) < FAST_STAGE_TTL_MS)
+                : [];
+            if (freshRows.length !== rows.length) localStorage.setItem(key, JSON.stringify(freshRows));
+            return freshRows;
+        } catch {
+            return [];
+        }
+    };
+
+    const addFastStageRow = (key, row) => {
+        const rows = readFastStageRows(key).filter((item) => item.indentNumber !== row.indentNumber);
+        localStorage.setItem(key, JSON.stringify([{ ...row, _savedAt: Date.now() }, ...rows]));
+    };
+
+    const refreshAfterSubmit = () => {
+        window.dispatchEvent(new Event("refresh-pending-counts"));
+        setTimeout(refreshData, 1500);
+        setTimeout(refreshData, 4000);
+        setTimeout(() => window.dispatchEvent(new Event("refresh-pending-counts")), 2000);
+        setTimeout(() => window.dispatchEvent(new Event("refresh-pending-counts")), 4500);
+    };
+
     useEffect(() => {
         if (!joiningFmsData || joiningFmsData.length < 8) {
             setCandidateData([]);
@@ -90,34 +120,42 @@ const InductionTraining = () => {
         const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
         const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
         const hasSheetValue = (value) => value !== null && value !== undefined && value.toString().trim() !== "";
+        const completedByIndent = new Map(readFastStageRows(INDUCTION_DONE_KEY).map((item) => [item.indentNumber, item]));
 
         const processed = dataRows.map((row) => {
             if (!row || row.length === 0) return null;
+            const indentNumber = row[idxIndent] || "";
             const columnAV = row[INDUCTION_PLANNED_COL_AV];
             const columnAW = row[INDUCTION_ACTUAL_COL_AW];
-            const valAV = columnAV ? String(columnAV).trim() : "";
-            const valAW = columnAW ? String(columnAW).trim() : "";
-            
-            const isAVFilled = valAV !== "" && valAV !== "-";
-            const isAWFilled = valAW !== "" && valAW !== "-";
+            const completedRow = completedByIndent.get(indentNumber);
+            const effectiveColumnAW = hasSheetValue(columnAW) ? columnAW : completedRow?.columnAW;
 
             return {
-                indentNumber: row[idxIndent] || "",
+                indentNumber,
                 candidateName: row[idxName] || "",
                 department: row[idxDept] || "",
                 designation: row[idxDesig] || "",
                 contactNo: row[idxMobile] || "",
                 email: row[idxEmail] || "",
-                columnAV: valAV,
-                columnAW: valAW,
-                // Pending: AV filled + AW blank
-                isPending: isAVFilled && !isAWFilled,
-                // History: AV filled + AW filled
-                isHistory: isAVFilled && isAWFilled
+                columnAV: columnAV,
+                columnAW: effectiveColumnAW,
+                isPending: hasSheetValue(columnAV) && !hasSheetValue(effectiveColumnAW),
+                isHistory: hasSheetValue(columnAV) && hasSheetValue(effectiveColumnAW)
             };
         }).filter(item => item !== null && (item.isPending || item.isHistory)); // Filter irrelevant rows
 
-        setCandidateData(processed);
+        const existingIndents = new Set(processed.map((item) => item.indentNumber));
+        const fastPendingRows = readFastStageRows(INDUCTION_FAST_PENDING_KEY)
+            .filter((item) => item.indentNumber && !existingIndents.has(item.indentNumber) && !completedByIndent.has(item.indentNumber))
+            .map((item) => ({
+                ...item,
+                columnAV: item.columnAV || item._savedAt,
+                columnAW: "",
+                isPending: true,
+                isHistory: false
+            }));
+
+        setCandidateData([...fastPendingRows, ...processed]);
     }, [joiningFmsData]);
 
     useEffect(() => {
@@ -209,8 +247,17 @@ const InductionTraining = () => {
             const result = await response.json();
             if (result.success) {
                 toast.success("Status submitted successfully!");
+                addFastStageRow(INDUCTION_DONE_KEY, { ...selectedCandidate, columnAW: timestamp });
+                addFastStageRow(ASSET_FAST_PENDING_KEY, { ...selectedCandidate, columnBE: timestamp, columnBF: "" });
+                setCandidateData((prev) =>
+                    prev.map((item) =>
+                        item.indentNumber === selectedCandidate.indentNumber
+                            ? { ...item, columnAW: timestamp, isPending: false, isHistory: true }
+                            : item
+                    )
+                );
                 handleCloseModal();
-                refreshData();
+                refreshAfterSubmit();
             } else {
                 toast.error(result.error || "Failed to submit status");
             }

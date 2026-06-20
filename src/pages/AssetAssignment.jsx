@@ -5,6 +5,11 @@ import toast from "react-hot-toast";
 
 const AssetAssignment = () => {
     const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
+    const ASSET_PLANNED_COL_BE = 56;
+    const ASSET_ACTUAL_COL_BF = 57;
+    const FAST_STAGE_TTL_MS = 10 * 60 * 1000;
+    const ASSET_FAST_PENDING_KEY = "hrms_stage_pending_asset_v1";
+    const ASSET_DONE_KEY = "hrms_stage_done_asset_v1";
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -53,6 +58,32 @@ const AssetAssignment = () => {
 
     const refreshData = fetchData;
 
+    const readFastStageRows = (key) => {
+        try {
+            const rows = JSON.parse(localStorage.getItem(key) || "[]");
+            const freshRows = Array.isArray(rows)
+                ? rows.filter((row) => Date.now() - Number(row._savedAt || 0) < FAST_STAGE_TTL_MS)
+                : [];
+            if (freshRows.length !== rows.length) localStorage.setItem(key, JSON.stringify(freshRows));
+            return freshRows;
+        } catch {
+            return [];
+        }
+    };
+
+    const addFastStageRow = (key, row) => {
+        const rows = readFastStageRows(key).filter((item) => item.indentNumber !== row.indentNumber);
+        localStorage.setItem(key, JSON.stringify([{ ...row, _savedAt: Date.now() }, ...rows]));
+    };
+
+    const refreshAfterSubmit = () => {
+        window.dispatchEvent(new Event("refresh-pending-counts"));
+        setTimeout(refreshData, 1500);
+        setTimeout(refreshData, 4000);
+        setTimeout(() => window.dispatchEvent(new Event("refresh-pending-counts")), 2000);
+        setTimeout(() => window.dispatchEvent(new Event("refresh-pending-counts")), 4500);
+    };
+
     useEffect(() => {
         if (!joiningFmsData || joiningFmsData.length < 8) {
             setCandidateData([]);
@@ -77,40 +108,54 @@ const AssetAssignment = () => {
         const idxDesig = getIndex("Designation") !== -1 ? getIndex("Designation") : 14;
         const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
         const idxEmail = getIndex("Email Id") !== -1 ? getIndex("Email Id") : 31;
-        const idxBE = 56; // Column BE
-        const idxBF = 57; // Column BF
+        const hasSheetValue = (value) => value !== null && value !== undefined && value.toString().trim() !== "";
+        const completedByIndent = new Map(readFastStageRows(ASSET_DONE_KEY).map((item) => [item.indentNumber, item]));
 
         const processed = dataRows.map((row) => {
-            const columnBE = row[idxBE];
-            const columnBF = row[idxBF];
+            const indentNumber = row[idxIndent] || "";
+            const columnBE = row[ASSET_PLANNED_COL_BE];
+            const columnBF = row[ASSET_ACTUAL_COL_BF];
+            const completedRow = completedByIndent.get(indentNumber);
+            const effectiveColumnBF = hasSheetValue(columnBF) ? columnBF : completedRow?.columnBF;
             const responseG = row[60] || ""; // BI → Laptop
             const responseH = row[61] || ""; // BJ → Mobile
             const responseI = row[62] || ""; // BK → Gmail
             const responseJ = row[63] || ""; // BL → Assets
 
             return {
-                indentNumber: row[idxIndent] || "",
+                indentNumber,
                 candidateName: row[idxName] || "",
                 department: row[idxDept] || "",
                 designation: row[idxDesig] || "",
                 contactNo: row[idxMobile] || "",
                 email: row[idxEmail] || "",
                 columnBE,
-                columnBF,
-                laptopDetails: responseG,     // BI
-                mobileDetails: responseH,     // BJ
-                gmailId: responseI,           // BK
-                assetsAssigned: responseJ,    // BL
+                columnBF: effectiveColumnBF,
+                laptopDetails: responseG || completedRow?.laptopDetails || "",     // BI
+                mobileDetails: responseH || completedRow?.mobileDetails || "",     // BJ
+                gmailId: responseI || completedRow?.gmailId || "",           // BK
+                assetsAssigned: responseJ || completedRow?.assetsAssigned || "",    // BL
 
                 // Pending: BE not null && BF null
-                isPending: (columnBE != null && columnBE !== "") && (columnBF == null || columnBF === ""),
+                isPending: hasSheetValue(columnBE) && !hasSheetValue(effectiveColumnBF),
                 // History: both not null
-                isHistory: (columnBE != null && columnBE !== "") && (columnBF != null && columnBF !== "")
+                isHistory: hasSheetValue(columnBE) && hasSheetValue(effectiveColumnBF)
             };
         }).filter(item => item !== null && (item.isPending || item.isHistory)); // Filter irrelevant rows if needed, or keeping all? Original code filtered nulls.
         // Original code: .filter(item => item !== null);
 
-        setCandidateData(processed);
+        const existingIndents = new Set(processed.map((item) => item.indentNumber));
+        const fastPendingRows = readFastStageRows(ASSET_FAST_PENDING_KEY)
+            .filter((item) => item.indentNumber && !existingIndents.has(item.indentNumber) && !completedByIndent.has(item.indentNumber))
+            .map((item) => ({
+                ...item,
+                columnBE: item.columnBE || item._savedAt,
+                columnBF: "",
+                isPending: true,
+                isHistory: false
+            }));
+
+        setCandidateData([...fastPendingRows, ...processed]);
     }, [joiningFmsData]);
 
     useEffect(() => {
@@ -213,8 +258,32 @@ const AssetAssignment = () => {
             const result = await response.json();
             if (result.success) {
                 toast.success("Asset details submitted successfully!");
+                addFastStageRow(ASSET_DONE_KEY, {
+                    ...selectedCandidate,
+                    columnBF: timestamp,
+                    laptopDetails: formData.laptopDetails,
+                    mobileDetails: formData.mobileDetails,
+                    gmailId: formData.gmailId,
+                    assetsAssigned: formData.assets.join(", ")
+                });
+                setCandidateData((prev) =>
+                    prev.map((item) =>
+                        item.indentNumber === selectedCandidate.indentNumber
+                            ? {
+                                ...item,
+                                columnBF: timestamp,
+                                laptopDetails: formData.laptopDetails,
+                                mobileDetails: formData.mobileDetails,
+                                gmailId: formData.gmailId,
+                                assetsAssigned: formData.assets.join(", "),
+                                isPending: false,
+                                isHistory: true
+                            }
+                            : item
+                    )
+                );
                 handleCloseModal();
-                refreshData();
+                refreshAfterSubmit();
             } else {
                 toast.error(result.error || "Failed to submit assets");
             }

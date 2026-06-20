@@ -16,6 +16,25 @@ export const usePendingCounts = () => {
 
     const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
     const JOINING_SUBMIT_URL = "https://script.google.com/macros/s/AKfycbwhFgVoAB4S1cKrU0iDRtCH5B2K-ol2c0RmaaEWXGqv0bdMzs3cs3kPuqOfUAR3KHYZ7g/exec";
+    const FAST_STAGE_TTL_MS = 10 * 60 * 1000;
+    const JOINING_LETTER_DONE_KEY = "hrms_stage_done_joining_letter_v1";
+    const INDUCTION_FAST_PENDING_KEY = "hrms_stage_pending_induction_v1";
+    const INDUCTION_DONE_KEY = "hrms_stage_done_induction_v1";
+    const ASSET_FAST_PENDING_KEY = "hrms_stage_pending_asset_v1";
+    const ASSET_DONE_KEY = "hrms_stage_done_asset_v1";
+
+    const readFastStageRows = (key) => {
+        try {
+            const rows = JSON.parse(localStorage.getItem(key) || "[]");
+            const freshRows = Array.isArray(rows)
+                ? rows.filter((row) => Date.now() - Number(row._savedAt || 0) < FAST_STAGE_TTL_MS)
+                : [];
+            if (freshRows.length !== rows.length) localStorage.setItem(key, JSON.stringify(freshRows));
+            return freshRows;
+        } catch {
+            return [];
+        }
+    };
 
     useEffect(() => {
         const fetchAllData = async () => {
@@ -74,6 +93,11 @@ export const usePendingCounts = () => {
                 const cRows = parseData(candidateRes).rows;
                 const jRows = parseData(joiningRes).rows;
                 const hasSheetValue = (value) => value !== null && value !== undefined && value.toString().trim() !== "";
+                const joiningLetterDoneIds = new Set(readFastStageRows(JOINING_LETTER_DONE_KEY).map((item) => item.indentNumber));
+                const inductionDoneIds = new Set(readFastStageRows(INDUCTION_DONE_KEY).map((item) => item.indentNumber));
+                const assetDoneIds = new Set(readFastStageRows(ASSET_DONE_KEY).map((item) => item.indentNumber));
+                const inductionSeenIds = new Set();
+                const assetSeenIds = new Set();
 
                 // 2. JOINING_FMS Data
                 const blockedIds = new Set();
@@ -82,10 +106,10 @@ export const usePendingCounts = () => {
                         if (!row) return;
                         
                         // For Joining Management Blocked IDs
-                        const id = row[5];
+                        const id = row[5]?.toString().trim() || "";
                         const planned = row[38];
                         if (id && planned && planned.toString().trim() !== "") {
-                            blockedIds.add(id.toString().trim());
+                            blockedIds.add(id);
                         }
 
                         // Check Salary Slip (38 vs 39)
@@ -94,19 +118,27 @@ export const usePendingCounts = () => {
                         if (am !== "" && an === "") checkSalarySlip++;
 
                         // Joining Letter Release (42 vs 43)
-                        const aq = row[42]?.toString().trim() || "";
-                        const ar = row[43]?.toString().trim() || "";
-                        if (aq !== "" && ar === "") joiningLetter++;
+                        if (hasSheetValue(row[42]) && !hasSheetValue(row[43]) && !joiningLetterDoneIds.has(id)) joiningLetter++;
 
                         // Induction Training (47 vs 48)
-                        if (hasSheetValue(row[47]) && !hasSheetValue(row[48])) inductionTraining++;
+                        if (id && (hasSheetValue(row[47]) || hasSheetValue(row[48]))) inductionSeenIds.add(id);
+                        if (hasSheetValue(row[47]) && !hasSheetValue(row[48]) && !inductionDoneIds.has(id)) inductionTraining++;
 
                         // Asset Assignment (56 vs 57)
-                        const be = row[56]?.toString().trim() || "";
-                        const bf = row[57]?.toString().trim() || "";
-                        if (be !== "" && bf === "") assetAssignment++;
+                        if (id && (hasSheetValue(row[56]) || hasSheetValue(row[57]))) assetSeenIds.add(id);
+                        if (hasSheetValue(row[56]) && !hasSheetValue(row[57]) && !assetDoneIds.has(id)) assetAssignment++;
                     });
                 }
+
+                readFastStageRows(INDUCTION_FAST_PENDING_KEY).forEach((item) => {
+                    const id = item.indentNumber;
+                    if (id && !inductionSeenIds.has(id) && !inductionDoneIds.has(id)) inductionTraining++;
+                });
+
+                readFastStageRows(ASSET_FAST_PENDING_KEY).forEach((item) => {
+                    const id = item.indentNumber;
+                    if (id && !assetSeenIds.has(id) && !assetDoneIds.has(id)) assetAssignment++;
+                });
 
                 // 3. Candidate_Selection Data
                 if (cRows.length > 0) {
