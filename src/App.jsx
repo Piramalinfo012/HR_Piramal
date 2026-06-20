@@ -93,6 +93,7 @@ function App() {
             <Route path="employee" element={<Employee />} />
             <Route path="employee-mobile" element={<EmployeeMobileHome />} />
             <Route path="my-profile" element={<MyProfile />} />
+            <Route path="employee-profile" element={<MyProfile />} />
             <Route path="my-attendance" element={<MyAttendance />} />
             <Route path="leave-request" element={<LeaveRequest />} />
             <Route path="my-salary" element={<MySalary />} />

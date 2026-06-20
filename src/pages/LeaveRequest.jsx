@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, X, Calendar, Clock, CheckCircle, AlertCircle, Filter } from 'lucide-react';
+import { Plus, X, Calendar, Clock, CheckCircle, AlertCircle, Filter, Sparkles, ChevronRight } from 'lucide-react';
 
 import toast from 'react-hot-toast';
 
@@ -667,15 +667,19 @@ const LeaveRequest = () => {
   );
 
   return (
-    <div className="space-y-6 page-content p-4 sm:p-6">
+    <div className="page-content min-h-screen bg-[#f4f7fb] px-4 pb-24 pt-5 text-slate-950 sm:p-6">
+      <div className="mx-auto max-w-md space-y-5 lg:max-w-6xl">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Leave Request</h1>
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Employee Leave</p>
+          <h1 className="text-2xl font-black text-slate-950">Leave Request</h1>
+        </div>
         <button
           onClick={() => setShowModal(true)}
           disabled={hasSubmittedToday}
-          className={`inline-flex w-full items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white sm:w-auto ${hasSubmittedToday
-            ? 'bg-gray-400 cursor-not-allowed'
-            : 'bg-navy hover:bg-navy-dark'
+          className={`inline-flex h-12 w-full items-center justify-center rounded-2xl border border-transparent px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] sm:w-auto ${hasSubmittedToday
+            ? 'bg-slate-400 cursor-not-allowed'
+            : 'bg-slate-950 hover:bg-slate-800'
             }`}
           title={hasSubmittedToday ? "You have already submitted a leave request today. Please try again tomorrow." : ""}
         >
@@ -687,19 +691,53 @@ const LeaveRequest = () => {
         </button>
       </div>
 
+      <section className="relative overflow-hidden rounded-[28px] bg-slate-950 p-4 text-white shadow-[0_24px_48px_rgba(15,23,42,0.24)]">
+        <span className="pointer-events-none absolute -right-20 -top-16 h-44 w-44 rounded-full bg-indigo-500/20 blur-2xl" />
+        <span className="pointer-events-none absolute -bottom-20 left-10 h-44 w-44 rounded-full bg-cyan-400/10 blur-2xl" />
+        <div className="relative z-10 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Leave Overview</p>
+            <h2 className="mt-1 text-xl font-black leading-tight">{user.Name || 'My'} Leave Balance</h2>
+            <p className="mt-1 text-xs font-semibold text-slate-300">Track requests, approvals and pending days</p>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-black text-white ring-1 ring-white/15">
+            <Sparkles size={12} />
+            Live
+          </span>
+        </div>
+        <div className="relative z-10 mt-5 grid grid-cols-4 gap-2">
+          <div className="rounded-2xl bg-white/10 p-3 ring-1 ring-white/10">
+            <p className="text-lg font-black">{formatLeaveCount(leaveDaySummary.total)}</p>
+            <p className="text-[9px] font-black uppercase text-slate-400">Total</p>
+          </div>
+          <div className="rounded-2xl bg-emerald-400/10 p-3 ring-1 ring-white/10">
+            <p className="text-lg font-black text-emerald-200">{formatLeaveCount(leaveDaySummary.approved)}</p>
+            <p className="text-[9px] font-black uppercase text-slate-400">Approved</p>
+          </div>
+          <div className="rounded-2xl bg-amber-400/10 p-3 ring-1 ring-white/10">
+            <p className="text-lg font-black text-amber-200">{formatLeaveCount(leaveDaySummary.pending)}</p>
+            <p className="text-[9px] font-black uppercase text-slate-400">Pending</p>
+          </div>
+          <div className="rounded-2xl bg-rose-400/10 p-3 ring-1 ring-white/10">
+            <p className="text-lg font-black text-rose-200">{formatLeaveCount(leaveDaySummary.rejected)}</p>
+            <p className="text-[9px] font-black uppercase text-slate-400">Rejected</p>
+          </div>
+        </div>
+      </section>
+
       {/* Month and Year Filter */}
-      <div className="bg-white rounded-lg shadow border p-4">
+      <div className="rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_14px_30px_rgba(15,23,42,0.07)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Filter size={18} className="text-gray-500 mr-2" />
-            <label htmlFor="monthFilter" className="text-sm font-medium text-gray-700 mr-3">
+            <Filter size={18} className="text-slate-500 mr-2" />
+            <label htmlFor="monthFilter" className="text-sm font-black text-slate-700 mr-3">
               Filter by Month:
             </label>
             <select
               id="monthFilter"
               value={selectedMonth}
               onChange={handleMonthChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy sm:w-auto"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-900 focus:bg-white sm:w-auto"
             >
               {monthOptions.map(option => (
                 <option key={option.value} value={option.value}>
@@ -710,14 +748,14 @@ const LeaveRequest = () => {
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <label htmlFor="yearFilter" className="text-sm font-medium text-gray-700 mr-3">
+            <label htmlFor="yearFilter" className="text-sm font-black text-slate-700 mr-3">
               Year:
             </label>
             <select
               id="yearFilter"
               value={selectedYear}
               onChange={handleYearChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy sm:w-auto"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-900 focus:bg-white sm:w-auto"
             >
               {yearOptions.map(year => (
                 <option key={year} value={year}>
@@ -728,14 +766,14 @@ const LeaveRequest = () => {
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <label htmlFor="requestedByFilter" className="text-sm font-medium text-gray-700 mr-3">
+            <label htmlFor="requestedByFilter" className="text-sm font-black text-slate-700 mr-3">
               Requested By:
             </label>
             <select
               id="requestedByFilter"
               value={requestedByFilter}
               onChange={handleRequestedByChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy sm:w-auto"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-900 focus:bg-white sm:w-auto"
             >
               {isAdmin && <option value="all">All</option>}
               {requestedByOptions.map((name) => (
@@ -749,19 +787,19 @@ const LeaveRequest = () => {
       </div>
 
       {/* Leave Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {leaveSummaryCards.map((card) => {
           const SummaryIcon = card.icon;
 
           return (
-            <div key={card.label} className="bg-white rounded-xl shadow-lg border p-6">
-              <div className="flex items-center justify-between">
+            <div key={card.label} className="rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_14px_30px_rgba(15,23,42,0.07)]">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm text-gray-600 font-medium">{card.label}</p>
-                  <h3 className="text-2xl font-bold text-gray-800">{formatLeaveCount(card.value)}</h3>
-                  <p className="text-xs text-gray-500">{card.subtext}</p>
+                  <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{card.label}</p>
+                  <h3 className="mt-1 text-2xl font-black text-slate-950">{formatLeaveCount(card.value)}</h3>
+                  <p className="text-[10px] font-bold text-slate-500">{card.subtext}</p>
                 </div>
-                <div className={`p-3 rounded-full ${card.bgClass}`}>
+                <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${card.bgClass}`}>
                   <SummaryIcon size={24} className={card.iconClass} />
                 </div>
               </div>
@@ -771,9 +809,9 @@ const LeaveRequest = () => {
       </div>
 
       {/* Leave Requests */}
-      <div className="bg-white rounded-lg shadow border">
+      <div className="rounded-[26px] border border-slate-200/80 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.08)]">
         <div className="p-4 sm:p-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4">My Leave Requests</h2>
+          <h2 className="text-base font-black text-slate-950 mb-4">My Leave Requests</h2>
           {tableLoading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-navy"></div>
@@ -787,11 +825,11 @@ const LeaveRequest = () => {
                   const isRejected = statusMeta.label === 'Rejected';
 
                   return (
-                    <article key={request.leaveRequestId || request.id} className={`rounded-lg border p-4 ${statusMeta.cardClass}`}>
+                    <article key={request.leaveRequestId || request.id} className={`rounded-[24px] border p-4 shadow-[0_10px_24px_rgba(15,23,42,0.04)] ${statusMeta.cardClass}`}>
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-base font-semibold text-gray-900">{request.leaveRequestId || 'Leave Request'}</h3>
+                            <h3 className="text-base font-black text-slate-950">{request.leaveRequestId || 'Leave Request'}</h3>
                             <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.badgeClass}`}>
                               <StatusIcon size={14} className={statusMeta.iconClass} />
                               {statusMeta.label}
@@ -807,9 +845,10 @@ const LeaveRequest = () => {
                             href={request.imageUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex shrink-0 items-center justify-center rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+                            className="inline-flex shrink-0 items-center justify-center gap-1 rounded-2xl border border-indigo-200 bg-white px-3 py-2 text-sm font-black text-indigo-700 hover:bg-indigo-50"
                           >
                             View Image
+                            <ChevronRight size={14} />
                           </a>
                         )}
                       </div>
@@ -826,11 +865,11 @@ const LeaveRequest = () => {
                       </div>
 
                       <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                        <div className="rounded-md bg-white/70 p-3">
+                        <div className="rounded-2xl bg-white/70 p-3">
                           <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Reason</p>
                           <p className="mt-1 text-sm text-gray-900 break-words">{request.reason || '-'}</p>
                         </div>
-                        <div className={`rounded-md p-3 ${isRejected ? 'bg-red-100/70' : 'bg-white/70'}`}>
+                        <div className={`rounded-2xl p-3 ${isRejected ? 'bg-red-100/70' : 'bg-white/70'}`}>
                           <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
                             {isRejected ? 'Rejected Reason' : 'Approval Remarks'}
                           </p>
@@ -1040,6 +1079,7 @@ const LeaveRequest = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
