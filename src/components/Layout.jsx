@@ -40,6 +40,21 @@ const ScrollToTop = () => {
   return null;
 };
 
+const getDriveImageUrl = (url, size) => {
+  if (!url) return "";
+
+  if (url.includes("cloudinary.com")) {
+    return size ? url.replace("/upload/", `/upload/w_${size},q_auto,f_auto/`) : url;
+  }
+
+  const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return `https://drive.google.com/thumbnail?id=${match[1]}${size ? `&sz=w${size}` : ""}`;
+  }
+
+  return url;
+};
+
 
 
 const Layout = () => {
@@ -77,6 +92,14 @@ const Layout = () => {
     currentUser?.id ||
     "";
   const displayRole = currentRole ? currentRole.charAt(0).toUpperCase() + currentRole.slice(1) : "User";
+  const profilePic =
+    currentUser?.profilePic ||
+    currentUser?.ProfilePic ||
+    currentUser?.["Profile Pic"] ||
+    currentUser?.Photo ||
+    currentUser?.["Photo"] ||
+    storedUser?.profilePic ||
+    "";
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -160,15 +183,28 @@ const Layout = () => {
               <Mail size={18} />
             </button>
             <div className="erp-profile-button ml-2 flex min-w-[220px] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-white">
-                <User size={18} />
+              <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-slate-800 text-white">
+                {profilePic ? (
+                  <img
+                    src={getDriveImageUrl(profilePic, 96)}
+                    alt={displayName}
+                    decoding="async"
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      if (!e.target.dataset.retried) {
+                        e.target.dataset.retried = "true";
+                        const match = profilePic.match(/\/d\/([a-zA-Z0-9_-]+)/) || profilePic.match(/id=([a-zA-Z0-9_-]+)/);
+                        e.target.src = match && match[1] ? `https://drive.google.com/uc?export=view&id=${match[1]}` : profilePic;
+                      }
+                    }}
+                  />
+                ) : (
+                  <User size={18} />
+                )}
               </span>
               <span className="min-w-0 flex-1 text-left leading-tight">
                 <span className="block max-w-[145px] truncate text-sm font-black text-slate-800">
                   {displayName}
-                </span>
-                <span className="block max-w-[155px] truncate text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  {displayId ? `${displayId} - ${displayRole}` : displayRole}
                 </span>
               </span>
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />

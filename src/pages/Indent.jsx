@@ -522,9 +522,9 @@ const Indent = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
+        <div className="fixed inset-0 modal-backdrop z-50 flex items-start justify-center overflow-y-auto p-4 pb-28 pt-10">
+          <div className="flex w-full max-w-6xl max-h-[82vh] flex-col overflow-hidden rounded-lg bg-white shadow-lg">
+            <div className="flex shrink-0 justify-between items-center p-5 border-b border-gray-200 bg-white z-20">
               <h3 className="text-lg font-medium text-gray-800">
                 Create Multiple Indents
               </h3>
@@ -535,8 +535,9 @@ const Indent = () => {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mb-4">
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+              <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mb-4 max-w-sm">
                 <label className="block text-sm font-semibold text-indigo-900 mb-1">
                   Common Completion Date *
                 </label>
@@ -551,8 +552,8 @@ const Indent = () => {
               </div>
 
               {posts.map((postField, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg space-y-4 relative bg-gray-50/50">
-                  <div className="flex justify-between items-center bg-gray-100 p-2 -mx-4 -mt-4 rounded-t-lg border-b border-gray-200">
+                <div key={index} className="p-3 border border-gray-200 rounded-lg space-y-3 relative bg-gray-50/50">
+                  <div className="flex justify-between items-center bg-gray-100 p-2 -mx-3 -mt-3 rounded-t-lg border-b border-gray-200">
                     <span className="text-xs font-bold text-gray-600 uppercase tracking-wider ml-2">Post #{index + 1}</span>
                     {posts.length > 1 && (
                       <button
@@ -566,7 +567,7 @@ const Indent = () => {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 mt-2">
+                  <div className="grid grid-cols-1 gap-4 mt-2 md:grid-cols-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Post (पद)*
@@ -582,7 +583,7 @@ const Indent = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:contents">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Gender *
@@ -632,7 +633,7 @@ const Indent = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:contents">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Department
@@ -668,7 +669,7 @@ const Indent = () => {
 
 
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:contents">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Salary
@@ -697,7 +698,7 @@ const Indent = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:contents">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Weekly Off
@@ -732,7 +733,7 @@ const Indent = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:contents">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Office Timing
@@ -778,8 +779,9 @@ const Indent = () => {
                 <Plus size={16} className="mr-2" />
                 Add Another Post entry
               </button>
+              </div>
 
-              <div className="flex justify-end space-x-2 pt-4">
+              <div className="flex shrink-0 justify-end space-x-2 border-t border-gray-200 bg-white p-4">
                 <button
                   type="button"
                   onClick={handleCancel}
