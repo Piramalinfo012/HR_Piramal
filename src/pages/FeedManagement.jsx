@@ -450,6 +450,7 @@ const FeedManagement = () => {
                   <option value="Annivercery">Annivercery</option>
                   <option value="Joining Anniversary">Joining Anniversary</option>
                   <option value="New Joining">New Joining</option>
+                  <option value="Festival">Festival</option>
                   <option value="Notice">Notice</option>
                 </select>
               </label>

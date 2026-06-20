@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Mail, Moon, Search, Sun, User } from 'lucide-react';
+import { Bell, Gift, LogOut, Mail, Moon, Search, Sun, User } from 'lucide-react';
 import Sidebar from './Sidebar';
 import useAuthStore from '../store/authStore';
 import { getUserRole } from '../utils/authRole';
 import MobileBottomNav from './MobileBottomNav';
+import { useHrmsNotifications } from '../hooks/useHrmsNotifications';
 
 // ScrollToTop component to handle scrolling to top on route changes
 const ScrollToTop = () => {
@@ -63,6 +64,7 @@ const Layout = () => {
   const navigate = useNavigate();
   const [isMobile, setIsMobile] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('hrms-theme') === 'dark');
+  const [showNotificationMenu, setShowNotificationMenu] = useState(false);
   const storedUser = (() => {
     try {
       return JSON.parse(localStorage.getItem('user') || '{}');
@@ -100,12 +102,24 @@ const Layout = () => {
     currentUser?.["Photo"] ||
     storedUser?.profilePic ||
     "";
+  const { notifications, notificationsLoading, unreadCount, markNotificationRead } = useHrmsNotifications({
+    enabled: !isEmployeeMobile,
+    showToast: !isEmployeeMobile,
+  });
 
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("employeeId");
     logout();
     navigate("/login", { replace: true });
+  };
+
+  const handleNotificationClick = (item) => {
+    markNotificationRead(item.id);
+    if (item.targetPath) {
+      setShowNotificationMenu(false);
+      navigate(item.targetPath);
+    }
   };
 
   useEffect(() => {
@@ -175,10 +189,77 @@ const Layout = () => {
             >
               {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
             </button>
-            <button className="erp-icon-button relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100">
-              <Bell size={18} />
-              <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowNotificationMenu((visible) => !visible)}
+                className="erp-icon-button relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100"
+                aria-label="Notifications"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
+                    {unreadCount}
+                  </span>
+                ) : null}
+              </button>
+
+              {showNotificationMenu ? (
+                <div className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_24px_54px_rgba(15,23,42,0.18)]">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-black text-slate-950">Notifications</p>
+                      <p className="text-[11px] font-bold text-slate-400">Birthdays, anniversaries and feed updates</p>
+                    </div>
+                    <span className="grid h-9 w-9 place-items-center rounded-2xl bg-rose-50 text-rose-600 ring-1 ring-rose-100">
+                      <Gift size={18} />
+                    </span>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto p-3">
+                    {notificationsLoading ? (
+                      <p className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">Checking notifications...</p>
+                    ) : notifications.length > 0 ? (
+                      <div className="space-y-2">
+                        {notifications.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleNotificationClick(item)}
+                            className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${
+                              item.read
+                                ? 'bg-white ring-1 ring-slate-100 hover:bg-slate-50'
+                                : 'bg-rose-50/70 ring-1 ring-rose-100 hover:bg-rose-50'
+                            }`}
+                          >
+                            <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white text-rose-600 ring-1 ring-rose-100">
+                              {item.photo ? (
+                                <img src={getDriveImageUrl(item.photo, 120)} alt={item.title} className="h-full w-full object-cover" />
+                              ) : (
+                                <Gift size={20} />
+                              )}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-2">
+                                {!item.read ? <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" /> : null}
+                                <span className="block truncate text-sm font-black text-slate-900">{item.title}</span>
+                              </span>
+                              <span className="block truncate text-[11px] font-bold text-slate-500">
+                                {item.message}
+                              </span>
+                              {item.dateLabel ? (
+                                <span className="mt-0.5 block text-[10px] font-black uppercase tracking-wide text-rose-500">{item.dateLabel}</span>
+                              ) : null}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">No notifications right now.</p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <button className="erp-icon-button flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100">
               <Mail size={18} />
             </button>

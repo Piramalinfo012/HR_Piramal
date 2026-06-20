@@ -5,11 +5,10 @@ import useAuthStore from '../store/authStore';
 
 const MyProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const [openProfileSections, setOpenProfileSections] = useState(['personal']);
   const [formData, setFormData] = useState({});
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [leaveData, setLeaveData] = useState([]);
-  const [gatePassData, setGatePassData] = useState([]);
   const profileFetchInProgressRef = useRef(false);
   const { user: authUser } = useAuthStore();
 
@@ -107,149 +106,6 @@ const MyProfile = () => {
     }
   };
 
-  const fetchLeaveData = async () => {
-    try {
-      // Get employee ID from localStorage
-      const employeeId = localStorage.getItem("employeeId");
-      if (!employeeId) {
-        console.log("No employee ID found for fetching leave data");
-        return;
-      }
-
-      // Fetch data from the Leave Management sheet
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Leave Management&action=fetch`
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch data from Leave Management sheet');
-      }
-
-      const rawData = result.data || result;
-
-      if (!Array.isArray(rawData)) {
-        throw new Error('Expected array data not received');
-      }
-
-      // Use row 1 as headers (index 0 in the array)
-      if (rawData.length < 1) {
-        console.error('No data found in Leave Management sheet');
-        return;
-      }
-
-      const headers = rawData[0].map(h => h?.toString().trim());
-      const dataRows = rawData.length > 1 ? rawData.slice(1) : [];
-
-      // Get column indices - using more flexible matching
-      const getIndex = (possibleNames) => {
-        for (const name of possibleNames) {
-          const index = headers.findIndex(h =>
-            h && h.toString().trim().toLowerCase().includes(name.toLowerCase())
-          );
-          if (index !== -1) return index;
-        }
-        return -1;
-      };
-
-      const employeeNameIndex = getIndex(['employee name', 'name', 'employee']);
-      const fromDateIndex = getIndex(['Leave Date Start', 'from', 'start date']);
-      const toDateIndex = getIndex(['Leaave Date End', 'to', 'end date']);
-      const remarksIndex = getIndex(['remarks', 'comment', 'reason']);
-      const statusIndex = getIndex(['status', 'approval status']);
-      const leaveTypeIndex = getIndex(['leave type', 'type', 'leave']);
-
-      // Log for debugging
-      console.log('Leave sheet headers:', headers);
-      console.log('Column indices:', {
-        employeeNameIndex,
-        fromDateIndex,
-        toDateIndex,
-        remarksIndex,
-        statusIndex,
-        leaveTypeIndex
-      });
-
-      // Process data and filter for current employee
-      const processedData = dataRows
-        .filter(row => {
-          if (employeeNameIndex === -1) return false;
-
-          const rowEmployeeName = row[employeeNameIndex]?.toString().trim();
-          return rowEmployeeName &&
-            rowEmployeeName.toLowerCase() === profileData.candidateName?.toLowerCase();
-        })
-        .map(row => ({
-          employeeName: employeeNameIndex !== -1 ? row[employeeNameIndex] || '' : 'N/A',
-          fromDate: fromDateIndex !== -1 ? row[fromDateIndex] || '' : 'N/A',
-          toDate: toDateIndex !== -1 ? row[toDateIndex] || '' : 'N/A',
-          remarks: remarksIndex !== -1 ? row[remarksIndex] || '' : 'N/A',
-          status: statusIndex !== -1 ? row[statusIndex] || '' : 'Pending',
-          leaveType: leaveTypeIndex !== -1 ? row[leaveTypeIndex] || '' : 'N/A'
-        }));
-
-      console.log('Processed leave data:', processedData);
-      setLeaveData(processedData);
-    } catch (error) {
-      console.error('Error fetching leave data:', error);
-    }
-  };
-
-
-  const fetchGatePassData = async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Gate Pass&action=fetch`
-      );
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-      const result = await response.json();
-      if (!result.success) throw new Error(result.error || 'Failed to fetch Gate Pass sheet');
-
-      const rawData = result.data || result;
-      if (!Array.isArray(rawData)) throw new Error('Expected array data not received');
-
-      const headers = rawData[0].map(h => h?.toString().trim());
-      const dataRows = rawData.slice(1);
-
-      const getIndex = (col) => headers.findIndex(h => h && h.toLowerCase().includes(col.toLowerCase()));
-
-      const empIndex = getIndex('Employee Name');
-      const placeIndex = getIndex('Place and reason to visit');
-      const departureIndex = getIndex('Departure From Plant');
-      const arrivalIndex = getIndex('Arrival at Plant');
-      const statusIndex = getIndex('Status');
-
-      const processedData = dataRows
-        .filter(row => row[empIndex]?.toString().trim().toLowerCase() === profileData.candidateName?.toLowerCase())
-        .map(row => ({
-          employeeName: row[empIndex] || '',
-          place: row[placeIndex] || '',
-          departure: row[departureIndex] || '',
-          arrival: row[arrivalIndex] || '',
-          status: row[statusIndex] || ''
-        }));
-
-      setGatePassData(processedData);
-    } catch (error) {
-      console.error('Error fetching gate pass data:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (profileData && profileData.candidateName) {
-      fetchLeaveData();
-      fetchGatePassData();
-    }
-  }, [profileData]);
-
-
   const fetchJoiningData = async () => {
     if (profileFetchInProgressRef.current) return;
 
@@ -342,13 +198,28 @@ const MyProfile = () => {
       const idxPhoto = getIndex(["Candidate's Photo", 'Candidate Photo', 'Photo'], 18);
       const idxMobile = getIndex(['Contact No', 'Mobile No.', 'Mobile No'], 23);
       const idxEmail = getIndex(['Email Id', 'Personal Email-Id', 'Email'], 31);
+      const idxEmployeeCode = getIndex(['Employee Code'], 4);
       const idxCurrentAddress = getIndex(['Current Address'], -1);
       const idxDob = getIndex(['Date Of Birth As Per Aadhar Card', 'Date Of Birth', 'DOB'], -1);
       const idxGender = getIndex(['Gender'], -1);
       const idxFamilyMobile = getIndex(['Family Mobile No', 'Family Mobile'], -1);
+      const idxRelation = getIndex(['Relationship With Family Person', 'Relationship with Family Person'], 25);
+      const idxPastPf = getIndex(['Past Pf Id No', 'Past PF'], 26);
+      const idxBankAccount = getIndex(['Current Bank AC No', 'Bank AC No', 'Account No'], 27);
+      const idxIfsc = getIndex(['IFSC Code'], 28);
+      const idxBranch = getIndex(['Branch Name'], 29);
+      const idxBankPassbook = getIndex(['Photo Of Front Bank Passbook', 'Bank Passbook'], 30);
+      const idxAadharPhoto = getIndex(['Aadhar Frontside photo', 'Aadhar Frontside', 'Aadhar Photo'], 16);
+      const idxPanCard = getIndex(['Pan Card'], 17);
+      const idxQualification = getIndex(['Highest Qualification'], 33);
+      const idxQualificationPhoto = getIndex(['Qualication Photo', 'Qualification Photo'], 35);
+      const idxSalarySlip = getIndex(['Salary Slip'], 36);
+      const idxResume = getIndex(['Resume/Cv Upload', 'Resume', 'CV Upload'], 37);
+      const idxEsic = getIndex(['ESIC No'], 32);
       const idxAadhar = getIndex(['Aadhar Card No', 'Aadhar No'], -1);
 
       const processedData = dataRows.map(row => ({
+        employeeCode: idxEmployeeCode !== -1 ? row[idxEmployeeCode] || '' : '',
         timestamp: row[getIndex('Timestamp')] || '',
         joiningNo: row[idxIndent] || '',
         candidateName: row[idxName] || '',
@@ -364,10 +235,22 @@ const MyProfile = () => {
         gender: idxGender !== -1 ? row[idxGender] || '' : '',
         mobileNo: row[idxMobile] || '',
         familyMobileNo: idxFamilyMobile !== -1 ? row[idxFamilyMobile] || '' : '',
-        relationWithFamily: row[getIndex('Relationship With Family Person')] || '',
+        relationWithFamily: idxRelation !== -1 ? row[idxRelation] || '' : '',
         email: row[idxEmail] || '',
         companyName: row[idxDept] || '',
         aadharNo: idxAadhar !== -1 ? row[idxAadhar] || '' : '',
+        pastPfIdNo: idxPastPf !== -1 ? row[idxPastPf] || '' : '',
+        bankAccountNo: idxBankAccount !== -1 ? row[idxBankAccount] || '' : '',
+        ifscCode: idxIfsc !== -1 ? row[idxIfsc] || '' : '',
+        branchName: idxBranch !== -1 ? row[idxBranch] || '' : '',
+        bankPassbookPhoto: idxBankPassbook !== -1 ? row[idxBankPassbook] || '' : '',
+        aadharFrontPhoto: idxAadharPhoto !== -1 ? row[idxAadharPhoto] || '' : '',
+        panCardPhoto: idxPanCard !== -1 ? row[idxPanCard] || '' : '',
+        highestQualification: idxQualification !== -1 ? row[idxQualification] || '' : '',
+        qualificationPhoto: idxQualificationPhoto !== -1 ? row[idxQualificationPhoto] || '' : '',
+        salarySlip: idxSalarySlip !== -1 ? row[idxSalarySlip] || '' : '',
+        resumeCvUpload: idxResume !== -1 ? row[idxResume] || '' : '',
+        esicNo: idxEsic !== -1 ? row[idxEsic] || '' : '',
         status: row[idxStatus] || '',
       }));
 
@@ -636,59 +519,71 @@ const MyProfile = () => {
   ];
 
   const profileLinks = [
-    { icon: ShieldCheck, label: 'Personal Information' },
-    { icon: Building, label: 'Bank Details' },
-    { icon: FileText, label: 'Documents' },
-    { icon: HeartPulse, label: 'Emergency Contact' },
-    { icon: LockKeyhole, label: 'Change Password' },
+    { id: 'personal', icon: ShieldCheck, label: 'Personal Information' },
+    { id: 'bank', icon: Building, label: 'Bank Details' },
+    { id: 'documents', icon: FileText, label: 'Documents' },
+    { id: 'emergency', icon: HeartPulse, label: 'Emergency Contact' },
+    { id: 'password', icon: LockKeyhole, label: 'Change Password' },
   ];
 
-  const getProfileStatusClass = (status) => {
-    const value = status?.toString().toLowerCase();
-    if (value === 'approved') return 'bg-emerald-50 text-emerald-700 ring-emerald-100';
-    if (value === 'rejected') return 'bg-rose-50 text-rose-700 ring-rose-100';
-    return 'bg-amber-50 text-amber-700 ring-amber-100';
+  const isLinkValue = (value) => /^https?:\/\//i.test(value?.toString().trim() || '');
+  const sectionDetails = {
+    personal: {
+      title: 'Personal Information',
+      rows: infoRows,
+    },
+    bank: {
+      title: 'Bank Details',
+      rows: [
+        { icon: Building, label: 'Bank Account No.', value: profileData.bankAccountNo },
+        { icon: FileText, label: 'IFSC Code', value: profileData.ifscCode },
+        { icon: Building, label: 'Branch Name', value: profileData.branchName },
+        { icon: FileText, label: 'Passbook Photo', value: profileData.bankPassbookPhoto },
+        { icon: ShieldCheck, label: 'ESIC No.', value: profileData.esicNo },
+        { icon: ShieldCheck, label: 'Past PF ID No.', value: profileData.pastPfIdNo },
+      ],
+    },
+    documents: {
+      title: 'Documents',
+      rows: [
+        { icon: FileText, label: 'Aadhar Card No.', value: profileData.aadharNo },
+        { icon: FileText, label: 'Aadhar Frontside Photo', value: profileData.aadharFrontPhoto },
+        { icon: FileText, label: 'PAN Card', value: profileData.panCardPhoto },
+        { icon: FileText, label: 'Highest Qualification', value: profileData.highestQualification },
+        { icon: FileText, label: 'Qualification Photo', value: profileData.qualificationPhoto },
+        { icon: FileText, label: 'Salary Slip', value: profileData.salarySlip },
+        { icon: FileText, label: 'Resume/CV Upload', value: profileData.resumeCvUpload },
+      ],
+    },
+    emergency: {
+      title: 'Emergency Contact',
+      rows: [
+        { icon: User, label: "Father's Name", value: profileData.fatherName },
+        { icon: Phone, label: 'Family Mobile No.', value: profileData.familyMobileNo, editable: 'familyMobileNo', type: 'tel' },
+        { icon: HeartPulse, label: 'Relationship', value: profileData.relationWithFamily },
+        { icon: MapPin, label: 'Current Address', value: profileData.currentAddress, editable: 'currentAddress', textarea: true },
+      ],
+    },
+    password: {
+      title: 'Change Password',
+      rows: [
+        { icon: LockKeyhole, label: 'Password Update', value: 'Please contact HR/Admin to change your password.' },
+      ],
+    },
   };
 
   return (
     <div className="page-content min-h-screen bg-[#f4f7fb] px-4 pb-24 pt-5 text-slate-950 sm:p-6">
-      <div className="mx-auto max-w-md space-y-5 lg:max-w-5xl">
+      <div className="mx-auto max-w-md space-y-5 lg:max-w-7xl">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Employee</p>
             <h1 className="text-2xl font-black text-slate-950">My Profile</h1>
           </div>
-          <div className="flex space-x-2">
-          {!isEditing ? (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="flex h-11 items-center rounded-2xl bg-slate-950 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.18)] hover:bg-slate-800"
-            >
-              <Edit3 size={16} className="mr-2" />
-              Edit
-            </button>
-          ) : (
-            <div className="flex space-x-2">
-              <button
-                onClick={handleSave}
-                className="flex h-11 items-center rounded-2xl bg-emerald-600 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(5,150,105,0.18)] hover:bg-emerald-700"
-              >
-                <Save size={16} className="mr-2" />
-                Save
-              </button>
-              <button
-                onClick={handleCancel}
-                className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-slate-700 shadow-[0_14px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-200"
-                aria-label="Cancel"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          )}
-          </div>
         </div>
 
-        <section className="overflow-hidden rounded-[30px] bg-white shadow-[0_24px_54px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/70">
+        <div className="space-y-5 lg:grid lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
+        <section className="overflow-hidden rounded-[30px] bg-white shadow-[0_24px_54px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/70 lg:sticky lg:top-24">
           <div className="relative h-36 bg-slate-950">
             <span className="pointer-events-none absolute -right-14 -top-16 h-40 w-40 rounded-full bg-indigo-500/25 blur-2xl" />
             <span className="pointer-events-none absolute -bottom-20 left-10 h-44 w-44 rounded-full bg-cyan-400/15 blur-2xl" />
@@ -744,59 +639,87 @@ const MyProfile = () => {
           </div>
         </section>
 
-        <section className="rounded-[26px] bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70">
-          <h3 className="px-1 text-base font-black text-slate-950">
-            Personal Information
-          </h3>
-          <div className="mt-3 divide-y divide-slate-100">
-            {infoRows.map((row) => {
-              const InfoIcon = row.icon;
-              return (
-                <div key={row.label} className="flex items-center gap-3 py-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-slate-700 ring-1 ring-slate-100">
-                    <InfoIcon size={18} />
-                  </span>
-                  <div className="min-w-0 flex-1 text-left">
-                    <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{row.label}</p>
-                    {isEditing && row.editable ? (
-                      row.textarea ? (
-                        <textarea
-                          name={row.editable}
-                          value={formData[row.editable] || ""}
-                          onChange={handleInputChange}
-                          rows={2}
-                          className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-slate-900 focus:bg-white"
-                        />
-                      ) : (
-                        <input
-                          type={row.type || 'text'}
-                          name={row.editable}
-                          value={formData[row.editable] || ""}
-                          onChange={handleInputChange}
-                          className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-slate-900 focus:bg-white"
-                        />
-                      )
-                    ) : (
-                      <p className="mt-0.5 break-words text-sm font-bold text-slate-800">{row.value || '-'}</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="rounded-[26px] bg-white p-2 shadow-[0_18px_42px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70">
+        <section className="rounded-[26px] bg-white p-2 shadow-[0_18px_42px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70 lg:p-3">
           {profileLinks.map((item) => {
             const LinkIcon = item.icon;
+            const isActive = openProfileSections.includes(item.id);
+            const sectionRows = sectionDetails[item.id]?.rows || [];
             return (
-              <button key={item.label} type="button" className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left active:bg-slate-50">
-                <span className="grid h-10 w-10 place-items-center rounded-2xl bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100">
-                  <LinkIcon size={18} />
-                </span>
-                <span className="flex-1 text-sm font-black text-slate-800">{item.label}</span>
-                <ChevronRight size={18} className="text-slate-300" />
-              </button>
+              <div
+                key={item.label}
+                className={`rounded-[24px] transition ${isActive ? 'bg-indigo-50/80' : ''}`}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenProfileSections((currentSections) =>
+                      currentSections.includes(item.id)
+                        ? currentSections.filter((sectionId) => sectionId !== item.id)
+                        : [...currentSections, item.id]
+                    )
+                  }
+                  className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition active:bg-slate-50"
+                >
+                  <span className={`grid h-10 w-10 place-items-center rounded-2xl ring-1 ${isActive ? 'bg-white text-indigo-700 ring-indigo-100' : 'bg-indigo-50 text-indigo-700 ring-indigo-100'}`}>
+                    <LinkIcon size={18} />
+                  </span>
+                  <span className={`flex-1 text-sm font-black ${isActive ? 'text-indigo-700' : 'text-slate-800'}`}>{item.label}</span>
+                  <ChevronRight size={18} className={`transition-transform ${isActive ? 'rotate-90 text-indigo-500' : 'text-slate-300'}`} />
+                </button>
+
+                {isActive ? (
+                  <div className="mx-3 mb-3 rounded-[22px] bg-white p-3 shadow-sm ring-1 ring-indigo-100 lg:p-4">
+                    <div className="divide-y divide-slate-100 lg:grid lg:grid-cols-2 lg:gap-3 lg:divide-y-0">
+                      {sectionRows.map((row) => {
+                        const InfoIcon = row.icon;
+                        const hasLink = isLinkValue(row.value);
+                        return (
+                          <div key={row.label} className="flex items-center gap-3 py-3 lg:rounded-2xl lg:bg-slate-50/70 lg:px-3 lg:ring-1 lg:ring-slate-100">
+                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-slate-50 text-slate-700 ring-1 ring-slate-100">
+                              <InfoIcon size={17} />
+                            </span>
+                            <div className="min-w-0 flex-1 text-left">
+                              <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{row.label}</p>
+                              {isEditing && row.editable ? (
+                                row.textarea ? (
+                                  <textarea
+                                    name={row.editable}
+                                    value={formData[row.editable] || ""}
+                                    onChange={handleInputChange}
+                                    rows={2}
+                                    className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-slate-900 focus:bg-white"
+                                  />
+                                ) : (
+                                  <input
+                                    type={row.type || 'text'}
+                                    name={row.editable}
+                                    value={formData[row.editable] || ""}
+                                    onChange={handleInputChange}
+                                    className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-slate-900 focus:bg-white"
+                                  />
+                                )
+                              ) : (
+                                hasLink ? (
+                                  <a
+                                    href={row.value}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-1 inline-flex items-center rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700 ring-1 ring-indigo-100"
+                                  >
+                                    View Document
+                                  </a>
+                                ) : (
+                                  <p className="mt-0.5 break-words text-sm font-bold text-slate-800">{row.value || '-'}</p>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             );
           })}
           <button
@@ -814,171 +737,8 @@ const MyProfile = () => {
             <span className="flex-1 text-sm font-black text-rose-600">Logout</span>
           </button>
         </section>
-
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* Leave History Card */}
-        <div className="rounded-[26px] bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70">
-          <h3 className="text-base font-black text-slate-950 mb-4">
-            Leave History
-          </h3>
-          {leaveData.length > 0 ? (
-            <>
-            <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Leave Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      From Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      To Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Remarks
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {leaveData.map((leave, index) => (
-                    <tr key={index}>
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        {leave.leaveType}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        {leave.fromDate}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        {leave.toDate}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${leave.status.toLowerCase() === "approved"
-                              ? "bg-green-100 text-green-800"
-                              : leave.status.toLowerCase() === "rejected"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                        >
-                          {leave.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        {leave.remarks}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="space-y-3 md:hidden">
-              {leaveData.map((leave, index) => (
-                <article key={index} className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-slate-900">{leave.leaveType || 'Leave'}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">{leave.fromDate} - {leave.toDate}</p>
-                    </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ring-1 ${getProfileStatusClass(leave.status)}`}>
-                      {leave.status || 'Pending'}
-                    </span>
-                  </div>
-                  <p className="mt-3 rounded-2xl bg-white p-3 text-xs font-semibold text-slate-600 ring-1 ring-slate-100">
-                    {leave.remarks || 'No remarks'}
-                  </p>
-                </article>
-              ))}
-            </div>
-            </>
-          ) : (
-            <p className="text-slate-500 text-center py-4 text-sm font-semibold">
-              No leave records found
-            </p>
-          )}
         </div>
 
-        {/* Gate Pass Card */}
-        <div className="rounded-[26px] bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/70">
-          <h3 className="text-base font-black text-slate-950 mb-4">
-            Gate Pass History
-          </h3>
-          {gatePassData.length > 0 ? (
-            <>
-            <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Place & Reason
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Departure
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Arrival
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {gatePassData.map((gp, index) => (
-                    <tr key={index}>
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        {gp.place}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        {gp.departure}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        {gp.arrival}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${gp.status.toLowerCase() === "approved"
-                              ? "bg-green-100 text-green-800"
-                              : gp.status.toLowerCase() === "rejected"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                        >
-                          {gp.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="space-y-3 md:hidden">
-              {gatePassData.map((gp, index) => (
-                <article key={index} className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-slate-900">{gp.place || 'Gate Pass'}</p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">{gp.departure || '-'} to {gp.arrival || '-'}</p>
-                    </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ring-1 ${getProfileStatusClass(gp.status)}`}>
-                      {gp.status || 'Pending'}
-                    </span>
-                  </div>
-                </article>
-              ))}
-            </div>
-            </>
-          ) : (
-            <p className="text-slate-500 text-center py-4 text-sm font-semibold">
-              No gate pass records found
-            </p>
-          )}
-        </div>
-      </div>
       </div>
     </div>
   );

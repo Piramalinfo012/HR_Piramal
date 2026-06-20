@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
   CalendarDays,
@@ -17,12 +17,14 @@ import {
   ClipboardList,
   Users,
   FolderKanban,
+  Gift,
   Sparkles,
   Play
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
 import toast from 'react-hot-toast';
+import { useHrmsNotifications } from '../hooks/useHrmsNotifications';
 
 const ATTENDANCE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_GRdhFbP5zQX_HV72t9Ofcj5IHurSBJnPC5o0yr6_HvkLkMs9hOSLHIP0e26uG1iDlA/exec';
 const ATTENDANCE_SHEET_NAME = 'Data';
@@ -138,6 +140,15 @@ const formatWorkingDuration = (inTimeValue, outTimeValue) => {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 };
 
+const getFeedNotificationId = (row, index) => {
+  const date = row[0] || '';
+  const sms = row[2] || '';
+  const smsType = row[3] || 'Feed';
+  const name = row[4] || '';
+  const stableText = [date, smsType, name, sms].map(normalize).join('|');
+  return `feed-${index + 2}-${stableText}`;
+};
+
 const summarizeRows = (rows) => rows.reduce((summary, item) => {
   const status = normalize(item.status).toUpperCase();
   const inTimeMinutes = parseTimeToMinutes(item.inTime);
@@ -169,6 +180,7 @@ const summarizeRows = (rows) => rows.reduce((summary, item) => {
 
 const EmployeeMobileHome = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout } = useAuthStore();
   const initialAttendanceData = useMemo(
     () => readCachedList(MOBILE_ATTENDANCE_CACHE_KEY, MOBILE_ATTENDANCE_CACHE_TTL_MS),
@@ -180,6 +192,8 @@ const EmployeeMobileHome = () => {
   const [newJoiners, setNewJoiners] = useState(initialFeedData);
   const [feedLoading, setFeedLoading] = useState(initialFeedData.length === 0);
   const [now, setNow] = useState(() => new Date());
+  const [showNotificationMenu, setShowNotificationMenu] = useState(false);
+  const { notifications, notificationsLoading, unreadCount, markNotificationRead } = useHrmsNotifications({ showToast: true });
 
   const rawUser = localStorage.getItem('user');
   const user = rawUser ? JSON.parse(rawUser) : {};
@@ -193,6 +207,25 @@ const EmployeeMobileHome = () => {
     const clockId = window.setInterval(() => setNow(new Date()), 30000);
     return () => window.clearInterval(clockId);
   }, []);
+
+  useEffect(() => {
+    const feedId = new URLSearchParams(location.search).get('feed');
+    if (!feedId || feedLoading) return undefined;
+
+    const timer = window.setTimeout(() => {
+      const targetElement = [...document.querySelectorAll('[data-feed-notification-id]')]
+        .find((element) => element.dataset.feedNotificationId === feedId);
+
+      if (!targetElement) return;
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      targetElement.classList.add('ring-4', 'ring-rose-200');
+      window.setTimeout(() => {
+        targetElement.classList.remove('ring-4', 'ring-rose-200');
+      }, 2200);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [feedLoading, location.search, newJoiners.length]);
 
   const handleProfilePicUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -268,13 +301,14 @@ const EmployeeMobileHome = () => {
         if (!isMounted) return;
         
         if (raw.length > 1) {
-          const processed = raw.slice(1).map(row => ({
+          const processed = raw.slice(1).map((row, index) => ({
             date: row[0] || "",
             candidatePhoto: row[1] || "",
             sms: row[2] || "",
             smsType: row[3] || "Announcement",
             name: row[4] || "",
-            designation: row[5] || ""
+            designation: row[5] || "",
+            notificationId: getFeedNotificationId(row, index),
           })).filter(item => item.sms || item.candidatePhoto);
           
           const nextJoiners = processed.reverse();
@@ -401,6 +435,14 @@ const EmployeeMobileHome = () => {
     navigate('/login', { replace: true });
   };
 
+  const handleNotificationClick = (item) => {
+    markNotificationRead(item.id);
+    if (item.targetPath) {
+      setShowNotificationMenu(false);
+      navigate(item.targetPath);
+    }
+  };
+
   const quickActions = [
     { icon: Wallet, label: 'Expenses', path: '/employee-mobile', iconClass: 'bg-emerald-50 text-emerald-700 ring-emerald-100' },
     { icon: ClipboardList, label: 'HR Records', path: '/my-attendance', iconClass: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
@@ -413,9 +455,9 @@ const EmployeeMobileHome = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb] pb-24 text-slate-950">
-      <div className="mx-auto max-w-md px-4 pt-5">
-        <header className="flex items-center justify-between">
+    <div className="min-h-screen bg-[#f4f7fb] pb-24 text-slate-950 lg:pb-10">
+      <div className="mx-auto max-w-md px-4 pt-5 lg:max-w-7xl lg:px-8 lg:pt-8">
+        <header className="relative flex items-center justify-between">
           <button
             type="button"
             onClick={() => !uploadingPic && fileInputRef.current?.click()}
@@ -462,18 +504,84 @@ const EmployeeMobileHome = () => {
           </button>
 
           <div className="flex items-center gap-2">
-            <button type="button" className="relative grid h-10 w-10 place-items-center rounded-2xl bg-white text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)]" aria-label="Notifications">
+            <button
+              type="button"
+              onClick={() => setShowNotificationMenu((visible) => !visible)}
+              className="relative grid h-10 w-10 place-items-center rounded-2xl bg-white text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+              aria-label="Notifications"
+            >
               <Bell size={18} />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
+              {unreadCount > 0 ? (
+                <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
+                  {unreadCount}
+                </span>
+              ) : null}
             </button>
             <button type="button" onClick={handleLogout} className="grid h-10 w-10 place-items-center rounded-2xl bg-white text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)]" aria-label="Logout">
               <LogOut size={18} />
             </button>
           </div>
+
+          {showNotificationMenu ? (
+            <div className="absolute right-0 top-14 z-40 w-[min(340px,calc(100vw-32px))] overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_24px_54px_rgba(15,23,42,0.18)]">
+              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                <div>
+                  <p className="text-sm font-black text-slate-950">Notifications</p>
+                  <p className="text-[11px] font-bold text-slate-400">Birthdays, anniversaries and feed updates</p>
+                </div>
+                <span className="grid h-9 w-9 place-items-center rounded-2xl bg-rose-50 text-rose-600 ring-1 ring-rose-100">
+                  <Gift size={18} />
+                </span>
+              </div>
+              <div className="max-h-80 overflow-y-auto p-3">
+                {notificationsLoading ? (
+                  <p className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">Checking notifications...</p>
+                ) : notifications.length > 0 ? (
+                  <div className="space-y-2">
+                    {notifications.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleNotificationClick(item)}
+                        className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${
+                          item.read
+                            ? 'bg-white ring-1 ring-slate-100 hover:bg-slate-50'
+                            : 'bg-rose-50/70 ring-1 ring-rose-100 hover:bg-rose-50'
+                        }`}
+                      >
+                        <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white text-rose-600 ring-1 ring-rose-100">
+                          {item.photo ? (
+                            <img src={getDriveImageUrl(item.photo, 120)} alt={item.title} className="h-full w-full object-cover" />
+                          ) : (
+                            <Gift size={20} />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2">
+                            {!item.read ? <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" /> : null}
+                            <span className="block truncate text-sm font-black text-slate-900">{item.title}</span>
+                          </span>
+                          <span className="block truncate text-[11px] font-bold text-slate-500">
+                            {item.message}
+                          </span>
+                          {item.dateLabel ? (
+                            <span className="mt-0.5 block text-[10px] font-black uppercase tracking-wide text-rose-500">{item.dateLabel}</span>
+                          ) : null}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">No notifications right now.</p>
+                )}
+              </div>
+            </div>
+          ) : null}
         </header>
 
+        <div className="mt-5 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:items-start lg:gap-6">
         <motion.section
-          className="relative mt-5 overflow-hidden rounded-[28px] bg-slate-950 p-4 text-white shadow-[0_24px_48px_rgba(15,23,42,0.24)]"
+          className="relative overflow-hidden rounded-[28px] bg-slate-950 p-4 text-white shadow-[0_24px_48px_rgba(15,23,42,0.24)] lg:min-h-[330px] lg:rounded-[34px] lg:p-7"
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: "easeOut" }}
@@ -541,20 +649,20 @@ const EmployeeMobileHome = () => {
           </button>
         </motion.section>
 
-        <section className="mt-6">
+        <section className="mt-6 lg:mt-0">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-black text-slate-950">Quick Actions</h2>
             <button type="button" onClick={() => navigate('/my-attendance')} className="text-xs font-black text-indigo-600">
               View all
             </button>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-3 lg:gap-4">
             {quickActions.map((action, idx) => (
               <motion.button
                 key={action.label}
                 type="button"
                 onClick={() => navigate(action.path)}
-                className="flex h-[62px] items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-3 text-left shadow-[0_14px_30px_rgba(15,23,42,0.07)] active:scale-[0.98]"
+                className="flex h-[62px] items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-3 text-left shadow-[0_14px_30px_rgba(15,23,42,0.07)] active:scale-[0.98] lg:h-[76px] lg:px-4"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 * idx, duration: 0.25 }}
@@ -571,8 +679,9 @@ const EmployeeMobileHome = () => {
             ))}
           </div>
         </section>
+        </div>
 
-        <div className="mt-6 space-y-6">
+        <div className="mt-6 space-y-6 lg:grid lg:grid-cols-[420px_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
           <section>
             <div className="flex items-center justify-between">
               <h2 className="text-base font-black text-slate-950">Today Activity</h2>
@@ -611,7 +720,7 @@ const EmployeeMobileHome = () => {
               </div>
             </div>
           </section>
-        <section className="mt-2">
+        <section className="mt-2 lg:mt-0">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-black text-slate-950">Company Updates</h2>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-600">
@@ -668,11 +777,12 @@ const EmployeeMobileHome = () => {
               </motion.div>
 
               {/* Feed Cards */}
-              <div className="flex flex-col gap-6 -mx-5 mt-4">
-                {newJoiners.slice(0, 5).map((person, idx) => (
+              <div className="-mx-5 mt-4 flex flex-col gap-6 lg:mx-0 lg:grid lg:grid-cols-2 lg:gap-5">
+                {newJoiners.slice(0, 10).map((person, idx) => (
                   <motion.div 
                     key={`feed-${idx}`}
-                    className="relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white pb-2 shadow-[0_14px_30px_rgba(15,23,42,0.07)]"
+                    data-feed-notification-id={person.notificationId}
+                    className="relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white pb-2 shadow-[0_14px_30px_rgba(15,23,42,0.07)] transition-all"
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + idx * 0.1 }}
                   >
                     {/* Header */}
