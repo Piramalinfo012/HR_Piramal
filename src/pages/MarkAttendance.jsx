@@ -13,6 +13,12 @@ const OUTSTATION_SPREADSHEET_ID = "1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw"
 const ATTENDANCE_SHEET_NAME = "Attendance";
 const MASTER_SHEET_NAME = "Master";
 const DEFAULT_ALLOWED_RADIUS_METERS = 100;
+const MARK_ATTENDANCE_CACHE_TTL_MS = 5 * 60 * 1000;
+const MARK_ATTENDANCE_MASTER_CACHE_TTL_MS = 15 * 60 * 1000;
+const MARK_ATTENDANCE_LOCATION_CACHE_TTL_MS = 2 * 60 * 1000;
+const MARK_ATTENDANCE_DATA_CACHE_KEY = "mark_attendance_data_cache_v1";
+const MARK_ATTENDANCE_MASTER_CACHE_KEY = "mark_attendance_master_cache_v1";
+const MARK_ATTENDANCE_LOCATION_CACHE_KEY = "mark_attendance_location_cache_v1";
 
 const MONTHS = [
   "January",
@@ -30,6 +36,24 @@ const MONTHS = [
 ];
 
 const normalize = (value) => String(value || "").trim().toLowerCase();
+
+const readCache = (key, maxAgeMs) => {
+  try {
+    const cached = JSON.parse(localStorage.getItem(key) || "null");
+    if (!cached || Date.now() - Number(cached.savedAt || 0) > maxAgeMs) return null;
+    return cached.data || null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCache = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), data }));
+  } catch {
+    // Cache is only used for faster paint and punch readiness.
+  }
+};
 
 const pickFirst = (row, keys) => {
   for (const key of keys) {
@@ -323,14 +347,34 @@ const reverseGeocode = async (latitude, longitude) => {
   }
 };
 
+const reviveAttendanceCache = (cached) => {
+  if (!cached) return null;
+  return {
+    attendanceData: (cached.attendanceData || [])
+      .map((item) => ({ ...item, dateObj: parseDateToObj(item.dateObj) || parseDateToObj(item.date) }))
+      .filter((item) => item.dateObj),
+    rawEntries: (cached.rawEntries || [])
+      .map((item) => ({ ...item, dateObj: parseDateToObj(item.dateObj) || parseDateToObj(item.date) }))
+      .filter((item) => item.dateObj),
+  };
+};
+
 const MarkAttendance = () => {
   const authUser = useAuthStore((state) => state.user);
   const currentUser = useMemo(() => authUser || getStoredUser(), [authUser]);
   const currentUserName = useMemo(() => getCurrentUserName(currentUser), [currentUser]);
+  const cachedAttendance = useMemo(
+    () => reviveAttendanceCache(readCache(MARK_ATTENDANCE_DATA_CACHE_KEY, MARK_ATTENDANCE_CACHE_TTL_MS)),
+    []
+  );
+  const cachedMasterUsers = useMemo(
+    () => readCache(MARK_ATTENDANCE_MASTER_CACHE_KEY, MARK_ATTENDANCE_MASTER_CACHE_TTL_MS) || [],
+    []
+  );
 
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [rawEntries, setRawEntries] = useState([]);
-  const [masterUsers, setMasterUsers] = useState([]);
+  const [attendanceData, setAttendanceData] = useState(cachedAttendance?.attendanceData || []);
+  const [rawEntries, setRawEntries] = useState(cachedAttendance?.rawEntries || []);
+  const [masterUsers, setMasterUsers] = useState(cachedMasterUsers);
   const [loading, setLoading] = useState(false);
   const [marking, setMarking] = useState(false);
   const [error, setError] = useState(null);
@@ -427,8 +471,11 @@ const MarkAttendance = () => {
       });
 
       const processed = Object.values(grouped).sort((a, b) => b.dateObj - a.dateObj);
+      const sortedEntries = entries.sort((a, b) => b.dateObj - a.dateObj);
+      writeCache(MARK_ATTENDANCE_DATA_CACHE_KEY, { attendanceData: processed, rawEntries: sortedEntries });
+      writeCache(MARK_ATTENDANCE_MASTER_CACHE_KEY, masterRows);
       setAttendanceData(processed);
-      setRawEntries(entries.sort((a, b) => b.dateObj - a.dateObj));
+      setRawEntries(sortedEntries);
       setMasterUsers(masterRows);
     } catch (err) {
       console.error("Mark attendance fetch error:", err);
@@ -440,7 +487,7 @@ const MarkAttendance = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    fetchData();
+    fetchData({ silent: true });
   }, []);
 
   useEffect(() => {
@@ -457,13 +504,10 @@ const MarkAttendance = () => {
     }
 
     let active = true;
-    setLocationCheck({ status: "checking", message: "Checking location..." });
 
-    const updateLocationCheck = (position) => {
+    const applyLocationCheck = ({ latitude, longitude, address = "" }) => {
       if (!active) return;
 
-      const latitude = Number(position.coords.latitude.toFixed(7));
-      const longitude = Number(position.coords.longitude.toFixed(7));
       const distance = locationRule.requiresLocationMatch
         ? haversineDistanceMeters(
           { latitude, longitude },
@@ -478,6 +522,7 @@ const MarkAttendance = () => {
         distance: roundedDistance,
         latitude,
         longitude,
+        address,
         message: !locationRule.requiresLocationMatch
           ? "Location ready"
           : allowed
@@ -486,15 +531,36 @@ const MarkAttendance = () => {
       });
     };
 
+    const updateLocationCheck = (position) => {
+      const latitude = Number(position.coords.latitude.toFixed(7));
+      const longitude = Number(position.coords.longitude.toFixed(7));
+      const cachedLocation = { latitude, longitude };
+      writeCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, cachedLocation);
+      applyLocationCheck(cachedLocation);
+    };
+
     const handleLocationError = (err) => {
       if (!active) return;
-      setLocationCheck({ status: "error", message: err.message || "Location check failed." });
+      setLocationCheck((current) => current || { status: "error", message: err.message || "Location check failed." });
     };
+
+    const cachedLocation = readCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, MARK_ATTENDANCE_LOCATION_CACHE_TTL_MS);
+    if (cachedLocation?.latitude !== undefined && cachedLocation?.longitude !== undefined) {
+      applyLocationCheck(cachedLocation);
+    } else {
+      setLocationCheck({ status: "checking", message: "Checking location..." });
+    }
+
+    navigator.geolocation.getCurrentPosition(updateLocationCheck, handleLocationError, {
+      enableHighAccuracy: true,
+      timeout: 8000,
+      maximumAge: 60000,
+    });
 
     const watchId = navigator.geolocation.watchPosition(updateLocationCheck, handleLocationError, {
       enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 10000,
+      timeout: 8000,
+      maximumAge: 60000,
     });
 
     return () => {
