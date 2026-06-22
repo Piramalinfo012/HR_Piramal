@@ -3,6 +3,9 @@ import { User, Mail, Phone, MapPin, Calendar, Building, Edit3, Save, X, ChevronR
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
 
+const PROFILE_CACHE_KEY = 'my_profile_details_cache_v1';
+const PROFILE_CONTACT_HR_MESSAGE = 'Profile details not found. Please contact HR team.';
+
 const createSquareProfileImage = (file, fitMode = 'contain') =>
   new Promise((resolve, reject) => {
     const image = new Image();
@@ -51,12 +54,77 @@ const createSquareProfileImage = (file, fitMode = 'contain') =>
     image.src = objectUrl;
   });
 
+const getStoredUserData = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || '{}');
+  } catch {
+    return {};
+  }
+};
+
+const getProfileIdentityKey = (user = {}) =>
+  String(
+    localStorage.getItem('employeeId') ||
+      user.employeeId ||
+      user.EmployeeID ||
+      user['Employee ID'] ||
+      user['User ID'] ||
+      user.Name ||
+      user.name ||
+      user.Username ||
+      ''
+  ).trim().toLowerCase();
+
+const readCachedProfile = () => {
+  try {
+    const cached = JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY) || 'null');
+    const currentUser = getStoredUserData();
+    if (!cached?.profile) return null;
+    if (cached.identityKey && cached.identityKey !== getProfileIdentityKey(currentUser)) return null;
+    return cached.profile;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedProfile = (profile) => {
+  try {
+    localStorage.setItem(
+      PROFILE_CACHE_KEY,
+      JSON.stringify({
+        identityKey: getProfileIdentityKey(getStoredUserData()),
+        savedAt: Date.now(),
+        profile,
+      })
+    );
+  } catch {
+    // Cache is only used to avoid a slow blank profile screen.
+  }
+};
+
+const buildProfileFallback = () => {
+  const user = getStoredUserData();
+  const name = user.Name || user.name || user['Employee Name'] || user.Username || 'Employee';
+  return {
+    candidateName: name,
+    joiningNo: localStorage.getItem('employeeId') || user.employeeId || user.EmployeeID || user['Employee ID'] || user['User ID'] || '-',
+    designation: user.Designation || user.designation || user.Role || user.role || 'Employee',
+    companyName: user.Department || user.department || user.Dept || '-',
+    email: user.Email || user.email || user['Email ID'] || '',
+    mobileNo: user.Mobile || user.mobile || user['Mobile No'] || user['Contact No'] || '',
+    profilePic: user.profilePic || user.ProfilePic || user['Profile Pic'] || '',
+    ProfilePic: user.profilePic || user.ProfilePic || user['Profile Pic'] || '',
+  };
+};
+
 const MyProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [openProfileSections, setOpenProfileSections] = useState(['personal']);
-  const [formData, setFormData] = useState({});
-  const [profileData, setProfileData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const initialProfileData = readCachedProfile() || buildProfileFallback();
+  const [formData, setFormData] = useState(initialProfileData || {});
+  const [profileData, setProfileData] = useState(initialProfileData);
+  const [loading, setLoading] = useState(!initialProfileData);
+  const [profileMessage, setProfileMessage] = useState('');
   const [uploadingPic, setUploadingPic] = useState(false);
   const [profilePreviewFile, setProfilePreviewFile] = useState(null);
   const [profilePreviewUrl, setProfilePreviewUrl] = useState('');
@@ -166,7 +234,8 @@ const MyProfile = () => {
       profileFetchInProgressRef.current = true;
       const userData = localStorage.getItem('user');
       if (!userData) {
-        throw new Error('No user data found in localStorage');
+        setProfileMessage(PROFILE_CONTACT_HR_MESSAGE);
+        return;
       }
 
       const currentUser = JSON.parse(userData);
@@ -376,16 +445,18 @@ const MyProfile = () => {
           // Continue without the profile image if there's an error
         }
 
+        localStorage.setItem("employeeId", profile.joiningNo);
+        writeCachedProfile(profile);
         setProfileData(profile);
         setFormData(profile);
-        localStorage.setItem("employeeId", profile.joiningNo);
+        setProfileMessage('');
       } else {
-        toast.error('No profile data found for current user');
+        setProfileMessage(PROFILE_CONTACT_HR_MESSAGE);
       }
 
     } catch (error) {
       console.error('Error fetching joining data:', error);
-      toast.error(`Failed to load profile data: ${error.message}`);
+      setProfileMessage(PROFILE_CONTACT_HR_MESSAGE);
     } finally {
       setLoading(false);
       profileFetchInProgressRef.current = false;
@@ -472,18 +543,25 @@ const MyProfile = () => {
       const updatedUser = { ...currentUser, profilePic: newPicUrl, ProfilePic: newPicUrl };
       localStorage.setItem("user", JSON.stringify(updatedUser));
       login(updatedUser);
-      setProfileData((current) => ({
-        ...current,
-        profilePic: newPicUrl,
-        ProfilePic: newPicUrl,
-        "Profile Pic": newPicUrl,
-      }));
-      setFormData((current) => ({
-        ...current,
-        profilePic: newPicUrl,
-        ProfilePic: newPicUrl,
-        "Profile Pic": newPicUrl,
-      }));
+      setProfileData((current) => {
+        const nextProfile = {
+          ...current,
+          profilePic: newPicUrl,
+          ProfilePic: newPicUrl,
+          "Profile Pic": newPicUrl,
+        };
+        writeCachedProfile(nextProfile);
+        return nextProfile;
+      });
+      setFormData((current) => {
+        const nextProfile = {
+          ...current,
+          profilePic: newPicUrl,
+          ProfilePic: newPicUrl,
+          "Profile Pic": newPicUrl,
+        };
+        return nextProfile;
+      });
 
       toast.success("Profile picture updated!", { id: toastId });
       closeProfilePreview();
@@ -609,6 +687,7 @@ const MyProfile = () => {
       if (result.success) {
         // Update local state only after successful API update
         setProfileData(formData);
+        writeCachedProfile(formData);
         toast.success('Profile updated successfully!');
         setIsEditing(false);
       } else {
@@ -628,7 +707,7 @@ const MyProfile = () => {
     setIsEditing(false);
   };
 
-  if (loading) {
+  if (loading && !profileData) {
     return <div className="page-content p-6"><div className="flex justify-center flex-col items-center">
       <div className="w-6 h-6 border-4 border-indigo-500 border-dashed rounded-full animate-spin mb-2"></div>
       <span className="text-gray-600 text-sm">Loading profile data...</span>
@@ -636,7 +715,13 @@ const MyProfile = () => {
   }
 
   if (!profileData) {
-    return <div className="page-content p-6">No profile data available</div>;
+    return (
+      <div className="page-content min-h-screen bg-[#f4f7fb] p-6 text-slate-950">
+        <div className="mx-auto max-w-md rounded-[26px] bg-white p-6 text-center shadow-[0_18px_42px_rgba(15,23,42,0.08)] ring-1 ring-slate-200">
+          <p className="text-lg font-black">{PROFILE_CONTACT_HR_MESSAGE}</p>
+        </div>
+      </div>
+    );
   }
 
   const profileImageSources = getImageUrlCandidates(
@@ -726,6 +811,11 @@ const MyProfile = () => {
             <h1 className="text-2xl font-black text-slate-950">My Profile</h1>
           </div>
         </div>
+        {profileMessage ? (
+          <div className="rounded-[22px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-800 shadow-sm">
+            {profileMessage}
+          </div>
+        ) : null}
 
         <div className="space-y-5 lg:grid lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
         <section className="overflow-hidden rounded-[30px] bg-white shadow-[0_24px_54px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/70 lg:sticky lg:top-24">
