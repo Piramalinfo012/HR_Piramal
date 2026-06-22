@@ -1,6 +1,8 @@
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
+import useAuthStore from '../store/authStore';
+import { getUserRole } from '../utils/authRole';
 
 const LEAVE_API_URL = import.meta.env.VITE_LEAVE_REQUEST_SHEET_URL;
 const LEAVE_SHEET_NAME = 'FMS';
@@ -9,7 +11,40 @@ const LEAVE_REFRESH_INTERVAL_MS = 30000;
 const LEAVE_PAGE_SIZE = 50;
 const LEAVE_PROCESS_CHUNK_SIZE = 500;
 
+const normalizeMatchValue = (value) =>
+  (value || '').toString().trim().replace(/\s+/g, ' ').toLowerCase();
+
+const getStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || '{}');
+  } catch {
+    return {};
+  }
+};
+
+const getCurrentUserAliases = (user = {}) => {
+  const values = [
+    localStorage.getItem('employeeId'),
+    user.employeeId,
+    user.EmployeeID,
+    user['Employee ID'],
+    user['User ID'],
+    user._authUsername,
+    user.Username,
+    user.username,
+    user['User Name'],
+    user.Name,
+    user.name,
+    user._displayName,
+    user['Employee Name'],
+    user['Sales Person Name'],
+  ];
+
+  return [...new Set(values.map(normalizeMatchValue).filter(Boolean))];
+};
+
 const LeaveManagement = () => {
+  const authUser = useAuthStore((state) => state.user);
   const [searchTerm, setSearchTerm] = useState('');
   const [pendingLeaves, setPendingLeaves] = useState([]);
   const [approvedLeaves, setApprovedLeaves] = useState([]);
@@ -41,6 +76,31 @@ const LeaveManagement = () => {
     remark: '',
     imageUrl: ''
   });
+
+  const currentUser = useMemo(() => authUser || getStoredUser(), [authUser]);
+  const currentUserAliases = useMemo(() => getCurrentUserAliases(currentUser), [currentUser]);
+  const shouldShowOnlyOwnLeaves = getUserRole(currentUser || {}) === 'employee';
+
+  const isOwnLeaveRecord = useMemo(
+    () => (item) => {
+      if (!shouldShowOnlyOwnLeaves || currentUserAliases.length === 0) return true;
+
+      const rowValues = [
+        item.requestedBy,
+        item.employeeName,
+        item.employeeId,
+      ].map(normalizeMatchValue).filter(Boolean);
+
+      return rowValues.some((rowValue) =>
+        currentUserAliases.some((alias) =>
+          rowValue === alias ||
+          rowValue.includes(alias) ||
+          alias.includes(rowValue)
+        )
+      );
+    },
+    [currentUserAliases, shouldShowOnlyOwnLeaves]
+  );
 
   const handleCheckboxChange = (leaveId, rowData) => {
     if (selectedRow?.serialNo === leaveId) {
@@ -675,28 +735,41 @@ const LeaveManagement = () => {
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const normalizedSearchTerm = deferredSearchTerm.trim().toLowerCase();
 
+  const scopedPendingLeaves = useMemo(
+    () => pendingLeaves.filter(isOwnLeaveRecord),
+    [pendingLeaves, isOwnLeaveRecord]
+  );
+
+  const scopedApprovedLeaves = useMemo(
+    () => approvedLeaves.filter(isOwnLeaveRecord),
+    [approvedLeaves, isOwnLeaveRecord]
+  );
+
+  const scopedRejectedLeaves = useMemo(
+    () => rejectedLeaves.filter(isOwnLeaveRecord),
+    [rejectedLeaves, isOwnLeaveRecord]
+  );
+
+  const matchesLeaveSearch = (item) =>
+    !normalizedSearchTerm ||
+    item.requestedBy?.toString().toLowerCase().includes(normalizedSearchTerm) ||
+    item.employeeName?.toString().toLowerCase().includes(normalizedSearchTerm) ||
+    item.employeeId?.toString().toLowerCase().includes(normalizedSearchTerm) ||
+    item.leaveRequestId?.toString().toLowerCase().includes(normalizedSearchTerm);
+
   const filteredPendingLeaves = useMemo(
-    () => pendingLeaves.filter((item) =>
-      item.requestedBy?.toLowerCase().includes(normalizedSearchTerm) ||
-      item.leaveRequestId?.toLowerCase().includes(normalizedSearchTerm)
-    ),
-    [pendingLeaves, normalizedSearchTerm]
+    () => scopedPendingLeaves.filter(matchesLeaveSearch),
+    [scopedPendingLeaves, normalizedSearchTerm]
   );
 
   const filteredApprovedLeaves = useMemo(
-    () => approvedLeaves.filter((item) =>
-      item.requestedBy?.toLowerCase().includes(normalizedSearchTerm) ||
-      item.leaveRequestId?.toLowerCase().includes(normalizedSearchTerm)
-    ),
-    [approvedLeaves, normalizedSearchTerm]
+    () => scopedApprovedLeaves.filter(matchesLeaveSearch),
+    [scopedApprovedLeaves, normalizedSearchTerm]
   );
 
   const filteredRejectedLeaves = useMemo(
-    () => rejectedLeaves.filter((item) =>
-      item.requestedBy?.toLowerCase().includes(normalizedSearchTerm) ||
-      item.leaveRequestId?.toLowerCase().includes(normalizedSearchTerm)
-    ),
-    [rejectedLeaves, normalizedSearchTerm]
+    () => scopedRejectedLeaves.filter(matchesLeaveSearch),
+    [scopedRejectedLeaves, normalizedSearchTerm]
   );
 
   useEffect(() => {
@@ -731,9 +804,11 @@ const LeaveManagement = () => {
     <table className="min-w-full divide-y divide-white">
       <thead className="bg-gray-100">
         <tr>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Select
-          </th>
+          {!shouldShowOnlyOwnLeaves && (
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Select
+            </th>
+          )}
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LR-Unique No.</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested By</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
@@ -745,21 +820,25 @@ const LeaveManagement = () => {
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Location</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Planned</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          {!shouldShowOnlyOwnLeaves && (
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          )}
         </tr>
       </thead>
       <tbody className="divide-y divide-white">
         {filteredPendingLeaves.length > 0 ? (
           displayedPendingLeaves.map((item, index) => (
             <tr key={item.serialNo || index} className="hover:bg-white">
-              <td className="px-6 py-4 whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={selectedRow?.serialNo === item.serialNo}
-                  onChange={() => handleCheckboxChange(item.serialNo, item)}
-                  className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
-                />
-              </td>
+              {!shouldShowOnlyOwnLeaves && (
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={selectedRow?.serialNo === item.serialNo}
+                    onChange={() => handleCheckboxChange(item.serialNo, item)}
+                    className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
+                  />
+                </td>
+              )}
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.leaveRequestId}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.requestedBy}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -804,57 +883,59 @@ const LeaveManagement = () => {
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.jobLocation}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(item.approvalPlanned)}</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleLeaveAction('accept')}
-                    disabled={!selectedRow || selectedRow.serialNo !== item.serialNo || loading}
-                    className={`px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 min-h-[42px] flex items-center justify-center ${!selectedRow || selectedRow.serialNo !== item.serialNo || loading ? 'opacity-75 cursor-not-allowed' : ''
-                      }`}
-                  >
-                    {loading && selectedRow?.serialNo === item.serialNo && actionInProgress === 'accept' ? (
-                      <div className="flex items-center">
-                        <svg
-                          className="animate-spin h-4 w-4 text-white mr-2"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Accepting...</span>
-                      </div>
-                    ) : 'Accept'}
-                  </button>
-                  <button
-                    onClick={() => handleLeaveAction('rejected')}
-                    disabled={selectedRow?.serialNo !== item.serialNo || loading}
-                    className={`px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 min-h-[42px] flex items-center justify-center ${selectedRow?.serialNo !== item.serialNo || (loading && actionInProgress === 'accept') ? 'opacity-75 cursor-not-allowed' : ''
-                      }`}
-                  >
-                    {loading && selectedRow?.serialNo === item.serialNo && actionInProgress === 'rejected' ? (
-                      <div className="flex items-center">
-                        <svg
-                          className="animate-spin h-4 w-4 text-white mr-2"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Rejecting...</span>
-                      </div>
-                    ) : 'Reject'}
-                  </button>
-                </div>
-              </td>
+              {!shouldShowOnlyOwnLeaves && (
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleLeaveAction('accept')}
+                      disabled={!selectedRow || selectedRow.serialNo !== item.serialNo || loading}
+                      className={`px-4 py-2 text-white bg-green-600 rounded-md hover:bg-green-700 min-h-[42px] flex items-center justify-center ${!selectedRow || selectedRow.serialNo !== item.serialNo || loading ? 'opacity-75 cursor-not-allowed' : ''
+                        }`}
+                    >
+                      {loading && selectedRow?.serialNo === item.serialNo && actionInProgress === 'accept' ? (
+                        <div className="flex items-center">
+                          <svg
+                            className="animate-spin h-4 w-4 text-white mr-2"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Accepting...</span>
+                        </div>
+                      ) : 'Accept'}
+                    </button>
+                    <button
+                      onClick={() => handleLeaveAction('rejected')}
+                      disabled={selectedRow?.serialNo !== item.serialNo || loading}
+                      className={`px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700 min-h-[42px] flex items-center justify-center ${selectedRow?.serialNo !== item.serialNo || (loading && actionInProgress === 'accept') ? 'opacity-75 cursor-not-allowed' : ''
+                        }`}
+                    >
+                      {loading && selectedRow?.serialNo === item.serialNo && actionInProgress === 'rejected' ? (
+                        <div className="flex items-center">
+                          <svg
+                            className="animate-spin h-4 w-4 text-white mr-2"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Rejecting...</span>
+                        </div>
+                      ) : 'Reject'}
+                    </button>
+                  </div>
+                </td>
+              )}
             </tr>
           ))
         ) : (
           <tr>
-            <td colSpan="13" className="px-6 py-12 text-center">
+            <td colSpan={shouldShowOnlyOwnLeaves ? 11 : 13} className="px-6 py-12 text-center">
               <p className="text-gray-500">No pending leave requests found.</p>
             </td>
           </tr>
@@ -1033,6 +1114,7 @@ const LeaveManagement = () => {
       <div className="space-y-3 md:hidden">
         {rows.map((item, index) => {
           const isPending = activeTab === 'pending';
+          const canApproveLeaves = !shouldShowOnlyOwnLeaves;
           const isSelected = selectedRow?.serialNo === item.serialNo;
           const statusLabel = isPending ? 'Pending' : item.approvalStatus || item.status || activeTab;
           const statusClass = activeTab === 'approved'
@@ -1054,7 +1136,7 @@ const LeaveManagement = () => {
                 </span>
               </div>
 
-              {isPending && (
+              {isPending && canApproveLeaves && (
                 <label className="mt-4 flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-2 text-sm font-black text-slate-700">
                   <input
                     type="checkbox"
@@ -1129,7 +1211,7 @@ const LeaveManagement = () => {
                 </div>
               )}
 
-              {isPending && (
+              {isPending && canApproveLeaves && (
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleLeaveAction('accept')}
@@ -1155,22 +1237,25 @@ const LeaveManagement = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-xl font-black text-slate-950 sm:text-2xl">Leave Management</h1>
+    <div className="space-y-4 px-4 pb-6 sm:space-y-6 sm:px-0 sm:pb-0">
+      <div className="rounded-[28px] border border-slate-200/80 bg-white/95 p-4 shadow-[0_18px_38px_rgba(15,23,42,0.08)] sm:flex sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+        <div className="mb-3 flex flex-wrap items-center gap-3 sm:mb-0">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 sm:hidden">Employee Leave</p>
+            <h1 className="text-2xl font-black text-slate-950 sm:text-2xl">Leave Management</h1>
+          </div>
           <span className="text-xs font-normal bg-green-100 text-green-700 px-2 py-0.5 rounded border border-green-200">v1.1 (Sync Fixed)</span>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex w-full items-center justify-center rounded-2xl border border-transparent bg-navy px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-navy-dark sm:w-auto sm:rounded-md sm:py-2 sm:font-medium"
+          className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-transparent bg-navy px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(49,46,129,0.18)] hover:bg-navy-dark sm:h-auto sm:w-auto sm:rounded-md sm:py-2 sm:font-medium sm:shadow-sm"
         >
           <Plus size={16} className="mr-2" />
           New Leave Request
         </button>
       </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-lg sm:p-4 sm:shadow">
+      <div className="rounded-[26px] border border-slate-200 bg-white/95 p-3 shadow-[0_14px_30px_rgba(15,23,42,0.06)] sm:rounded-lg sm:bg-white sm:p-4 sm:shadow">
         <div className="flex flex-1 sm:max-w-md">
           <div className="relative w-full">
             <input
@@ -1185,35 +1270,38 @@ const LeaveManagement = () => {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm sm:rounded-lg sm:border-0 sm:shadow">
+      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_42px_rgba(15,23,42,0.08)] sm:rounded-lg sm:border-0 sm:shadow">
         <div className="border-b border-gray-200">
-          <nav className="-mb-px flex overflow-x-auto px-2 sm:px-0">
+          <nav className="-mb-px flex w-full overflow-x-auto px-1 sm:w-auto sm:px-0">
             <button
               onClick={() => setActiveTab('pending')}
-              className={`whitespace-nowrap py-4 px-4 text-center border-b-2 text-sm font-black sm:px-6 sm:font-medium ${activeTab === 'pending'
+              className={`min-w-[110px] flex-1 whitespace-nowrap py-3 px-3 text-center border-b-2 text-xs font-black sm:min-w-0 sm:flex-none sm:py-4 sm:px-6 sm:text-sm sm:font-medium ${activeTab === 'pending'
                 ? 'border-indigo-500 text-navy'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
-              Pending Leaves ({pendingLeaves.length})
+              <span className="sm:hidden">Pending ({scopedPendingLeaves.length})</span>
+              <span className="hidden sm:inline">Pending Leaves ({scopedPendingLeaves.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('approved')}
-              className={`whitespace-nowrap py-4 px-4 text-center border-b-2 text-sm font-black sm:px-6 sm:font-medium ${activeTab === 'approved'
+              className={`min-w-[110px] flex-1 whitespace-nowrap py-3 px-3 text-center border-b-2 text-xs font-black sm:min-w-0 sm:flex-none sm:py-4 sm:px-6 sm:text-sm sm:font-medium ${activeTab === 'approved'
                 ? 'border-indigo-500 text-navy'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
-              Approved Leaves ({approvedLeaves.length})
+              <span className="sm:hidden">Approved ({scopedApprovedLeaves.length})</span>
+              <span className="hidden sm:inline">Approved Leaves ({scopedApprovedLeaves.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('rejected')}
-              className={`whitespace-nowrap py-4 px-4 text-center border-b-2 text-sm font-black sm:px-6 sm:font-medium ${activeTab === 'rejected'
+              className={`min-w-[110px] flex-1 whitespace-nowrap py-3 px-3 text-center border-b-2 text-xs font-black sm:min-w-0 sm:flex-none sm:py-4 sm:px-6 sm:text-sm sm:font-medium ${activeTab === 'rejected'
                 ? 'border-indigo-500 text-navy'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
-              Rejected Leaves ({rejectedLeaves.length})
+              <span className="sm:hidden">Rejected ({scopedRejectedLeaves.length})</span>
+              <span className="hidden sm:inline">Rejected Leaves ({scopedRejectedLeaves.length})</span>
             </button>
           </nav>
         </div>

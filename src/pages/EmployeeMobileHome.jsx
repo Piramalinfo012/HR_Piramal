@@ -19,10 +19,13 @@ import {
   FolderKanban,
   Gift,
   MessageCircle,
+  Phone,
+  Search,
   Sparkles,
   Play,
   Share2,
-  ThumbsUp
+  ThumbsUp,
+  X
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
@@ -39,6 +42,8 @@ const MOBILE_ATTENDANCE_CACHE_KEY = 'employee_mobile_latest_attendance_cache_v1'
 const MOBILE_ATTENDANCE_CACHE_TTL_MS = 10 * 60 * 1000;
 const MARK_ATTENDANCE_DATA_CACHE_KEY = 'mark_attendance_data_cache_v1';
 const MARK_ATTENDANCE_CACHE_TTL_MS = 5 * 60 * 1000;
+const CONTACTS_CACHE_KEY = 'employee_mobile_contacts_cache_v1';
+const CONTACTS_CACHE_TTL_MS = 10 * 60 * 1000;
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -246,6 +251,75 @@ const getFeedNotificationId = (row, index) => {
   return `feed-${index + 2}-${stableText}`;
 };
 
+const getJoiningHeaderIndex = (headers, names, fallbackIndex = -1) => {
+  const searchNames = names.map((name) => name.toLowerCase());
+  const index = headers.findIndex((header) => {
+    const value = header?.toString().trim().toLowerCase();
+    return value && searchNames.some((name) => value === name || value.includes(name));
+  });
+  return index === -1 ? fallbackIndex : index;
+};
+
+const buildEmployeeContacts = (rawData = []) => {
+  let headerRowIndex = -1;
+  let headers = [];
+
+  for (let index = 0; index < rawData.length; index += 1) {
+    const row = rawData[index];
+    if (!Array.isArray(row)) continue;
+
+    const normalizedRow = row.map((cell) => cell?.toString().trim().toLowerCase());
+    const idIndex = normalizedRow.findIndex((cell) =>
+      cell && (cell === 'id' || cell.includes('joining id') || cell.includes('indent number'))
+    );
+    const nameIndex = normalizedRow.findIndex((cell) =>
+      cell && (cell.includes('candidate name') || cell.includes('candiate name') || cell.includes('name as per aadhar'))
+    );
+
+    if (idIndex !== -1 && nameIndex !== -1) {
+      headerRowIndex = index;
+      headers = row.map((header) => header?.toString().trim());
+      break;
+    }
+  }
+
+  if (headerRowIndex === -1) return [];
+
+  const idxId = getJoiningHeaderIndex(headers, ['Joining ID', 'Indent Number', 'Employee ID', 'ID'], 5);
+  const idxName = getJoiningHeaderIndex(headers, ['Name As Per Aadhar', 'Candidate Name', 'Candiate Name', 'Employee Name'], 10);
+  const idxDept = getJoiningHeaderIndex(headers, ['Department'], 2);
+  const idxDesignation = getJoiningHeaderIndex(headers, ['Designation'], 14);
+  const idxPhoto = getJoiningHeaderIndex(headers, ["Candidate's Photo", 'Candidate Photo', 'Photo', 'Profile Pic'], 18);
+  const idxMobile = getJoiningHeaderIndex(headers, ['Contact No', 'Mobile No.', 'Mobile No', 'Phone'], 23);
+  const idxStatus = getJoiningHeaderIndex(headers, ['Status'], 8);
+
+  const uniqueContacts = new Map();
+
+  rawData.slice(headerRowIndex + 1).forEach((row, index) => {
+    if (!Array.isArray(row)) return;
+
+    const name = normalize(row[idxName]);
+    const mobileNo = normalize(row[idxMobile]);
+    if (!name || !mobileNo) return;
+
+    const key = `${name.toLowerCase()}-${mobileNo.replace(/\D/g, '')}`;
+    if (uniqueContacts.has(key)) return;
+
+    uniqueContacts.set(key, {
+      id: normalize(row[idxId]) || key,
+      name,
+      mobileNo,
+      department: normalize(row[idxDept]),
+      designation: normalize(row[idxDesignation]),
+      photo: normalize(row[idxPhoto]),
+      status: normalize(row[idxStatus]),
+      rowIndex: headerRowIndex + index + 2,
+    });
+  });
+
+  return Array.from(uniqueContacts.values()).sort((a, b) => a.name.localeCompare(b.name));
+};
+
 const summarizeRows = (rows) => rows.reduce((summary, item) => {
   const status = normalize(item.status).toUpperCase();
   const inTimeMinutes = parseTimeToMinutes(item.inTime);
@@ -284,10 +358,15 @@ const EmployeeMobileHome = () => {
     []
   );
   const initialFeedData = useMemo(() => readCachedList(FEED_CACHE_KEY, FEED_CACHE_TTL_MS), []);
+  const initialContacts = useMemo(() => readCachedList(CONTACTS_CACHE_KEY, CONTACTS_CACHE_TTL_MS), []);
   const [attendanceData, setAttendanceData] = useState(initialAttendanceData);
   const [loading, setLoading] = useState(initialAttendanceData.length === 0);
   const [newJoiners, setNewJoiners] = useState(initialFeedData);
   const [feedLoading, setFeedLoading] = useState(initialFeedData.length === 0);
+  const [contacts, setContacts] = useState(initialContacts);
+  const [contactsLoading, setContactsLoading] = useState(initialContacts.length === 0);
+  const [showContacts, setShowContacts] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
   const [now, setNow] = useState(() => new Date());
   const [showNotificationMenu, setShowNotificationMenu] = useState(false);
   const { notifications, notificationsLoading, unreadCount, markNotificationRead } = useHrmsNotifications({ showToast: true });
@@ -304,6 +383,34 @@ const EmployeeMobileHome = () => {
     const clockId = window.setInterval(() => setNow(new Date()), 30000);
     return () => window.clearInterval(clockId);
   }, []);
+
+  const fetchContacts = async ({ silent = false } = {}) => {
+    if (!import.meta.env.VITE_JOINING_SHEET_URL) {
+      setContactsLoading(false);
+      return;
+    }
+
+    try {
+      if (!silent) setContactsLoading(true);
+      const response = await fetch(`${import.meta.env.VITE_JOINING_SHEET_URL}?action=read&sheet=JOINING_FMS`);
+      const result = await response.json();
+      const rawData = Array.isArray(result?.data) ? result.data : [];
+      const parsedContacts = buildEmployeeContacts(rawData);
+      setContacts(parsedContacts);
+      writeCachedList(CONTACTS_CACHE_KEY, parsedContacts);
+    } catch (error) {
+      console.error('Employee contacts fetch failed:', error);
+      if (!silent) toast.error('Failed to load contacts');
+    } finally {
+      if (!silent) setContactsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showContacts && contacts.length === 0) {
+      fetchContacts();
+    }
+  }, [showContacts]);
 
   useEffect(() => {
     const feedId = new URLSearchParams(location.search).get('feed');
@@ -588,6 +695,26 @@ const EmployeeMobileHome = () => {
     }
   };
 
+  const filteredContacts = useMemo(() => {
+    const query = contactSearch.trim().toLowerCase();
+    if (!query) return contacts;
+
+    return contacts.filter((contact) =>
+      contact.name.toLowerCase().includes(query) ||
+      contact.mobileNo.toLowerCase().includes(query) ||
+      contact.designation.toLowerCase().includes(query) ||
+      contact.department.toLowerCase().includes(query)
+    );
+  }, [contacts, contactSearch]);
+
+  const handleQuickAction = (action) => {
+    if (action.id === 'contacts') {
+      setShowContacts(true);
+      return;
+    }
+    navigate(action.path);
+  };
+
   const quickActions = [
     { icon: Wallet, label: 'Expenses', path: '/employee-mobile', iconClass: 'bg-emerald-50 text-emerald-700 ring-emerald-100' },
     { icon: ClipboardList, label: 'HR Records', path: '/my-attendance', iconClass: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
@@ -596,7 +723,7 @@ const EmployeeMobileHome = () => {
     { icon: CalendarDays, label: 'Leave History', path: '/leave-management', iconClass: 'bg-slate-100 text-slate-700 ring-slate-200' },
     { icon: User, label: 'My Profile', path: '/employee-profile', iconClass: 'bg-amber-50 text-amber-700 ring-amber-100' },
     { icon: Briefcase, label: 'Projects / Tasks', path: '/employee-mobile', iconClass: 'bg-orange-50 text-orange-700 ring-orange-100' },
-    { icon: Users, label: 'All Contacts', path: '/employee-mobile', iconClass: 'bg-cyan-50 text-cyan-700 ring-cyan-100' },
+    { id: 'contacts', icon: Users, label: 'All Contacts', path: '/employee-mobile', iconClass: 'bg-cyan-50 text-cyan-700 ring-cyan-100' },
   ];
 
   return (
@@ -807,7 +934,7 @@ const EmployeeMobileHome = () => {
               <motion.button
                 key={action.label}
                 type="button"
-                onClick={() => navigate(action.path)}
+                onClick={() => handleQuickAction(action)}
                 className="flex h-[62px] items-center justify-between rounded-2xl border border-slate-200/80 bg-white px-3 text-left shadow-[0_14px_30px_rgba(15,23,42,0.07)] active:scale-[0.98] lg:h-[76px] lg:px-4"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1027,6 +1154,104 @@ const EmployeeMobileHome = () => {
           )}
         </section>
       </div>
+
+      {showContacts && (
+        <div className="fixed inset-0 z-[140] flex items-end justify-center bg-slate-950/55 p-4 pb-24 backdrop-blur-sm lg:items-center lg:pb-4">
+          <motion.div
+            initial={{ opacity: 0, y: 22, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="w-full max-w-md overflow-hidden rounded-[30px] bg-white shadow-[0_28px_70px_rgba(15,23,42,0.28)] lg:max-w-xl"
+          >
+            <div className="border-b border-slate-100 px-5 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-500">Directory</p>
+                  <h3 className="text-xl font-black text-slate-950">All Contacts</h3>
+                  <p className="mt-1 text-xs font-bold text-slate-400">{contacts.length} employee contacts</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowContacts(false)}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-slate-50 text-slate-500"
+                  aria-label="Close contacts"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="relative mt-4">
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={contactSearch}
+                  onChange={(event) => setContactSearch(event.target.value)}
+                  placeholder="Search name or number..."
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm font-bold text-slate-800 outline-none focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-100"
+                />
+              </div>
+            </div>
+
+            <div className="max-h-[58dvh] space-y-3 overflow-y-auto p-4">
+              {contactsLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-100 border-t-cyan-600" />
+                </div>
+              ) : filteredContacts.length > 0 ? (
+                filteredContacts.map((contact) => (
+                  <div
+                    key={`${contact.id}-${contact.mobileNo}`}
+                    className="flex items-center gap-3 rounded-[22px] border border-slate-200 bg-white p-3 shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
+                  >
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-cyan-50 ring-1 ring-cyan-100">
+                      {contact.photo ? (
+                        <img
+                          src={getDriveImageUrl(contact.photo, 160)}
+                          alt={contact.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover"
+                          onError={(event) => {
+                            if (!event.target.dataset.retried) {
+                              event.target.dataset.retried = "true";
+                              const match = contact.photo.match(/\/d\/([a-zA-Z0-9_-]+)/) || contact.photo.match(/id=([a-zA-Z0-9_-]+)/);
+                              event.target.src = match && match[1] ? `https://drive.google.com/uc?export=view&id=${match[1]}` : contact.photo;
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="grid h-full w-full place-items-center text-lg font-black text-cyan-700">
+                          {contact.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate text-sm font-black text-slate-950">{contact.name}</h4>
+                      <p className="mt-0.5 truncate text-[11px] font-bold text-slate-500">
+                        {contact.designation || contact.department || 'Employee'}
+                      </p>
+                      <p className="mt-1 flex items-center gap-1.5 text-xs font-black text-cyan-700">
+                        <Phone size={13} />
+                        {contact.mobileNo}
+                      </p>
+                    </div>
+                    <a
+                      href={`tel:${contact.mobileNo.replace(/\s+/g, '')}`}
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-cyan-50 text-cyan-700 ring-1 ring-cyan-100"
+                      aria-label={`Call ${contact.name}`}
+                    >
+                      <Phone size={17} />
+                    </a>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-3xl bg-slate-50 p-8 text-center">
+                  <p className="text-sm font-black text-slate-500">No contacts found.</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       </div>
 
