@@ -331,7 +331,7 @@ const getBrowserPosition = () =>
 
 const reverseGeocode = async (latitude, longitude) => {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+  const timeoutId = window.setTimeout(() => controller.abort(), 3500);
 
   try {
     const response = await fetch(
@@ -357,6 +357,53 @@ const reviveAttendanceCache = (cached) => {
       .map((item) => ({ ...item, dateObj: parseDateToObj(item.dateObj) || parseDateToObj(item.date) }))
       .filter((item) => item.dateObj),
   };
+};
+
+const mergeAttendanceEntry = (rows, entry) => {
+  const entryKey = `${normalize(entry.employeeName)}_${dateKey(entry.dateObj)}`;
+  const nextRows = [...rows];
+  const existingIndex = nextRows.findIndex((item) => {
+    const itemDate = parseDateToObj(item.dateObj) || parseDateToObj(item.date);
+    return `${normalize(item.employeeName)}_${dateKey(itemDate)}` === entryKey;
+  });
+
+  const existingRow =
+    existingIndex >= 0
+      ? { ...nextRows[existingIndex], dateObj: parseDateToObj(nextRows[existingIndex].dateObj) || parseDateToObj(nextRows[existingIndex].date) }
+      : {
+          employeeName: entry.employeeName,
+          dateObj: entry.dateObj,
+          date: formatDateValue(entry.dateObj),
+          month: MONTHS[entry.dateObj.getMonth()],
+          year: String(entry.dateObj.getFullYear()),
+          day: entry.dateObj.getDate(),
+          inTime: "",
+          outTime: "",
+          mapLink: "",
+          address: "",
+        };
+
+  const mergedRow = {
+    ...existingRow,
+    status: "PRESENT",
+    mapLink: entry.mapLink || existingRow.mapLink,
+    address: entry.address || existingRow.address,
+  };
+
+  if (entry.status === "IN") mergedRow.inTime = entry.time;
+  if (entry.status === "OUT") mergedRow.outTime = entry.time;
+
+  if (existingIndex >= 0) {
+    nextRows[existingIndex] = mergedRow;
+  } else {
+    nextRows.push(mergedRow);
+  }
+
+  return nextRows.sort((a, b) => {
+    const dateA = parseDateToObj(a.dateObj) || parseDateToObj(a.date);
+    const dateB = parseDateToObj(b.dateObj) || parseDateToObj(b.date);
+    return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
+  });
 };
 
 const MarkAttendance = () => {
@@ -534,9 +581,22 @@ const MarkAttendance = () => {
     const updateLocationCheck = (position) => {
       const latitude = Number(position.coords.latitude.toFixed(7));
       const longitude = Number(position.coords.longitude.toFixed(7));
-      const cachedLocation = { latitude, longitude };
+      const previousLocation = readCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, MARK_ATTENDANCE_LOCATION_CACHE_TTL_MS);
+      const previousAddress = previousLocation?.latitude === latitude && previousLocation?.longitude === longitude
+        ? previousLocation.address || ""
+        : "";
+      const cachedLocation = { latitude, longitude, address: previousAddress };
       writeCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, cachedLocation);
       applyLocationCheck(cachedLocation);
+
+      if (!previousAddress) {
+        reverseGeocode(latitude, longitude).then((address) => {
+          if (!active || !address) return;
+          const enrichedLocation = { latitude, longitude, address };
+          writeCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, enrichedLocation);
+          applyLocationCheck(enrichedLocation);
+        });
+      }
     };
 
     const handleLocationError = (err) => {
@@ -635,7 +695,15 @@ const MarkAttendance = () => {
       const latitude = locationCheck.latitude;
       const longitude = locationCheck.longitude;
       const mapLink = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-      const address = locationCheck.address || `Lat ${latitude}, Lng ${longitude}`;
+      const address = locationCheck.address || await reverseGeocode(latitude, longitude);
+      if (address) {
+        writeCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, { latitude, longitude, address });
+        setLocationCheck((current) =>
+          current?.latitude === latitude && current?.longitude === longitude
+            ? { ...current, address }
+            : current
+        );
+      }
       const timestamp = formatDateTimeForSheet(now);
       const rowData = [
         timestamp,
@@ -654,8 +722,9 @@ const MarkAttendance = () => {
         now.toLocaleString("en-US", { month: "long" }),
       ];
 
-      const response = await fetch(OUTSTATION_SCRIPT_URL, {
+      await fetch(OUTSTATION_SCRIPT_URL, {
         method: "POST",
+        mode: "no-cors",
         body: new URLSearchParams({
           sheetName: ATTENDANCE_SHEET_NAME,
           action: "insert",
@@ -663,10 +732,23 @@ const MarkAttendance = () => {
         }),
       });
 
-      const result = await response.json();
-      if (!(result.success || result.status === "success")) {
-        throw new Error(result.error || result.message || "Attendance mark failed");
-      }
+      const newEntry = {
+        employeeName: punchPersonName,
+        status: statusToMark,
+        dateObj: now,
+        date: formatDateValue(now),
+        time: formatTimeValue(now),
+        mapLink,
+        address,
+      };
+      const nextRawEntries = [...rawEntries, newEntry].sort((a, b) => b.dateObj - a.dateObj);
+      const nextAttendanceData = mergeAttendanceEntry(attendanceData, newEntry);
+      writeCache(MARK_ATTENDANCE_DATA_CACHE_KEY, {
+        attendanceData: nextAttendanceData,
+        rawEntries: nextRawEntries,
+      });
+      setRawEntries(nextRawEntries);
+      setAttendanceData(nextAttendanceData);
 
       toast.success(`${statusToMark} attendance marked`);
       setReason("");

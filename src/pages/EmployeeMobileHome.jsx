@@ -31,11 +31,14 @@ import { useHrmsNotifications } from '../hooks/useHrmsNotifications';
 
 const ATTENDANCE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_GRdhFbP5zQX_HV72t9Ofcj5IHurSBJnPC5o0yr6_HvkLkMs9hOSLHIP0e26uG1iDlA/exec';
 const ATTENDANCE_SHEET_NAME = 'Data';
+const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
 const FEED_REFRESH_INTERVAL_MS = 30000;
 const FEED_CACHE_KEY = 'employee_mobile_feed_cache_v1';
 const FEED_CACHE_TTL_MS = 10 * 60 * 1000;
 const MOBILE_ATTENDANCE_CACHE_KEY = 'employee_mobile_latest_attendance_cache_v1';
 const MOBILE_ATTENDANCE_CACHE_TTL_MS = 10 * 60 * 1000;
+const MARK_ATTENDANCE_DATA_CACHE_KEY = 'mark_attendance_data_cache_v1';
+const MARK_ATTENDANCE_CACHE_TTL_MS = 5 * 60 * 1000;
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -63,6 +66,24 @@ const writeCachedList = (key, data) => {
   }
 };
 
+const readCachedObject = (key, maxAgeMs) => {
+  try {
+    const cached = JSON.parse(localStorage.getItem(key) || 'null');
+    if (!cached || Date.now() - Number(cached.savedAt || 0) > maxAgeMs) return null;
+    return cached.data || null;
+  } catch {
+    return null;
+  }
+};
+
+const readInitialAttendanceRows = () => {
+  const markAttendanceCache = readCachedObject(MARK_ATTENDANCE_DATA_CACHE_KEY, MARK_ATTENDANCE_CACHE_TTL_MS);
+  if (Array.isArray(markAttendanceCache?.attendanceData) && markAttendanceCache.attendanceData.length) {
+    return markAttendanceCache.attendanceData;
+  }
+  return readCachedList(MOBILE_ATTENDANCE_CACHE_KEY, MOBILE_ATTENDANCE_CACHE_TTL_MS);
+};
+
 const parseTimeToMinutes = (value) => {
   if (!value) return null;
   const match = value.toString().trim().match(/^(\d{1,2})[:.](\d{1,2})/);
@@ -83,30 +104,103 @@ const parseAttendanceDate = (value, monthName = '') => {
   }
 
   const rawValue = value.toString().trim();
+  if (rawValue.includes('T') && rawValue.includes(':')) {
+    const date = new Date(rawValue);
+    if (!Number.isNaN(date.getTime())) return date;
+  }
+
   const isoMatch = rawValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (isoMatch) {
     return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
   }
 
-  const slashMatch = rawValue.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  const slashMatch = rawValue.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
   if (slashMatch) {
     const first = Number(slashMatch[1]);
     const second = Number(slashMatch[2]);
     const year = slashMatch[3].length === 2 ? Number(`20${slashMatch[3]}`) : Number(slashMatch[3]);
+    const hour = Number(slashMatch[4] || 0);
+    const minute = Number(slashMatch[5] || 0);
+    const secondPart = Number(slashMatch[6] || 0);
     const namedMonthIndex = getMonthIndex(monthName);
 
     if (namedMonthIndex !== -1) {
-      if (second - 1 === namedMonthIndex) return new Date(year, second - 1, first);
-      if (first - 1 === namedMonthIndex) return new Date(year, first - 1, second);
+      if (second - 1 === namedMonthIndex) return new Date(year, second - 1, first, hour, minute, secondPart);
+      if (first - 1 === namedMonthIndex) return new Date(year, first - 1, second, hour, minute, secondPart);
     }
 
-    if (first > 12) return new Date(year, second - 1, first);
-    if (second > 12) return new Date(year, first - 1, second);
-    return new Date(year, second - 1, first);
+    if (first > 12) return new Date(year, second - 1, first, hour, minute, secondPart);
+    if (second > 12) return new Date(year, first - 1, second, hour, minute, secondPart);
+    return new Date(year, second - 1, first, hour, minute, secondPart);
   }
 
   const date = new Date(rawValue);
   return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatAttendanceDateValue = (value) => {
+  const date = parseAttendanceDate(value);
+  if (!date) return normalize(value);
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+};
+
+const formatAttendanceTimeValue = (value) => {
+  const date = parseAttendanceDate(value);
+  if (date) return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  const rawValue = normalize(value);
+  if (!rawValue) return '';
+  if (rawValue.includes(':')) return rawValue.split(/\s+/).pop().substring(0, 5);
+  return rawValue;
+};
+
+const attendanceDateKey = (date) => {
+  if (!date) return '';
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+};
+
+const buildOutstationAttendanceRows = (rawAttendance = []) => {
+  const grouped = {};
+
+  rawAttendance.forEach((entry) => {
+    const employeeName = normalize(entry.personName || entry.employeeName || entry.name);
+    if (!employeeName) return;
+
+    const status = entry.inDate ? 'IN' : entry.outDate ? 'OUT' : normalize(entry.status).toUpperCase();
+    const dateValue = entry.inDate || entry.outDate || entry.dateTime || entry.timestamp || entry.date || entry.time;
+    const dateObj = parseAttendanceDate(dateValue);
+    if (!dateObj) return;
+
+    const key = `${employeeName.toLowerCase()}_${attendanceDateKey(dateObj)}`;
+    if (!grouped[key]) {
+      grouped[key] = {
+        employeeName,
+        dateObj,
+        date: formatAttendanceDateValue(dateValue),
+        month: monthNames[dateObj.getMonth()],
+        year: String(dateObj.getFullYear()),
+        day: dateObj.getDate(),
+        inTime: '',
+        outTime: '',
+        status: '',
+      };
+    }
+
+    if (status === 'IN') {
+      grouped[key].inTime = formatAttendanceTimeValue(dateValue);
+    }
+
+    if (status === 'OUT') {
+      grouped[key].outTime = formatAttendanceTimeValue(dateValue);
+    }
+
+    if (!grouped[key].status) {
+      grouped[key].status = grouped[key].inTime || grouped[key].outTime ? 'PRESENT' : status;
+    }
+  });
+
+  return Object.values(grouped)
+    .map((item) => ({ ...item, status: item.inTime || item.outTime ? 'PRESENT' : item.status }))
+    .sort((a, b) => b.dateObj - a.dateObj);
 };
 
 const getDriveImageUrl = (url, size) => {
@@ -186,7 +280,7 @@ const EmployeeMobileHome = () => {
   const location = useLocation();
   const { logout } = useAuthStore();
   const initialAttendanceData = useMemo(
-    () => readCachedList(MOBILE_ATTENDANCE_CACHE_KEY, MOBILE_ATTENDANCE_CACHE_TTL_MS),
+    () => readInitialAttendanceRows(),
     []
   );
   const initialFeedData = useMemo(() => readCachedList(FEED_CACHE_KEY, FEED_CACHE_TTL_MS), []);
@@ -353,44 +447,83 @@ const EmployeeMobileHome = () => {
   }, [initialFeedData.length]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const fetchLegacyAttendanceData = async () => {
+      const response = await fetch(
+        `${ATTENDANCE_SCRIPT_URL}?sheet=${encodeURIComponent(ATTENDANCE_SHEET_NAME)}&action=fetch&range=A:F`
+      );
+      const result = await response.json();
+      const rawData = result.data || result;
+
+      if (!Array.isArray(rawData)) return [];
+
+      const headers = rawData[0] || [];
+      const rows = rawData.slice(1);
+      const getIndex = (headerName) =>
+        headers.findIndex((header) => normalize(header).toLowerCase() === headerName.toLowerCase());
+
+      return rows.map((row) => ({
+        date: row[getIndex('Date')] || '',
+        employeeName: row[getIndex('Employee Name')] || '',
+        inTime: row[getIndex('In Time')] || '',
+        outTime: row[getIndex('Out Time')] || '',
+        status: row[getIndex('Status')] || '',
+        month: row[getIndex('Month')] || '',
+      })).filter((item) => item.date || item.employeeName || item.status);
+    };
+
     const fetchAttendanceData = async () => {
       try {
-        const response = await fetch(
-          `${ATTENDANCE_SCRIPT_URL}?sheet=${encodeURIComponent(ATTENDANCE_SHEET_NAME)}&action=fetch&range=A:F`
-        );
-        const result = await response.json();
-        const rawData = result.data || result;
+        let processedRows = [];
 
-        if (!Array.isArray(rawData)) {
-          setAttendanceData([]);
-          return;
+        if (OUTSTATION_SCRIPT_URL) {
+          const response = await fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData&ts=${Date.now()}`, {
+            cache: 'no-store',
+          });
+          if (!response.ok) throw new Error(`Outstation attendance HTTP error! status: ${response.status}`);
+          const result = await response.json();
+          if (result.status !== 'success') throw new Error(result.message || 'Outstation attendance fetch failed');
+          processedRows = buildOutstationAttendanceRows(result.attendance || []);
         }
 
-        const headers = rawData[0] || [];
-        const rows = rawData.slice(1);
-        const getIndex = (headerName) =>
-          headers.findIndex((header) => normalize(header).toLowerCase() === headerName.toLowerCase());
-
-        const processedRows = rows.map((row) => ({
-          date: row[getIndex('Date')] || '',
-          employeeName: row[getIndex('Employee Name')] || '',
-          inTime: row[getIndex('In Time')] || '',
-          outTime: row[getIndex('Out Time')] || '',
-          status: row[getIndex('Status')] || '',
-          month: row[getIndex('Month')] || '',
-        })).filter((item) => item.date || item.employeeName || item.status);
+        if (!processedRows.length) {
+          processedRows = await fetchLegacyAttendanceData();
+        }
 
         writeCachedList(MOBILE_ATTENDANCE_CACHE_KEY, processedRows);
-        React.startTransition(() => setAttendanceData(processedRows));
+        if (isMounted) React.startTransition(() => setAttendanceData(processedRows));
       } catch (error) {
         console.error('Employee mobile attendance fetch failed:', error);
-        setAttendanceData((current) => (current.length ? current : []));
+        try {
+          const fallbackRows = await fetchLegacyAttendanceData();
+          if (fallbackRows.length) {
+            writeCachedList(MOBILE_ATTENDANCE_CACHE_KEY, fallbackRows);
+            if (isMounted) React.startTransition(() => setAttendanceData(fallbackRows));
+          }
+        } catch (fallbackError) {
+          console.error('Employee mobile legacy attendance fetch failed:', fallbackError);
+          if (isMounted) setAttendanceData((current) => (current.length ? current : []));
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchAttendanceData();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') fetchAttendanceData();
+    };
+
+    window.addEventListener('focus', fetchAttendanceData);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('focus', fetchAttendanceData);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const userRows = useMemo(() => {
@@ -401,12 +534,13 @@ const EmployeeMobileHome = () => {
     );
   }, [attendanceData, employeeName]);
 
-  const latestAttendanceRecord = useMemo(() => {
+  const todayAttendanceRecord = useMemo(() => {
+    const todayKey = attendanceDateKey(now);
     return userRows
       .map((item) => ({ ...item, _dateObj: parseAttendanceDate(item.date, item.month) }))
-      .filter((item) => item._dateObj)
+      .filter((item) => item._dateObj && attendanceDateKey(item._dateObj) === todayKey)
       .sort((a, b) => b._dateObj - a._dateObj)[0];
-  }, [userRows]);
+  }, [userRows, now]);
 
   const currentMonthRows = useMemo(() => {
     return userRows.filter((item) => {
@@ -425,13 +559,15 @@ const EmployeeMobileHome = () => {
   }, [now]);
   const currentTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
   const currentDate = now.toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long' });
-  const attendanceStatusLabel = latestAttendanceRecord?.inTime
-    ? latestAttendanceRecord?.outTime
+  const attendanceCardRecord = todayAttendanceRecord || null;
+  const attendanceStatusLabel = attendanceCardRecord?.inTime
+    ? attendanceCardRecord?.outTime
       ? 'Checked Out'
       : 'Checked In'
     : 'Not Checked In';
+  const attendanceActionLabel = attendanceCardRecord?.inTime && !attendanceCardRecord?.outTime ? 'Check Out' : 'Check In';
   const dayGoalHours = 8;
-  const latestWorkingDuration = formatWorkingDuration(latestAttendanceRecord?.inTime, latestAttendanceRecord?.outTime);
+  const latestWorkingDuration = formatWorkingDuration(attendanceCardRecord?.inTime, attendanceCardRecord?.outTime);
   const latestWorkingMinutes = latestWorkingDuration === '-'
     ? 0
     : latestWorkingDuration.split(':').reduce((total, value, index) => total + Number(value || 0) * (index === 0 ? 60 : 1), 0);
@@ -628,11 +764,11 @@ const EmployeeMobileHome = () => {
                 </div>
                 <div>
                   <p>Check In</p>
-                  <p className="mt-1 text-xs font-black text-white">{formatTime(latestAttendanceRecord?.inTime)}</p>
+                  <p className="mt-1 text-xs font-black text-white">{formatTime(attendanceCardRecord?.inTime)}</p>
                 </div>
                 <div>
                   <p>Check Out</p>
-                  <p className="mt-1 text-xs font-black text-white">{formatTime(latestAttendanceRecord?.outTime)}</p>
+                  <p className="mt-1 text-xs font-black text-white">{formatTime(attendanceCardRecord?.outTime)}</p>
                 </div>
               </div>
             </div>
@@ -653,7 +789,7 @@ const EmployeeMobileHome = () => {
           >
             <span className="inline-flex items-center gap-2">
               <Fingerprint size={18} />
-              Check In
+              {attendanceActionLabel}
             </span>
             <Play size={16} fill="currentColor" />
           </button>
@@ -708,7 +844,7 @@ const EmployeeMobileHome = () => {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black text-slate-900">{attendanceStatusLabel}</p>
                     <p className="mt-0.5 text-[11px] font-bold text-slate-500">
-                      {latestAttendanceRecord ? `${formatTime(latestAttendanceRecord.inTime)} - ${formatTime(latestAttendanceRecord.outTime)}` : 'No attendance record yet'}
+                      {attendanceCardRecord ? `${formatTime(attendanceCardRecord.inTime)} - ${formatTime(attendanceCardRecord.outTime)}` : 'No attendance record yet'}
                     </p>
                   </div>
                 </div>
