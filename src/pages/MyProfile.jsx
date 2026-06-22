@@ -743,7 +743,7 @@ const MyProfile = () => {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingPic}
-              className="absolute left-1/2 top-16 h-28 w-28 -translate-x-1/2 overflow-hidden rounded-full border-[6px] border-white bg-slate-100 shadow-[0_20px_45px_rgba(15,23,42,0.24)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-80"
+              className="absolute left-1/2 top-14 h-32 w-32 -translate-x-1/2 overflow-hidden rounded-full border-[6px] border-white bg-slate-100 shadow-[0_20px_45px_rgba(15,23,42,0.24)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-80"
               aria-label="Change profile picture"
             >
               {profilePhoto ? (
@@ -773,11 +773,11 @@ const MyProfile = () => {
               >
                 <User size={48} className="text-indigo-400" />
               </div>
-              <span className="absolute bottom-1 right-1 grid h-8 w-8 place-items-center rounded-full bg-slate-950 text-white ring-2 ring-white">
+              <span className="absolute bottom-1 right-1 grid h-9 w-9 place-items-center rounded-full bg-slate-950 text-white ring-2 ring-white">
                 {uploadingPic ? (
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                 ) : (
-                  <Camera size={15} />
+                  <Camera size={16} />
                 )}
               </span>
             </button>
