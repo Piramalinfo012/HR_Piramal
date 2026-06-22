@@ -1,7 +1,55 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Building, Edit3, Save, X, ChevronRight, Briefcase, FileText, ShieldCheck, HeartPulse, LockKeyhole, LogOut } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Building, Edit3, Save, X, ChevronRight, Briefcase, FileText, ShieldCheck, HeartPulse, LockKeyhole, LogOut, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
+
+const createSquareProfileImage = (file, fitMode = 'contain') =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      const size = 900;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = size;
+      canvas.height = size;
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, size, size);
+
+      const scale =
+        fitMode === 'cover'
+          ? Math.max(size / image.width, size / image.height)
+          : Math.min(size / image.width, size / image.height);
+      const width = image.width * scale;
+      const height = image.height * scale;
+      const left = (size - width) / 2;
+      const top = (size - height) / 2;
+
+      ctx.drawImage(image, left, top, width, height);
+      URL.revokeObjectURL(objectUrl);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Image preview failed'));
+            return;
+          }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        0.92
+      );
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Selected image could not be loaded'));
+    };
+
+    image.src = objectUrl;
+  });
 
 const MyProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -9,8 +57,13 @@ const MyProfile = () => {
   const [formData, setFormData] = useState({});
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingPic, setUploadingPic] = useState(false);
+  const [profilePreviewFile, setProfilePreviewFile] = useState(null);
+  const [profilePreviewUrl, setProfilePreviewUrl] = useState('');
+  const [profilePreviewFit, setProfilePreviewFit] = useState('contain');
+  const fileInputRef = useRef(null);
   const profileFetchInProgressRef = useRef(false);
-  const { user: authUser } = useAuthStore();
+  const { user: authUser, login } = useAuthStore();
 
 
   const getDisplayableImageUrl = (url) => {
@@ -343,12 +396,103 @@ const MyProfile = () => {
     fetchJoiningData();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (profilePreviewUrl) URL.revokeObjectURL(profilePreviewUrl);
+    };
+  }, [profilePreviewUrl]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleProfilePicUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (profilePreviewUrl) URL.revokeObjectURL(profilePreviewUrl);
+    setProfilePreviewFile(file);
+    setProfilePreviewUrl(URL.createObjectURL(file));
+    setProfilePreviewFit('contain');
+  };
+
+  const closeProfilePreview = () => {
+    if (profilePreviewUrl) URL.revokeObjectURL(profilePreviewUrl);
+    setProfilePreviewFile(null);
+    setProfilePreviewUrl('');
+    setProfilePreviewFit('contain');
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleConfirmProfilePicUpload = async () => {
+    if (!profilePreviewFile) return;
+
+    setUploadingPic(true);
+    const toastId = toast.loading("Uploading profile picture...");
+
+    try {
+      const preparedFile = await createSquareProfileImage(profilePreviewFile, profilePreviewFit);
+      const uploadData = new FormData();
+      uploadData.append("file", preparedFile);
+      uploadData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+
+      const cloudinaryRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: uploadData }
+      );
+      const cloudinaryData = await cloudinaryRes.json();
+
+      if (!cloudinaryData.secure_url) throw new Error("Upload failed");
+
+      const newPicUrl = cloudinaryData.secure_url;
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+      if (currentUser?.rowIndex) {
+        const payload = {
+          sheetName: "USER",
+          action: "updateCell",
+          rowIndex: currentUser.rowIndex,
+          columnIndex: 13,
+          value: newPicUrl,
+        };
+
+        const sheetRes = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(payload).toString(),
+        });
+        const sheetData = await sheetRes.json();
+        if (!sheetData.success) throw new Error("Failed to save to sheet");
+      }
+
+      const updatedUser = { ...currentUser, profilePic: newPicUrl, ProfilePic: newPicUrl };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      login(updatedUser);
+      setProfileData((current) => ({
+        ...current,
+        profilePic: newPicUrl,
+        ProfilePic: newPicUrl,
+        "Profile Pic": newPicUrl,
+      }));
+      setFormData((current) => ({
+        ...current,
+        profilePic: newPicUrl,
+        ProfilePic: newPicUrl,
+        "Profile Pic": newPicUrl,
+      }));
+
+      toast.success("Profile picture updated!", { id: toastId });
+      closeProfilePreview();
+    } catch (error) {
+      console.error("Profile picture upload failed:", error);
+      toast.error("Failed to update profile picture", { id: toastId });
+    } finally {
+      setUploadingPic(false);
+    }
   };
 
   const handleSave = async () => {
@@ -573,6 +717,7 @@ const MyProfile = () => {
   };
 
   return (
+    <>
     <div className="page-content min-h-screen bg-[#f4f7fb] px-4 pb-24 pt-5 text-slate-950 sm:p-6">
       <div className="mx-auto max-w-md space-y-5 lg:max-w-7xl">
         <div className="flex items-center justify-between">
@@ -587,7 +732,20 @@ const MyProfile = () => {
           <div className="relative h-36 bg-slate-950">
             <span className="pointer-events-none absolute -right-14 -top-16 h-40 w-40 rounded-full bg-indigo-500/25 blur-2xl" />
             <span className="pointer-events-none absolute -bottom-20 left-10 h-44 w-44 rounded-full bg-cyan-400/15 blur-2xl" />
-            <div className="absolute left-1/2 top-16 h-28 w-28 -translate-x-1/2 overflow-hidden rounded-full border-[6px] border-white bg-slate-100 shadow-[0_20px_45px_rgba(15,23,42,0.24)]">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleProfilePicUpload}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingPic}
+              className="absolute left-1/2 top-16 h-28 w-28 -translate-x-1/2 overflow-hidden rounded-full border-[6px] border-white bg-slate-100 shadow-[0_20px_45px_rgba(15,23,42,0.24)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-80"
+              aria-label="Change profile picture"
+            >
               {profilePhoto ? (
                 <img
                   src={profilePhoto}
@@ -615,7 +773,14 @@ const MyProfile = () => {
               >
                 <User size={48} className="text-indigo-400" />
               </div>
-            </div>
+              <span className="absolute bottom-1 right-1 grid h-8 w-8 place-items-center rounded-full bg-slate-950 text-white ring-2 ring-white">
+                {uploadingPic ? (
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                ) : (
+                  <Camera size={15} />
+                )}
+              </span>
+            </button>
           </div>
           <div className="px-5 pb-5 pt-14 text-center">
             <h2 className="text-xl font-black text-slate-950">
@@ -741,6 +906,78 @@ const MyProfile = () => {
 
       </div>
     </div>
+    {profilePreviewUrl ? (
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
+        <div className="w-full max-w-sm rounded-[28px] bg-white p-5 text-slate-950 shadow-[0_28px_70px_rgba(15,23,42,0.28)] ring-1 ring-white/70">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-indigo-500">Preview</p>
+              <h3 className="mt-1 text-xl font-black">Set Profile Photo</h3>
+            </div>
+            <button
+              type="button"
+              onClick={closeProfilePreview}
+              disabled={uploadingPic}
+              className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-50 text-slate-500 ring-1 ring-slate-200 disabled:opacity-60"
+              aria-label="Close preview"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="mt-5 flex justify-center">
+            <div className="grid h-44 w-44 place-items-center overflow-hidden rounded-full border-[7px] border-white bg-slate-100 shadow-[0_18px_46px_rgba(15,23,42,0.22)] ring-1 ring-slate-200">
+              <img
+                src={profilePreviewUrl}
+                alt="Profile preview"
+                className={`h-full w-full ${profilePreviewFit === 'cover' ? 'object-cover' : 'object-contain'}`}
+              />
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
+            {[
+              { id: 'contain', label: 'Fit' },
+              { id: 'cover', label: 'Fill' },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setProfilePreviewFit(item.id)}
+                disabled={uploadingPic}
+                className={`rounded-xl px-4 py-2 text-sm font-black transition ${
+                  profilePreviewFit === item.id
+                    ? 'bg-white text-indigo-700 shadow-sm'
+                    : 'text-slate-500'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={closeProfilePreview}
+              disabled={uploadingPic}
+              className="h-12 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmProfilePicUpload}
+              disabled={uploadingPic}
+              className="h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 text-sm font-black text-white shadow-[0_16px_34px_rgba(79,70,229,0.28)] disabled:opacity-70"
+            >
+              {uploadingPic ? 'Setting...' : 'Set Photo'}
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 };
 
