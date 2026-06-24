@@ -11,6 +11,9 @@ const OnlinePosting = () => {
     onlinePlatformAttachment: "",
     selectedFile: null, // New field to store file locally
     status: "Yes",
+    agencyStatus: "Yes",
+    jobConsultancyNames: [],
+    consultancyContacts: {},
   });
 
   const [uploading, setUploading] = useState(false);
@@ -34,7 +37,9 @@ const OnlinePosting = () => {
   const [masterData, setMasterData] = useState([]);
   const [globalFmsData, setGlobalFmsData] = useState([]);
   const [dataResponseData, setDataResponseData] = useState([]);
+  const [globalUserData, setGlobalUserData] = useState([]);
   const [storeLoading, setStoreLoading] = useState(true);
+  const [consultancyOptions, setConsultancyOptions] = useState([]);
 
   const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 
@@ -45,15 +50,17 @@ const OnlinePosting = () => {
     }
     try {
       const cb = `&_=${Date.now()}`;
-      const [masterRes, fmsRes, dataRes] = await Promise.all([
+      const [masterRes, fmsRes, dataRes, userRes] = await Promise.all([
         fetch(`${FETCH_URL}?sheet=Master&action=fetch${cb}`).then(res => res.json()),
         fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json()),
-        fetch(`${FETCH_URL}?sheet=Data Resposnse&action=fetch${cb}`).then(res => res.json())
+        fetch(`${FETCH_URL}?sheet=Data Resposnse&action=fetch${cb}`).then(res => res.json()),
+        fetch(`${FETCH_URL}?sheet=USER&action=fetch${cb}`).then(res => res.json())
       ]);
 
       if (masterRes.success) setMasterData(masterRes.data);
       if (fmsRes.success) setGlobalFmsData(fmsRes.data);
       if (dataRes.success) setDataResponseData(dataRes.data);
+      if (userRes.success) setGlobalUserData(userRes.data);
 
     } catch (error) {
       console.error("OnlinePosting Data Fetch Error:", error);
@@ -86,6 +93,14 @@ const OnlinePosting = () => {
     setSocialSiteOptions(socialSitesList);
   }, [masterData]);
 
+  useEffect(() => {
+    if (!globalUserData || globalUserData.length === 0) return;
+    const options = globalUserData.slice(1)
+      .map(row => row[9])
+      .filter(name => name && name.toString().trim() !== "");
+    setConsultancyOptions([...new Set(options)]);
+  }, [globalUserData]);
+
   // FMS Data (Indent Data)
   useEffect(() => {
     if (!globalFmsData || globalFmsData.length < 8) {
@@ -106,44 +121,85 @@ const OnlinePosting = () => {
       };
     });
 
+    const mergedDataResponseMap = {};
+    dataResponseData.slice(1).forEach(row => {
+      const indentNo = row[0];
+      const stepCode = row[1];
+      if (!indentNo) return;
+
+      if (!mergedDataResponseMap[indentNo]) mergedDataResponseMap[indentNo] = {};
+
+      if (stepCode === "PO-1") {
+        mergedDataResponseMap[indentNo].siteStatus = row[3];
+        mergedDataResponseMap[indentNo].socialSiteTypes = row[4];
+        mergedDataResponseMap[indentNo].onlineAttachment = row[5];
+      }
+
+      if (stepCode === "PO-2") {
+        mergedDataResponseMap[indentNo].agencyStatus = row[3];
+        mergedDataResponseMap[indentNo].jobConsultancy = row[6];
+        mergedDataResponseMap[indentNo].contactPerson = row[11];
+        mergedDataResponseMap[indentNo].contactNumber = row[12];
+      }
+    });
+
     const dataFromRow2 = globalFmsData.slice(9); // Matches previous slice(8) logic
 
-    const processedData = dataFromRow2.map((row) => ({
-      status: row[0],              // Col A
-      stepCode: row[1],            // Col B
-      indentNumber: row[4],        // Col E
-      timestamp: row[3],           // Col D
-      indenterName: row[5],        // Col F
-      post: row[6],                // Col G
-      salary: row[7],              // Col H
-      officeTiming: row[8],        // Col I
-      typeOfWeek: row[9],          // Col J
-      residence: row[10],           // Col K
-      gender: row[11],             // Col L
-      department: row[12],         // Col M
-      prefer: row[13],             // Col N
-      noOfPost: row[14],           // Col O
-      completionDate: row[15],     // Col P
-      experience: row[16],         // Col Q
-      planned: row[17]?.toString().trim() || "", // Col R
-      actual: row[18]?.toString().trim() || "",  // Col S
-      siteStatus: dataResponseMap[row[4]]?.siteStatus || "",
-      socialSiteTypes: dataResponseMap[row[4]]?.socialSiteTypes || "",
-    }));
+    const processedData = dataFromRow2.map((row) => {
+      const planned = row[17]?.toString().trim() || ""; // Col R
+      const actual = row[18]?.toString().trim() || "";  // Col S
+      const agencyPlanned = row[23]?.toString().trim() || ""; // Col X
+      const agencyActual = row[24]?.toString().trim() || "";  // Col Y
+      const responseData = mergedDataResponseMap[row[4]] || {};
+
+      return {
+        status: row[0],              // Col A
+        stepCode: row[1],            // Col B
+        indentNumber: row[4],        // Col E
+        timestamp: row[3],           // Col D
+        indenterName: row[5],        // Col F
+        post: row[6],                // Col G
+        salary: row[7],              // Col H
+        officeTiming: row[8],        // Col I
+        typeOfWeek: row[9],          // Col J
+        residence: row[10],           // Col K
+        gender: row[11],             // Col L
+        department: row[12],         // Col M
+        prefer: row[13],             // Col N
+        noOfPost: row[14],           // Col O
+        completionDate: row[15],     // Col P
+        experience: row[16],         // Col Q
+        planned,
+        actual,
+        agencyPlanned,
+        agencyActual,
+        onlinePending: planned !== "" && actual === "",
+        agencyPending: agencyPlanned !== "" && agencyActual === "",
+        onlineDone: planned !== "" && actual !== "",
+        agencyDone: agencyPlanned !== "" && agencyActual !== "",
+        siteStatus: responseData.siteStatus || "",
+        socialSiteTypes: responseData.socialSiteTypes || "",
+        onlineAttachment: responseData.onlineAttachment || "",
+        agencyStatus: responseData.agencyStatus || "",
+        jobConsultancyDR: responseData.jobConsultancy || "",
+        contactPersonDR: responseData.contactPerson || "",
+        contactNumberDR: responseData.contactNumber || "",
+      };
+    }).filter(item => item.planned || item.actual || item.agencyPlanned || item.agencyActual);
 
     const filteredPending = processedData.filter(item =>
-      item.planned !== "" && item.actual === ""
+      item.onlinePending || item.agencyPending
     );
 
     const filteredHistory = processedData.filter(item =>
-      item.planned !== "" && item.actual !== ""
+      (item.onlineDone || item.agencyDone) && !item.onlinePending && !item.agencyPending
     );
 
 
     setHistoryIndentData(filteredHistory);
     setIndentData(filteredPending);
 
-  }, [globalFmsData]);
+  }, [globalFmsData, dataResponseData]);
 
 
 
@@ -217,53 +273,195 @@ const OnlinePosting = () => {
     });
   };
 
+  const splitListValues = (value) => {
+    if (!value) return [];
+    return value
+      .toString()
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const hasOnlinePostingStage = (indent) => !!(
+    indent && (
+      indent.planned ||
+      indent.actual ||
+      indent.onlinePending ||
+      indent.onlineDone ||
+      indent.siteStatus ||
+      indent.socialSiteTypes ||
+      indent.onlineAttachment
+    )
+  );
+
+  const hasJobAgencyStage = (indent) => !!(
+    indent && (
+      indent.agencyPlanned ||
+      indent.agencyActual ||
+      indent.agencyPending ||
+      indent.agencyDone ||
+      indent.agencyStatus ||
+      indent.jobConsultancyDR ||
+      indent.contactPersonDR ||
+      indent.contactNumberDR
+    )
+  );
+
+  const buildConsultancyContacts = (names, contactPeople, contactNumbers) => {
+    return names.reduce((acc, name, index) => {
+      acc[name] = {
+        contactPerson: contactPeople[index] || "",
+        contactNumber: contactNumbers[index] || "",
+      };
+      return acc;
+    }, {});
+  };
+
+  const getPostFormData = (indent = null) => {
+    const jobConsultancyNames = splitListValues(indent?.jobConsultancyDR);
+    const contactPeople = splitListValues(indent?.contactPersonDR);
+    const contactNumbers = splitListValues(indent?.contactNumberDR);
+
+    return {
+      siteStatus: "",
+      socialSiteTypes: splitListValues(indent?.socialSiteTypes),
+      onlinePlatformAttachment: indent?.onlineAttachment || "",
+      selectedFile: null,
+      status: indent?.siteStatus || "Yes",
+      agencyStatus: indent?.agencyStatus || "Yes",
+      jobConsultancyNames,
+      consultancyContacts: buildConsultancyContacts(jobConsultancyNames, contactPeople, contactNumbers),
+    };
+  };
+
+  const resetPostFormData = (indent = null) => {
+    setPostFormData(getPostFormData(indent));
+  };
+
+  const handleConsultancyChange = (option) => {
+    setPostFormData((prev) => {
+      const isSelected = prev.jobConsultancyNames.includes(option);
+      const updatedNames = isSelected
+        ? prev.jobConsultancyNames.filter((name) => name !== option)
+        : [...prev.jobConsultancyNames, option];
+
+      const updatedContacts = { ...prev.consultancyContacts };
+      if (isSelected) {
+        delete updatedContacts[option];
+      } else {
+        updatedContacts[option] = { contactPerson: "", contactNumber: "" };
+      }
+
+      return {
+        ...prev,
+        jobConsultancyNames: updatedNames,
+        consultancyContacts: updatedContacts,
+      };
+    });
+  };
+
+  const handleContactInfoChange = (agencyName, field, value) => {
+    setPostFormData((prev) => ({
+      ...prev,
+      consultancyContacts: {
+        ...prev.consultancyContacts,
+        [agencyName]: {
+          ...prev.consultancyContacts[agencyName],
+          [field]: value,
+        },
+      },
+    }));
+  };
+
   const handlePostSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate that file is selected
-    if (!postFormData.selectedFile) {
+    const shouldSubmitOnlinePosting = hasOnlinePostingStage(selectedIndent);
+    const shouldSubmitJobAgency = hasJobAgencyStage(selectedIndent);
+
+    if (!shouldSubmitOnlinePosting && !shouldSubmitJobAgency) {
+      toast.error("No pending task found for this indent.");
+      return;
+    }
+
+    if (shouldSubmitOnlinePosting && !postFormData.selectedFile && !postFormData.onlinePlatformAttachment) {
       toast.error("Please select an attachment file before submitting!");
       return;
     }
 
-    // Validate that at least one social site is selected
-    if (!postFormData.socialSiteTypes || postFormData.socialSiteTypes.length === 0) {
+    if (shouldSubmitOnlinePosting && (!postFormData.socialSiteTypes || postFormData.socialSiteTypes.length === 0)) {
       toast.error("Please select at least one social site type!");
+      return;
+    }
+
+    if (shouldSubmitJobAgency && (!postFormData.jobConsultancyNames || postFormData.jobConsultancyNames.length === 0)) {
+      toast.error("Please select at least one Job Consultancy!");
       return;
     }
 
     try {
       setSubmitting(true);
-      setUploading(true); // Show uploading status
-
-      // 1. Upload the file first
       let fileUrl = "";
-      try {
-        fileUrl = await uploadFileToServer(postFormData.selectedFile);
-      } catch (uploadError) {
-        toast.error("File upload failed: " + uploadError.message);
+
+      if (shouldSubmitOnlinePosting) {
+        setUploading(true);
+        if (postFormData.selectedFile) {
+          try {
+            fileUrl = await uploadFileToServer(postFormData.selectedFile);
+          } catch (uploadError) {
+            toast.error("File upload failed: " + uploadError.message);
+            setUploading(false);
+            setSubmitting(false);
+            return;
+          }
+        } else {
+          fileUrl = postFormData.onlinePlatformAttachment;
+        }
         setUploading(false);
-        setSubmitting(false);
-        return;
       }
 
-      setUploading(false);
-
-      // 2. Prepare data for submission
-      const PO_NUMBER = "PO-1";
       const now = new Date();
       const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-      const dataResponseRow = [
-        selectedIndent.indentNumber,
-        PO_NUMBER,
-        timestamp,
-        postFormData.status,
-        postFormData.socialSiteTypes.join(", "),
-        fileUrl
-      ];
+      const rowsData = [];
 
-      // 3. Submit to DATA RESPONSE
+      if (shouldSubmitOnlinePosting) {
+        rowsData.push([
+          selectedIndent.indentNumber,
+          "PO-1",
+          timestamp,
+          postFormData.status,
+          postFormData.socialSiteTypes.join(", "),
+          fileUrl
+        ]);
+      }
+
+      if (shouldSubmitJobAgency) {
+        const consultancyNames = postFormData.jobConsultancyNames.join(", ");
+        const contactPersons = postFormData.jobConsultancyNames
+          .map(name => postFormData.consultancyContacts[name]?.contactPerson || "")
+          .join(", ");
+        const contactNumbers = postFormData.jobConsultancyNames
+          .map(name => postFormData.consultancyContacts[name]?.contactNumber || "")
+          .join(", ");
+
+        rowsData.push([
+          selectedIndent.indentNumber,
+          "PO-2",
+          timestamp,
+          postFormData.agencyStatus,
+          "",
+          "",
+          consultancyNames,
+          "",
+          "",
+          "",
+          "",
+          contactPersons,
+          contactNumbers,
+        ]);
+      }
+
       const response = await fetch(
         import.meta.env.VITE_GOOGLE_SHEET_URL,
         {
@@ -271,7 +469,7 @@ const OnlinePosting = () => {
           body: new URLSearchParams({
             sheetName: "Data Resposnse",
             action: "bulkInsert",
-            rowsData: JSON.stringify([dataResponseRow]),
+            rowsData: JSON.stringify(rowsData),
           }),
         }
       );
@@ -279,21 +477,33 @@ const OnlinePosting = () => {
       const result = await response.json();
 
       if (result.success) {
-        toast.success("Post data submitted successfully!");
+        toast.success("Posting and agency data submitted successfully!");
         
-        // Optimistic UI update to make system feel instantly fast
         setIndentData(prev => prev.filter(item => item.indentNumber !== selectedIndent.indentNumber));
         setHistoryIndentData(prev => [{
           ...selectedIndent,
-          actual: timestamp,
-          siteStatus: postFormData.status,
-          socialSiteTypes: postFormData.socialSiteTypes.join(", ")
+          actual: selectedIndent.onlinePending ? timestamp : selectedIndent.actual,
+          agencyActual: selectedIndent.agencyPending ? timestamp : selectedIndent.agencyActual,
+          onlinePending: selectedIndent.onlinePending && !shouldSubmitOnlinePosting,
+          agencyPending: selectedIndent.agencyPending && !shouldSubmitJobAgency,
+          onlineDone: selectedIndent.onlineDone || selectedIndent.onlinePending,
+          agencyDone: selectedIndent.agencyDone || selectedIndent.agencyPending,
+          siteStatus: shouldSubmitOnlinePosting ? postFormData.status : selectedIndent.siteStatus,
+          socialSiteTypes: shouldSubmitOnlinePosting ? postFormData.socialSiteTypes.join(", ") : selectedIndent.socialSiteTypes,
+          onlineAttachment: shouldSubmitOnlinePosting ? fileUrl : selectedIndent.onlineAttachment,
+          agencyStatus: shouldSubmitJobAgency ? postFormData.agencyStatus : selectedIndent.agencyStatus,
+          jobConsultancyDR: shouldSubmitJobAgency ? postFormData.jobConsultancyNames.join(", ") : selectedIndent.jobConsultancyDR,
+          contactPersonDR: shouldSubmitJobAgency
+            ? postFormData.jobConsultancyNames.map(name => postFormData.consultancyContacts[name]?.contactPerson || "").join(", ")
+            : selectedIndent.contactPersonDR,
+          contactNumberDR: shouldSubmitJobAgency
+            ? postFormData.jobConsultancyNames.map(name => postFormData.consultancyContacts[name]?.contactNumber || "").join(", ")
+            : selectedIndent.contactNumberDR,
         }, ...prev]);
 
-        setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", selectedFile: null, status: "Yes" });
+        resetPostFormData();
         setShowPostModal(false);
 
-        // Fetch data silently in background
         fetchData(true);
       } else {
         toast.error("Failed to submit: " + (result.error || "Unknown error"));
@@ -309,6 +519,7 @@ const OnlinePosting = () => {
 
   const handlePostClick = (indent, rowIndex) => {
     setSelectedIndent({ ...indent, rowIndex });
+    resetPostFormData(indent);
     setShowPostModal(true);
   };
 
@@ -317,7 +528,8 @@ const OnlinePosting = () => {
     const matchesSearch =
       item.post?.toLowerCase().includes(term) ||
       item.indentNumber?.toLowerCase().includes(term) ||
-      item.department?.toLowerCase().includes(term);
+      item.department?.toLowerCase().includes(term) ||
+      item.jobConsultancyDR?.toLowerCase().includes(term);
 
     const matchesDept = !deptFilter || item.department === deptFilter;
     const matchesDesig = !desigFilter || item.post === desigFilter;
@@ -329,7 +541,9 @@ const OnlinePosting = () => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       item.siteStatus?.toLowerCase().includes(term) ||
+      item.agencyStatus?.toLowerCase().includes(term) ||
       item.socialSiteTypes?.toLowerCase().includes(term) ||
+      item.jobConsultancyDR?.toLowerCase().includes(term) ||
       item.indentNumber?.toLowerCase().includes(term) ||
       item.department?.toLowerCase().includes(term);
 
@@ -342,6 +556,14 @@ const OnlinePosting = () => {
   const allData = [...indentData, ...historyIndentData];
   const departments = [...new Set(allData.map(item => item.department))].filter(Boolean).sort();
   const posts = [...new Set(allData.map(item => item.post))].filter(Boolean).sort();
+  const showOnlinePostingSection = hasOnlinePostingStage(selectedIndent);
+  const showJobAgencySection = hasJobAgencyStage(selectedIndent);
+  const jobConsultancyOptionList = [
+    ...new Set([
+      ...(consultancyOptions || []),
+      ...(postFormData.jobConsultancyNames || []),
+    ]),
+  ];
 
   return (
     <div className="space-y-6 page-content p-6">
@@ -352,15 +574,15 @@ const OnlinePosting = () => {
       {/* Post Modal */}
       {showPostModal && (
         <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
               <h3 className="text-lg font-medium text-gray-800">
-                Post to Social Sites
+                Update Posting & Agency
               </h3>
               <button
                 onClick={() => {
                   setShowPostModal(false);
-                  setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", selectedFile: null, status: "Yes" });
+                  resetPostFormData();
                 }}
                 className="text-gray-500 hover:text-gray-700"
               >
@@ -381,6 +603,7 @@ const OnlinePosting = () => {
                     value={selectedIndent.indentNumber}
                   />
                 </div>
+                {showOnlinePostingSection && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Status *
@@ -402,21 +625,33 @@ const OnlinePosting = () => {
                     <option value="Hold">Hold</option>
                   </select>
                 </div>
+                )}
               </div>
 
 
 
+              {showOnlinePostingSection && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Online Platform Attachment *
+                    Online Platform Attachment {postFormData.onlinePlatformAttachment ? "" : "*"}
                   </label>
+                  {postFormData.onlinePlatformAttachment && (
+                    <a
+                      href={postFormData.onlinePlatformAttachment}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block text-xs text-blue-600 hover:underline mb-2"
+                    >
+                      View current attachment
+                    </a>
+                  )}
                   <div className="flex gap-2">
                     <input
                       type="file"
                       onChange={handleFileUpload}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy text-sm"
-                      required
+                      required={!postFormData.onlinePlatformAttachment}
                     />
                   </div>
                   {postFormData.selectedFile && (
@@ -426,7 +661,6 @@ const OnlinePosting = () => {
                   )}
                   {uploading && <p className="text-xs text-navy mt-1 animate-pulse">Uploading file, please wait...</p>}
                 </div>
-              </>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -471,6 +705,73 @@ const OnlinePosting = () => {
                   ))}
                 </div>
               </div>
+              </>
+              )}
+
+              {showJobAgencySection && (
+                <div className="border-t border-gray-200 pt-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Job Agency Status *
+                    </label>
+                    <select
+                      value={postFormData.agencyStatus}
+                      onChange={(e) =>
+                        setPostFormData((prev) => ({
+                          ...prev,
+                          agencyStatus: e.target.value,
+                        }))
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                      required
+                    >
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                      <option value="Hold">Hold</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Job Consultancy *
+                    </label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+                      {jobConsultancyOptionList.map((option) => (
+                        <div key={option} className="space-y-2 border-b border-gray-100 pb-2 last:border-b-0 last:pb-0">
+                          <label className="flex items-center text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              value={option}
+                              checked={postFormData.jobConsultancyNames.includes(option)}
+                              onChange={() => handleConsultancyChange(option)}
+                              className="h-4 w-4 text-navy focus:ring-navy border-gray-300 rounded"
+                            />
+                            <span className="ml-2">{option}</span>
+                          </label>
+                          {postFormData.jobConsultancyNames.includes(option) && (
+                            <div className="grid grid-cols-1 gap-2 pl-6">
+                              <input
+                                type="text"
+                                placeholder="Contact person"
+                                value={postFormData.consultancyContacts[option]?.contactPerson || ""}
+                                onChange={(e) => handleContactInfoChange(option, "contactPerson", e.target.value)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy"
+                              />
+                              <input
+                                type="text"
+                                placeholder="Contact number"
+                                value={postFormData.consultancyContacts[option]?.contactNumber || ""}
+                                onChange={(e) => handleContactInfoChange(option, "contactNumber", e.target.value)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
 
               <div className="flex justify-end space-x-2 pt-4">
@@ -478,7 +779,7 @@ const OnlinePosting = () => {
                   type="button"
                   onClick={() => {
                     setShowPostModal(false);
-                    setPostFormData({ siteStatus: "", socialSiteTypes: [], onlinePlatformAttachment: "", selectedFile: null, status: "Yes" });
+                    resetPostFormData();
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-all duration-200"
                   disabled={submitting}
@@ -620,6 +921,9 @@ const OnlinePosting = () => {
                       Action
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Pending Stage
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Indent Number
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -690,6 +994,20 @@ const OnlinePosting = () => {
                           >
                             Post
                           </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="flex flex-wrap gap-2">
+                            {item.onlinePending && (
+                              <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                                Online Posting
+                              </span>
+                            )}
+                            {item.agencyPending && (
+                              <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
+                                Job Agency
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {item.indentNumber}
@@ -831,6 +1149,18 @@ const OnlinePosting = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Social Site Types
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Job Consultancy
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Contact Person
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Contact No
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Agency Status
+                    </th>
 
 
                   </tr>
@@ -941,6 +1271,18 @@ const OnlinePosting = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {item.socialSiteTypes}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.jobConsultancyDR}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.contactPersonDR}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.contactNumberDR}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.agencyStatus}
                         </td>
                       </tr>
                     ))
