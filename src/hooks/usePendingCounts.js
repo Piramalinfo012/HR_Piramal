@@ -100,17 +100,13 @@ export const usePendingCounts = () => {
                 const assetSeenIds = new Set();
 
                 // 2. JOINING_FMS Data
-                const blockedIds = new Set();
                 if (jRows.length > 0) {
                     jRows.forEach(row => {
                         if (!row) return;
                         
-                        // For Joining Management Blocked IDs
                         const id = row[5]?.toString().trim() || "";
-                        const planned = row[38];
-                        if (id && planned && planned.toString().trim() !== "") {
-                            blockedIds.add(id);
-                        }
+                        const updateLink = row[8]?.toString().trim() || "";
+                        if (id && updateLink.toUpperCase() !== "DONE") joiningManagement++;
 
                         // Check Salary Slip (38 vs 39)
                         const am = row[38]?.toString().trim() || "";
@@ -154,21 +150,6 @@ export const usePendingCounts = () => {
                         const ad = row[29]?.toString().trim() || "";
                         const ae = row[30]?.toString().trim() || "";
                         if (ad !== "" && ae === "") interviewSelection++;
-
-                        // Joining Management
-                        const actualAJ = row[35];
-                        const statusX = row[23]?.toString().trim() || "";
-                        const idEnq = row[1]?.toString().trim() || "";
-
-                        if (
-                            actualAJ !== undefined && 
-                            actualAJ !== null && 
-                            actualAJ.toString().trim() !== "" && 
-                            statusX !== "Rejected" && 
-                            !(idEnq && blockedIds.has(idEnq))
-                        ) {
-                            joiningManagement++;
-                        }
                     });
                 }
 

@@ -101,13 +101,13 @@ const Joining = () => {
         };
       };
 
-      const { headers: cHeaders, rows: cRows } = parseData(candidateJson);
+      const { rows: cRows } = parseData(candidateJson);
       const { headers: jHeaders, rows: jRows } = parseData(joiningJson);
 
       // Store raw rows for modal pre-fill logic
       setCandidateSelectionData(cRows);
 
-      if (!cHeaders.length || !cRows.length) {
+      if (!jHeaders.length || !jRows.length) {
         setCandidateData([]);
         return;
       }
@@ -119,50 +119,43 @@ const Joining = () => {
       };
 
       const idxJ_Id = getFmsIndex("ID", 5);
-      const idxJ_Planned = getFmsIndex("Planned", 38);
+      const idxJ_UpdateLink = getFmsIndex("UPDATE LINK", 8);
+      const idxJ_Name = getFmsIndex("CANDIATE NAME", 6);
+      const idxJ_JoiningDate = getFmsIndex("Date of Joining", 12);
+      const idxJ_Resume = getFmsIndex("Resume/Cv Upload", 37);
+      const idxJ_Qualification = getFmsIndex("Highest Qualification", 33);
+      const idxJ_Salary = getFmsIndex("Finalized Salary", 7);
+      const idxJ_Status = getFmsIndex("Status", 40);
+      const idxJ_Designation = getFmsIndex("Designation", 14);
+      const idxJ_JoiningPlace = getFmsIndex("Joining Place", 13);
+      const blockedIds = new Set(
+        jRows
+          .filter(row => row && row[idxJ_UpdateLink]?.toString().trim().toUpperCase() === "DONE")
+          .map(row => row[idxJ_Id]?.toString().trim())
+          .filter(Boolean)
+      );
+      const idxEnquiry = idxJ_Id;
+      const idxName = idxJ_Name;
+      const idxMobile = getFmsIndex("Mobile No.", 23);
+      const idxEmail = getFmsIndex("Personal Email-Id", 31);
+      const idxResume = idxJ_Resume;
+      const idxQual = idxJ_Qualification;
+      const idxCurrentCTC = idxJ_Salary;
+      const idxExpectedCTC = -1;
+      const idxStatus = idxJ_Status;
+      const idxActualAJ = idxJ_UpdateLink;
+      const idxStatusX = idxActualAJ;
 
-      const blockedIds = new Set();
-      jRows.forEach(row => {
-        if (!row) return;
-        const id = row[idxJ_Id];
-        const planned = row[idxJ_Planned];
-
-        if (id && planned && planned.toString().trim() !== "") {
-          blockedIds.add(id.toString().trim());
-        }
-      });
-
-      // --- Logic for Canidate_Selection ---
-      const getCIndex = (name, fallbackIndex) => {
-        const idx = cHeaders.findIndex(
-          h => h && h.toString().trim().toLowerCase() === name.toLowerCase()
-        );
-        return idx !== -1 ? idx : fallbackIndex;
-      };
-
-      const idxEnquiry = 1;
-      const idxName = 4;
-      const idxMobile = 5;
-      const idxEmail = 6;
-      const idxResume = 20; // Strictly matching Column U
-      const idxQual = 8;
-      const idxCurrentCTC = 16;
-      const idxExpectedCTC = 17; // Column R
-      const idxStatus = 36; // Column AK (Joining Follow Up Status)
-      const idxActualAJ = 35; // Column AJ
-      const idxStatusX = 23; // Column X (0-indexed)
-
-      const processed = cRows
-        .filter((row, index) => {
+      const processed = jRows
+        .filter((row) => {
           if (!row || row.length === 0) return false;
-          const actualAJ = row[idxActualAJ];
           const id = row[idxEnquiry];
           const statusX = row[idxStatusX];
 
           // ✅ AJ must be filled (not null, not empty)
-          if (actualAJ === undefined || actualAJ === null || actualAJ.toString().trim() === "") return false;
+          if (!id || id.toString().trim() === "") return false;
           // ❌ Skip if Rejected in Column X
-          if (statusX === "Rejected") return false;
+          if (statusX?.toString().trim().toUpperCase() === "DONE") return false;
           // ❌ Skip if already planned in JOINING_FMS
           if (id && blockedIds.has(id.toString().trim())) return false;
 
@@ -179,7 +172,10 @@ const Joining = () => {
           currentCTC: row[idxCurrentCTC] || "",
           expectedCTC: row[idxExpectedCTC] || "",
           status: row[idxStatus] || "",
-          joiningDate: row[idxActualAJ] || "" // Display AJ column data as joining date
+          joiningDate: row[idxJ_JoiningDate] || "",
+          designation: row[idxJ_Designation] || "",
+          joiningPlace: row[idxJ_JoiningPlace] || "",
+          salary: row[idxJ_Salary] || ""
         }));
 
       setCandidateData(processed);
@@ -509,19 +505,13 @@ const Joining = () => {
                   <th className="px-6 py-3 text-left">Action</th>
                   <th className="px-6 py-3">Indent No</th>
 
-                  <th className="px-6 py-3">Joining Date</th>
-                  <th className="px-6 py-3">Resume/CV</th>
-                  <th className="px-6 py-3">Highest Qualification</th>
                   <th className="px-6 py-3">Candidate Name</th>
-                  <th className="px-6 py-3">Current CTC (LPA)</th>
-                  <th className="px-6 py-3">Expected (LPA)</th>
-                  <th className="px-6 py-3">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y text-gray-500 text-sm">
                 {tableLoading ? (
                   <tr>
-                    <td colSpan="9" className="px-6 py-12 text-center">
+                    <td colSpan="3" className="px-6 py-12 text-center">
                       <div className="flex justify-center flex-col items-center">
                         <div className="w-6 h-6 border-4 border-blue-500 border-dashed rounded-full animate-spin mb-2"></div>
                         <span className="text-gray-600 text-sm">
@@ -532,7 +522,7 @@ const Joining = () => {
                   </tr>
                 ) : filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="py-10 text-center text-gray-400">
+                    <td colSpan="3" className="py-10 text-center text-gray-400">
                       No records found
                     </td>
                   </tr>
@@ -553,25 +543,7 @@ const Joining = () => {
                         {item.indentNumber}
                       </td>
 
-                      <td className="px-6 py-3">{item.joiningDate}</td>
-
-                      <td className="px-6 py-3">
-                        {item.resume ? (
-                          <a
-                            href={item.resume}
-                            target="_blank"
-                            className="text-blue-600 underline"
-                          >
-                            View
-                          </a>
-                        ) : "-"}
-                      </td>
-
-                      <td className="px-6 py-3">{item.qualification}</td>
                       <td className="px-6 py-3">{item.candidateName}</td>
-                      <td className="px-6 py-3">{item.currentCTC}</td>
-                      <td className="px-6 py-3">{item.expectedCTC}</td>
-                      <td className="px-6 py-3">{item.status}</td>
                     </tr>
                   )))}
               </tbody>

@@ -573,9 +573,9 @@ const OnlinePosting = () => {
 
       {/* Post Modal */}
       {showPostModal && (
-        <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+        <div className="fixed inset-0 modal-backdrop flex items-start justify-center z-50 overflow-y-auto p-3 sm:p-6">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[calc(100dvh-3rem)] overflow-hidden flex flex-col border border-slate-200">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-white">
               <h3 className="text-lg font-medium text-gray-800">
                 Update Posting & Agency
               </h3>
@@ -589,8 +589,9 @@ const OnlinePosting = () => {
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handlePostSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handlePostSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Indent Number
@@ -735,7 +736,7 @@ const OnlinePosting = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Job Consultancy *
                     </label>
-                    <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+                    <div className="space-y-2 max-h-60 overflow-y-auto border border-gray-300 rounded-md p-2">
                       {jobConsultancyOptionList.map((option) => (
                         <div key={option} className="space-y-2 border-b border-gray-100 pb-2 last:border-b-0 last:pb-0">
                           <label className="flex items-center text-sm text-gray-700">
@@ -774,7 +775,9 @@ const OnlinePosting = () => {
               )}
 
 
-              <div className="flex justify-end space-x-2 pt-4">
+              </div>
+
+              <div className="flex justify-end space-x-2 border-t border-gray-200 bg-white px-6 py-4">
                 <button
                   type="button"
                   onClick={() => {
