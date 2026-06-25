@@ -423,17 +423,30 @@ const OnlinePosting = () => {
       const now = new Date();
       const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-      const rowsData = [];
+      const submitDataResponseRow = async (dataResponseRow) => {
+        const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+          method: "POST",
+          body: new URLSearchParams({
+            sheetName: "Data Resposnse",
+            action: "bulkInsert",
+            rowsData: JSON.stringify([dataResponseRow]),
+          }),
+        });
+
+        return response.json();
+      };
+      const results = [];
 
       if (shouldSubmitOnlinePosting) {
-        rowsData.push([
+        const dataResponseRow = [
           selectedIndent.indentNumber,
           "PO-1",
           timestamp,
           postFormData.status,
           postFormData.socialSiteTypes.join(", "),
           fileUrl
-        ]);
+        ];
+        results.push(await submitDataResponseRow(dataResponseRow));
       }
 
       if (shouldSubmitJobAgency) {
@@ -445,7 +458,7 @@ const OnlinePosting = () => {
           .map(name => postFormData.consultancyContacts[name]?.contactNumber || "")
           .join(", ");
 
-        rowsData.push([
+        const dataResponseRow = [
           selectedIndent.indentNumber,
           "PO-2",
           timestamp,
@@ -459,22 +472,10 @@ const OnlinePosting = () => {
           "",
           contactPersons,
           contactNumbers,
-        ]);
+        ];
+        results.push(await submitDataResponseRow(dataResponseRow));
       }
-
-      const response = await fetch(
-        import.meta.env.VITE_GOOGLE_SHEET_URL,
-        {
-          method: "POST",
-          body: new URLSearchParams({
-            sheetName: "Data Resposnse",
-            action: "bulkInsert",
-            rowsData: JSON.stringify(rowsData),
-          }),
-        }
-      );
-
-      const result = await response.json();
+      const result = results.find((item) => !item.success) || { success: true };
 
       if (result.success) {
         toast.success("Posting and agency data submitted successfully!");
