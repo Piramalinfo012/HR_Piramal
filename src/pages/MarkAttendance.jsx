@@ -800,8 +800,9 @@ const MarkAttendance = () => {
       await fetchData({ silent: true });
     } catch (err) {
       console.error("Mark attendance error:", err);
-      toast.error(err.message || "Attendance mark failed");
-      if (err.name !== "AbortError" && !String(err.message || "").includes("Trusted time")) {
+      const isTrustedTimeError = err.name === "AbortError" || String(err.message || "").includes("Trusted time");
+      toast.error(isTrustedTimeError ? "Please set the correct time." : err.message || "Attendance mark failed");
+      if (!isTrustedTimeError) {
         setLocationCheck({ status: "error", message: err.message || "Location error" });
       }
     } finally {
