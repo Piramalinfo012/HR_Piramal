@@ -97,6 +97,7 @@ const Employee = () => {
           if (id) fmsIds.add(id);
         });
 
+        const seenLeavingKeys = new Set();
         // 2. Process for Leaving Tab Display (Column AS / Index 44 == 'Yes')
         processedLeaving = leavingRows.map(row => ({
           originalRow: row,
@@ -115,7 +116,17 @@ const Employee = () => {
           fatherName: "",
 
           isArchived: row[44] && row[44].toString().trim().toLowerCase() === 'yes'
-        })).filter(item => item.isArchived);
+        })).filter(item => {
+          if (!item.isArchived) return false;
+          
+          const id = normalizeId(item.employeeId);
+          const uniqueKey = id || (item.name + "-" + item.mobileNo).toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (uniqueKey) {
+            if (seenLeavingKeys.has(uniqueKey)) return false;
+            seenLeavingKeys.add(uniqueKey);
+          }
+          return true;
+        });
       }
 
       setLeavingData(processedLeaving);
@@ -136,6 +147,8 @@ const Employee = () => {
         // Dynamic Status Index
         const idxStatus = getIndex("Status") !== -1 ? getIndex("Status") : 8;
 
+        const seenJoiningKeys = new Set();
+        
         processedJoining = rawJoining.slice(7).map(row => ({
           employeeId: row[idxIndent] || "",
           candidateName: row[idxName] || "",
@@ -160,7 +173,16 @@ const Employee = () => {
           // "where not null value ... hide the data" -> so enable if null/empty
           const isBMEmpty = !item.colBM || item.colBM.toString().trim() === "";
 
-          return isDone && !inFms && isBMEmpty;
+          if (!(isDone && !inFms && isBMEmpty)) return false;
+          
+          // Deduplication: prevent showing the same employee multiple times
+          const uniqueKey = id || (item.candidateName + "-" + item.mobileNo).toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (uniqueKey) {
+            if (seenJoiningKeys.has(uniqueKey)) return false;
+            seenJoiningKeys.add(uniqueKey);
+          }
+          
+          return true;
         });
       }
 
