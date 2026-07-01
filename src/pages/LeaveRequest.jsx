@@ -25,6 +25,8 @@ const LeaveRequest = () => {
   const [requestedByFilter, setRequestedByFilter] = useState(isAdmin ? 'all' : (user.Name || ''));
   const [visibleLimit, setVisibleLimit] = useState(LEAVE_PAGE_SIZE);
   const [employeeDetailsLoading, setEmployeeDetailsLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
   const leaveFetchInProgressRef = useRef(false);
   const employeeDetailsLoadedRef = useRef(false);
   const employeeFetchInProgressRef = useRef(false);
@@ -36,11 +38,23 @@ const LeaveRequest = () => {
     jobLocation: '',
     fromDate: '',
     toDate: '',
+    halfDay: '',
     reason: '',
     remark: '',
     imageUrl: ''
   });
 
+
+  const departmentOptions = [
+    'Sales Head',
+    'MDO',
+    'HR',
+    'Sales',
+    'Digital Marketing',
+    'Accounts',
+    'Plants',
+    'Directors'
+  ];
   const getJoiningFetchUrl = () =>
     `${import.meta.env.VITE_JOINING_SHEET_URL}?action=read&sheet=JOINING_FMS`;
 
@@ -120,6 +134,36 @@ const LeaveRequest = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingImage(true);
+      const uploadData = new FormData();
+      uploadData.append("file", file);
+      uploadData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+
+      const cloudinaryRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: uploadData }
+      );
+      const cloudinaryData = await cloudinaryRes.json();
+      if (!cloudinaryData.secure_url) throw new Error("Upload failed");
+
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: cloudinaryData.secure_url
+      }));
+      toast.success("Image uploaded successfully");
+    } catch (error) {
+      console.error("Image upload error:", error);
+      toast.error("Image upload failed");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleMonthChange = (e) => {
@@ -230,8 +274,8 @@ const LeaveRequest = () => {
 
   const formatSheetTimestamp = () => formatDateToDDMMYYYY(new Date());
 
-  const formatLeaveDays = (fromDate, toDate) => {
-    const days = calculateDays(fromDate, toDate);
+  const formatLeaveDays = (fromDate, toDate, halfDay = '') => {
+    const days = halfDay ? 0.5 : calculateDays(fromDate, toDate);
     if (!days) return '';
     return `${days} ${days === 1 ? 'day' : 'days'}`;
   };
@@ -391,18 +435,19 @@ const LeaveRequest = () => {
       const existingRows = Array.isArray(dataResult.data) ? dataResult.data : [];
       const formattedTimestamp = formatSheetTimestamp();
       const leaveRequestNo = getNextLeaveRequestNo(existingRows);
+      const halfDayRemark = formData.halfDay ? `${formData.halfDay}${formData.remark ? ` - ${formData.remark}` : ''}` : formData.remark;
 
       const rowData = [
         formattedTimestamp,
         leaveRequestNo,
         formData.employeeName,
         formData.department || formData.designation,
-        formatLeaveDays(formData.fromDate, formData.toDate),
+        formatLeaveDays(formData.fromDate, formData.toDate, formData.halfDay),
         formData.jobLocation || '',
         formatDOB(formData.fromDate),
         formatDOB(formData.toDate),
         formData.reason,
-        formData.remark,
+        halfDayRemark,
         formData.imageUrl,
       ];
 
@@ -424,12 +469,12 @@ const LeaveRequest = () => {
           leaveRequestId: leaveRequestNo,
           requestedBy: formData.employeeName,
           department: formData.department || formData.designation,
-          totalLeaves: formatLeaveDays(formData.fromDate, formData.toDate),
+          totalLeaves: formatLeaveDays(formData.fromDate, formData.toDate, formData.halfDay),
           jobLocation: formData.jobLocation || '',
           leaveFromDate: formatDOB(formData.fromDate),
           leaveToDate: formatDOB(formData.toDate),
           leaveReason: formData.reason,
-          remark: formData.remark,
+          remark: halfDayRemark,
           imageUrl: formData.imageUrl,
           approvalPlanned: '',
           approvalActual: '',
@@ -443,7 +488,7 @@ const LeaveRequest = () => {
           startDate: formatDOB(formData.fromDate),
           endDate: formatDOB(formData.toDate),
           reason: formData.reason,
-          days: formatLeaveDays(formData.fromDate, formData.toDate),
+          days: formatLeaveDays(formData.fromDate, formData.toDate, formData.halfDay),
           status: 'Pending',
           approvalPending: true,
           appliedDate: formattedTimestamp,
@@ -460,7 +505,8 @@ const LeaveRequest = () => {
           jobLocation: formData.jobLocation || '',
           fromDate: '',
           toDate: '',
-          reason: '',
+          halfDay: '',
+    reason: '',
           remark: '',
           imageUrl: ''
         });
@@ -1025,26 +1071,6 @@ const LeaveRequest = () => {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Timestamp</label>
-                  <input
-                    type="text"
-                    value="Auto generated"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
-                    readOnly
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">LR-Unique No.</label>
-                  <input
-                    type="text"
-                    value="Auto generated"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
-                    readOnly
-                  />
-                </div>
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Requested By *</label>
@@ -1060,15 +1086,44 @@ const LeaveRequest = () => {
                 )}
               </div>
 
-              <div>
+              <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Departments *</label>
+                <button
+                  type="button"
+                  onClick={() => setDepartmentDropdownOpen((open) => !open)}
+                  className={`flex w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-left focus:outline-none focus:ring-2 focus:ring-navy ${formData.department ? 'border-gray-300 text-gray-900' : 'border-gray-300 text-gray-500'}`}
+                >
+                  <span>{formData.department || 'Select department'}</span>
+                  <ChevronRight size={16} className={`text-gray-400 transition ${departmentDropdownOpen ? 'rotate-90' : ''}`} />
+                </button>
+                {departmentDropdownOpen && (
+                  <div className="absolute left-0 right-0 z-[160] mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+                    {departmentOptions.map((department) => (
+                      <button
+                        key={department}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, department }));
+                          setDepartmentDropdownOpen(false);
+                        }}
+                        className={`block w-full px-4 py-2.5 text-left text-sm font-medium transition hover:bg-indigo-50 hover:text-navy ${formData.department === department ? 'bg-indigo-50 text-navy' : 'text-gray-700'}`}
+                      >
+                        {department}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <input type="hidden" name="department" value={formData.department} required />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Total No of leaves days</label>
                 <input
                   type="text"
-                  name="department"
-                  value={formData.department}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  required
+                  value={formatLeaveDays(formData.fromDate, formData.toDate, formData.halfDay)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
+                  placeholder="Auto calculated"
+                  readOnly
                 />
               </div>
 
@@ -1108,14 +1163,19 @@ const LeaveRequest = () => {
                   />
                 </div>
               </div>
-
-              {formData.fromDate && formData.toDate && (
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    Total No of leaves days: <span className="font-semibold">{formatLeaveDays(formData.fromDate, formData.toDate)}</span>
-                  </p>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Half Day</label>
+                <select
+                  name="halfDay"
+                  value={formData.halfDay}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                >
+                  <option value="">Full Day</option>
+                  <option value="1st Half">1st Half</option>
+                  <option value="2nd Half">2nd Half</option>
+                </select>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Taking Leave *</label>
@@ -1144,14 +1204,16 @@ const LeaveRequest = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-                <input
-                  type="url"
-                  name="imageUrl"
-                  value={formData.imageUrl}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="Paste image URL..."
-                />
+                <label className="flex h-11 w-full cursor-pointer items-center justify-center rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                  {uploadingImage ? 'Uploading...' : formData.imageUrl ? 'Image uploaded' : 'Upload image'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={uploadingImage}
+                  />
+                </label>
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
@@ -1166,7 +1228,7 @@ const LeaveRequest = () => {
                   type="submit"
                   className={`px-4 py-2 text-white bg-navy rounded-md hover:bg-navy-dark min-h-[42px] flex items-center justify-center ${submitting ? 'opacity-75 cursor-not-allowed' : ''
                     }`}
-                  disabled={submitting}
+                  disabled={submitting || uploadingImage}
                 >
                   {submitting ? (
                     <div className="flex items-center">

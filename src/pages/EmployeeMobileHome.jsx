@@ -709,7 +709,6 @@ const EmployeeMobileHome = () => {
 
   const handleQuickAction = (action) => {
     if (action.id === 'contacts') {
-      setShowContacts(true);
       return;
     }
     navigate(action.path);
