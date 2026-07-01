@@ -347,6 +347,35 @@ const reverseGeocode = async (latitude, longitude) => {
   }
 };
 
+const getTrustedNow = async () => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const response = await fetch("https://timeapi.io/api/time/current/zone?timeZone=Asia/Kolkata", {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error("Trusted time unavailable");
+
+    const data = await response.json();
+    const trustedNow = new Date(
+      Number(data.year),
+      Number(data.month) - 1,
+      Number(data.day),
+      Number(data.hour),
+      Number(data.minute),
+      Number(data.seconds || 0),
+      Number(data.milliSeconds || 0)
+    );
+
+    if (Number.isNaN(trustedNow.getTime())) throw new Error("Trusted time invalid");
+    return trustedNow;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
 const reviveAttendanceCache = (cached) => {
   if (!cached) return null;
   return {
@@ -644,6 +673,13 @@ const MarkAttendance = () => {
     return lastEntry?.status === "IN" ? "OUT" : "IN";
   }, [rawEntries, scopedAliases]);
 
+  const todayPunchCount = useMemo(() => {
+    const today = dateKey(new Date());
+    return rawEntries.filter((entry) => scopedAliases.includes(normalize(entry.employeeName)) && dateKey(entry.dateObj) === today).length;
+  }, [rawEntries, scopedAliases]);
+
+  const isAttendanceComplete = todayPunchCount >= 2;
+
   const myTodayRecord = useMemo(() => {
     const today = dateKey(new Date());
     return attendanceData.find((item) => scopedAliases.includes(normalize(item.employeeName)) && dateKey(item.dateObj) === today);
@@ -651,7 +687,7 @@ const MarkAttendance = () => {
 
   const handleMarkAttendance = async () => {
     if (marking) return;
-    const now = new Date();
+    if (isAttendanceComplete) return;
 
     if (!punchPersonName) {
       toast.error("Current user name was not found.");
@@ -691,7 +727,16 @@ const MarkAttendance = () => {
     setMarking(true);
 
     try {
-      const statusToMark = nextStatus;
+      const now = await getTrustedNow();
+      const trustedToday = dateKey(now);
+      const trustedTodayEntries = rawEntries
+        .filter((entry) => scopedAliases.includes(normalize(entry.employeeName)) && dateKey(entry.dateObj) === trustedToday)
+        .sort((a, b) => a.dateObj - b.dateObj);
+
+      if (trustedTodayEntries.length >= 2) return;
+
+      const lastTrustedEntry = trustedTodayEntries[trustedTodayEntries.length - 1];
+      const statusToMark = lastTrustedEntry?.status === "IN" ? "OUT" : "IN";
       const latitude = locationCheck.latitude;
       const longitude = locationCheck.longitude;
       const mapLink = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
@@ -756,7 +801,9 @@ const MarkAttendance = () => {
     } catch (err) {
       console.error("Mark attendance error:", err);
       toast.error(err.message || "Attendance mark failed");
-      setLocationCheck({ status: "error", message: err.message || "Location error" });
+      if (err.name !== "AbortError" && !String(err.message || "").includes("Trusted time")) {
+        setLocationCheck({ status: "error", message: err.message || "Location error" });
+      }
     } finally {
       setMarking(false);
     }
@@ -856,19 +903,21 @@ const MarkAttendance = () => {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleMarkAttendance}
-              disabled={marking}
-              className={`mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 ${
-                nextStatus === "IN"
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-100"
-                  : "bg-gradient-to-r from-rose-600 to-orange-500 shadow-rose-100"
-              }`}
-            >
-              <Clock size={18} />
-              Mark {nextStatus}
-            </button>
+            {!isAttendanceComplete && (
+              <button
+                type="button"
+                onClick={handleMarkAttendance}
+                disabled={marking}
+                className={`mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 ${
+                  nextStatus === "IN"
+                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-100"
+                    : "bg-gradient-to-r from-rose-600 to-orange-500 shadow-rose-100"
+                }`}
+              >
+                <Clock size={18} />
+                Check {nextStatus}
+              </button>
+            )}
           </div>
         </div>
       </section>
