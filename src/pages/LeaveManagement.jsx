@@ -328,34 +328,44 @@ const LeaveManagement = () => {
     return `LR-${String(maxNo + 1).padStart(2, '0')}`;
   };
 
-  const mapLeaveRow = (row, index) => ({
-    timestamp: row[0] || '',
-    leaveRequestId: row[1] || '',
-    requestedBy: row[2] || '',
-    department: row[3] || '',
-    totalLeaves: row[4] || '',
-    jobLocation: row[5] || '',
-    leaveFromDate: row[6] || '',
-    leaveToDate: row[7] || '',
-    leaveReason: row[8] || '',
-    remark: row[9] || '',
-    imageUrl: row[10] || '',
-    approvalPlanned: row[11] || '',
-    approvalActual: row[12] || '',
-    approvalDelay: row[13] || '',
-    approvedBy: row[14] || '',
-    approvalStatus: row[15] || '',
-    approvalRemarks: row[16] || '',
-    serialNo: row[1] || '',
-    employeeId: row[1] || '',
-    employeeName: row[2] || '',
-    startDate: row[6] || '',
-    endDate: row[7] || '',
-    days: row[4] || formatLeaveDays(row[6], row[7]),
-    status: getApprovalStatus(row),
-    approvalPending: hasSheetValue(row[11]) && !hasSheetValue(row[12]),
-    sheetRowIndex: index + LEAVE_DATA_START_INDEX + 1,
-  });
+  const mapLeaveRow = (row, index) => {
+    let displayDays = row[4] || '';
+    if (displayDays && !isNaN(Number(displayDays))) {
+      const num = Number(displayDays);
+      displayDays = `${num} ${num === 1 ? 'day' : 'days'}`;
+    } else if (!displayDays) {
+      displayDays = formatLeaveDays(row[6], row[7]);
+    }
+
+    return {
+      timestamp: row[0] || '',
+      leaveRequestId: row[1] || '',
+      requestedBy: row[2] || '',
+      department: row[3] || '',
+      totalLeaves: displayDays,
+      jobLocation: row[5] || '',
+      leaveFromDate: row[6] || '',
+      leaveToDate: row[7] || '',
+      leaveReason: row[8] || '',
+      remark: row[9] || '',
+      imageUrl: row[10] || '',
+      approvalPlanned: row[11] || '',
+      approvalActual: row[12] || '',
+      approvalDelay: row[13] || '',
+      approvedBy: row[14] || '',
+      approvalStatus: row[15] || '',
+      approvalRemarks: row[16] || '',
+      serialNo: row[1] || '',
+      employeeId: row[1] || '',
+      employeeName: row[2] || '',
+      startDate: row[6] || '',
+      endDate: row[7] || '',
+      days: displayDays,
+      status: getApprovalStatus(row),
+      approvalPending: hasSheetValue(row[11]) && !hasSheetValue(row[12]),
+      sheetRowIndex: index + LEAVE_DATA_START_INDEX + 1,
+    };
+  };
 
   const yieldToBrowser = () =>
     new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -433,12 +443,13 @@ const LeaveManagement = () => {
       const formattedTimestamp = formatSheetTimestamp();
       const leaveRequestNo = getNextLeaveRequestNo(existingRows);
 
+      const rawDays = calculateDays(formData.fromDate, formData.toDate);
       const rowData = [
         formattedTimestamp,
         leaveRequestNo,
         formData.employeeName,
         formData.department || formData.designation,
-        formatLeaveDays(formData.fromDate, formData.toDate),
+        rawDays || '',
         formData.jobLocation || '',
         formatDOB(formData.fromDate),
         formatDOB(formData.toDate),
@@ -546,7 +557,23 @@ const LeaveManagement = () => {
       const finalToDate = editableDates.to ? formatDOB(editableDates.to) : selectedEndDate;
       const fromDateChanged = Boolean(finalFromDate) && finalFromDate !== selectedStartDate;
       const toDateChanged = Boolean(finalToDate) && finalToDate !== selectedEndDate;
-      const finalLeaveDays = formatLeaveDays(finalFromDate, finalToDate) || selectedRow.days;
+      
+      let rawFinalLeaveDays = '';
+      if (fromDateChanged || toDateChanged) {
+        rawFinalLeaveDays = calculateDays(finalFromDate, finalToDate) || '';
+      } else {
+        const storedDays = selectedRow.totalLeaves || selectedRow.days;
+        rawFinalLeaveDays = !isNaN(Number(storedDays?.toString().split(' ')[0])) 
+          ? Number(storedDays.toString().split(' ')[0]) 
+          : storedDays;
+      }
+      
+      const finalLeaveDaysDisplay = rawFinalLeaveDays 
+        ? (!isNaN(Number(rawFinalLeaveDays)) 
+            ? `${Number(rawFinalLeaveDays)} ${Number(rawFinalLeaveDays) === 1 ? 'day' : 'days'}` 
+            : rawFinalLeaveDays)
+        : selectedRow.days;
+      
       const approvalActual = formatSheetTimestamp();
       const approverName = getCurrentApproverName();
 
@@ -556,8 +583,8 @@ const LeaveManagement = () => {
         leaveToDate: finalToDate,
         startDate: finalFromDate,
         endDate: finalToDate,
-        totalLeaves: finalLeaveDays,
-        days: finalLeaveDays,
+        totalLeaves: finalLeaveDaysDisplay,
+        days: finalLeaveDaysDisplay,
         approvalActual,
         approvedBy: approverName,
         approvalStatus: actionStatus,
@@ -603,7 +630,7 @@ const LeaveManagement = () => {
       }
 
       if (fromDateChanged || toDateChanged) {
-        updates.push({ columnIndex: 5, value: finalLeaveDays });
+        updates.push({ columnIndex: 5, value: rawFinalLeaveDays });
       }
 
       updates.push(
@@ -1357,8 +1384,8 @@ const LeaveManagement = () => {
 
       {/* Modal for new leave request */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto scrollbar-hide">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 sm:items-start sm:pt-10 sm:pb-28 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto scrollbar-hide sm:mt-10">
             <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white z-10">
               <h3 className="text-lg font-medium">New Leave Request</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700">

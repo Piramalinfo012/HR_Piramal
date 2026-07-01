@@ -308,36 +308,46 @@ const LeaveRequest = () => {
     return `LR-${String(maxNo + 1).padStart(2, '0')}`;
   };
 
-  const mapLeaveRow = (row, index) => ({
-    id: index + 1,
-    timestamp: row[0] || '',
-    leaveRequestId: row[1] || '',
-    requestedBy: row[2] || '',
-    department: row[3] || '',
-    totalLeaves: row[4] || '',
-    jobLocation: row[5] || '',
-    leaveFromDate: row[6] || '',
-    leaveToDate: row[7] || '',
-    leaveReason: row[8] || '',
-    remark: row[9] || '',
-    imageUrl: row[10] || '',
-    approvalPlanned: row[11] || '',
-    approvalActual: row[12] || '',
-    approvalDelay: row[13] || '',
-    approvedBy: row[14] || '',
-    approvalStatus: row[15] || '',
-    approvalRemarks: row[16] || '',
-    serialNo: row[1] || '',
-    employeeId: row[1] || '',
-    employeeName: row[2] || '',
-    startDate: row[6] || '',
-    endDate: row[7] || '',
-    reason: row[8] || '',
-    days: row[4] || formatLeaveDays(row[6], row[7]),
-    status: getApprovalStatus(row),
-    approvalPending: hasSheetValue(row[11]) && !hasSheetValue(row[12]),
-    appliedDate: row[0] || '',
-  });
+  const mapLeaveRow = (row, index) => {
+    let displayDays = row[4] || '';
+    if (displayDays && !isNaN(Number(displayDays))) {
+      const num = Number(displayDays);
+      displayDays = `${num} ${num === 1 ? 'day' : 'days'}`;
+    } else if (!displayDays) {
+      displayDays = formatLeaveDays(row[6], row[7]);
+    }
+
+    return {
+      id: index + 1,
+      timestamp: row[0] || '',
+      leaveRequestId: row[1] || '',
+      requestedBy: row[2] || '',
+      department: row[3] || '',
+      totalLeaves: displayDays,
+      jobLocation: row[5] || '',
+      leaveFromDate: row[6] || '',
+      leaveToDate: row[7] || '',
+      leaveReason: row[8] || '',
+      remark: row[9] || '',
+      imageUrl: row[10] || '',
+      approvalPlanned: row[11] || '',
+      approvalActual: row[12] || '',
+      approvalDelay: row[13] || '',
+      approvedBy: row[14] || '',
+      approvalStatus: row[15] || '',
+      approvalRemarks: row[16] || '',
+      serialNo: row[1] || '',
+      employeeId: row[1] || '',
+      employeeName: row[2] || '',
+      startDate: row[6] || '',
+      endDate: row[7] || '',
+      reason: row[8] || '',
+      days: displayDays,
+      status: getApprovalStatus(row),
+      approvalPending: hasSheetValue(row[11]) && !hasSheetValue(row[12]),
+      appliedDate: row[0] || '',
+    };
+  };
 
   const yieldToBrowser = () =>
     new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -437,12 +447,13 @@ const LeaveRequest = () => {
       const leaveRequestNo = getNextLeaveRequestNo(existingRows);
       const halfDayRemark = formData.halfDay ? `${formData.halfDay}${formData.remark ? ` - ${formData.remark}` : ''}` : formData.remark;
 
+      const rawDays = formData.halfDay ? 0.5 : calculateDays(formData.fromDate, formData.toDate);
       const rowData = [
         formattedTimestamp,
         leaveRequestNo,
         formData.employeeName,
         formData.department || formData.designation,
-        formatLeaveDays(formData.fromDate, formData.toDate, formData.halfDay),
+        rawDays || '',
         formData.jobLocation || '',
         formatDOB(formData.fromDate),
         formatDOB(formData.toDate),
@@ -1062,8 +1073,8 @@ const LeaveRequest = () => {
 
       {/* Modal for new leave request - Updated to match LeaveManagement */}
       {showModal && (
-        <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black bg-opacity-50 p-4 pb-28 pt-10 sm:items-center sm:p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[calc(100dvh-7rem)] overflow-y-auto scrollbar-hide sm:max-h-[90vh]">
+        <div className="fixed inset-0 z-[120] bg-black bg-opacity-50 overflow-y-auto flex items-start justify-center pt-10 sm:pt-16 pb-28 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto scrollbar-hide">
             <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white z-10">
               <h3 className="text-lg font-medium">New Leave Request</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700">
