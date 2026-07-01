@@ -806,7 +806,7 @@ const MarkAttendance = () => {
         setLocationCheck({ status: "error", message: err.message || "Location error" });
       }
     } finally {
-      setMarking(false);
+      window.setTimeout(() => setMarking(false), 2000);
     }
   };
 
@@ -904,7 +904,7 @@ const MarkAttendance = () => {
               </div>
             </div>
 
-            {!isAttendanceComplete && (
+            {!isAttendanceComplete && !marking && (
               <button
                 type="button"
                 onClick={handleMarkAttendance}
