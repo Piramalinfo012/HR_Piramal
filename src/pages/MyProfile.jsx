@@ -62,6 +62,23 @@ const getStoredUserData = () => {
   }
 };
 
+const normalizeProfileName = (value) =>
+  String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+const getProfileNameAliases = (user = {}) =>
+  [
+    user.Name,
+    user.name,
+    user['Employee Name'],
+    user['Candidate Name'],
+    user['Name As Per Aadhar'],
+    user._displayName,
+    user.Username,
+    user.username,
+  ]
+    .map(normalizeProfileName)
+    .filter(Boolean);
+
 const getProfileIdentityKey = (user = {}) =>
   String(
     localStorage.getItem('employeeId') ||
@@ -240,6 +257,7 @@ const MyProfile = () => {
 
       const currentUser = JSON.parse(userData);
       const userName = currentUser.Name || currentUser.name || currentUser["Employee Name"] || "";
+      const userNameAliases = getProfileNameAliases(currentUser);
       const storedEmployeeId =
         localStorage.getItem("employeeId") ||
         currentUser.employeeId ||
@@ -280,7 +298,7 @@ const MyProfile = () => {
             cell && (cell === 'id' || cell.includes('joining id') || cell.includes('indent number'))
           );
           const candidateNameIndex = normalizedRow.findIndex(cell =>
-            cell && (cell.includes('candidate name') || cell.includes('candiate name') || cell.includes('name as per aadhar'))
+            cell && (cell.includes('candidate name') || cell.includes('candiate name') || cell.includes('name as per aadhar') || cell.includes('employee name'))
           );
 
           if (joiningIdIndex !== -1 && candidateNameIndex !== -1) {
@@ -310,7 +328,7 @@ const MyProfile = () => {
       };
 
       const idxIndent = getIndex(['Joining ID', 'Indent Number', 'Employee ID'], 5);
-      const idxName = getIndex(['Name As Per Aadhar', 'Candidate Name', 'Candiate Name'], 10);
+      const idxName = getIndex(['Name As Per Aadhar', 'Candidate Name', 'Candiate Name', 'Employee Name', 'Name'], 10);
       const idxDept = getIndex(['Department'], 2);
       const idxStatus = getIndex(['Status'], 8);
       const idxFather = getIndex(['Father Name'], 11);
@@ -381,7 +399,8 @@ const MyProfile = () => {
 
       // Filter data for the current user
       const filteredData = processedData.filter(task =>
-        task.candidateName?.trim().toLowerCase() === userName.trim().toLowerCase() ||
+        userNameAliases.includes(normalizeProfileName(task.candidateName)) ||
+        normalizeProfileName(task.candidateName) === normalizeProfileName(userName) ||
         (storedEmployeeId && task.joiningNo?.toString().trim().toLowerCase() === storedEmployeeId.toString().trim().toLowerCase())
       );
 
@@ -601,7 +620,7 @@ const MyProfile = () => {
             cell && (cell === 'id' || cell.includes('joining id') || cell.includes('indent number'))
           );
           const candidateNameIndex = normalizedRow.findIndex(cell =>
-            cell && (cell.includes('candidate name') || cell.includes('candiate name') || cell.includes('name as per aadhar'))
+            cell && (cell.includes('candidate name') || cell.includes('candiate name') || cell.includes('name as per aadhar') || cell.includes('employee name'))
           );
 
           if (joiningIdIndex !== -1 && candidateNameIndex !== -1) {
