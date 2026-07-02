@@ -65,19 +65,35 @@ const getStoredUserData = () => {
 const normalizeProfileName = (value) =>
   String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
-const getProfileNameAliases = (user = {}) =>
-  [
+const getProfileNameAliases = (user = {}) => {
+  const directNames = [
     user.Name,
     user.name,
     user['Employee Name'],
     user['Candidate Name'],
+    user['Candiate Name'],
     user['Name As Per Aadhar'],
+    user['Person Name'],
+    user['Sales Person Name'],
     user._displayName,
-    user.Username,
-    user.username,
-  ]
+  ];
+
+  const dynamicNames = Object.entries(user)
+    .filter(([key]) => {
+      const normalizedKey = normalizeProfileName(key);
+      return (
+        normalizedKey.includes('name') ||
+        normalizedKey.includes('aadhar') ||
+        normalizedKey.includes('candidate') ||
+        normalizedKey.includes('person')
+      ) && !normalizedKey.includes('user name');
+    })
+    .map(([, value]) => value);
+
+  return [...directNames, ...dynamicNames]
     .map(normalizeProfileName)
     .filter(Boolean);
+};
 
 const getProfileIdentityKey = (user = {}) =>
   String(
@@ -328,7 +344,8 @@ const MyProfile = () => {
       };
 
       const idxIndent = getIndex(['Joining ID', 'Indent Number', 'Employee ID'], 5);
-      const idxName = getIndex(['Name As Per Aadhar', 'Candidate Name', 'Candiate Name', 'Employee Name', 'Name'], 10);
+      const idxNameAsPerAadhar = getIndex(['Name As Per Aadhar', 'Name As per Aadhar'], -1);
+      const idxName = idxNameAsPerAadhar !== -1 ? idxNameAsPerAadhar : getIndex(['Candidate Name', 'Candiate Name', 'Employee Name', 'Name'], 10);
       const idxDept = getIndex(['Department'], 2);
       const idxStatus = getIndex(['Status'], 8);
       const idxFather = getIndex(['Father Name'], 11);
@@ -398,11 +415,11 @@ const MyProfile = () => {
 
 
       // Filter data for the current user
-      const filteredData = processedData.filter(task =>
-        userNameAliases.includes(normalizeProfileName(task.candidateName)) ||
-        normalizeProfileName(task.candidateName) === normalizeProfileName(userName) ||
-        (storedEmployeeId && task.joiningNo?.toString().trim().toLowerCase() === storedEmployeeId.toString().trim().toLowerCase())
-      );
+      const filteredData = processedData.filter(task => {
+        const joiningNames = [task.nameAsPerAadhar, task.candidateName].map(normalizeProfileName).filter(Boolean);
+        return joiningNames.some((name) => userNameAliases.includes(name) || name === normalizeProfileName(userName)) ||
+          (storedEmployeeId && task.joiningNo?.toString().trim().toLowerCase() === storedEmployeeId.toString().trim().toLowerCase());
+      });
 
       if (filteredData.length > 0) {
         const profile = filteredData[0];
