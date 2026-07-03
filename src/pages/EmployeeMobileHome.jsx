@@ -711,17 +711,21 @@ const EmployeeMobileHome = () => {
     if (action.id === 'contacts') {
       return;
     }
+    if (action.externalUrl) {
+      window.open(action.externalUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
     navigate(action.path);
   };
 
   const quickActions = [
-    { icon: Wallet, label: 'Expenses', path: '/employee-mobile', iconClass: 'bg-emerald-50 text-emerald-700 ring-emerald-100' },
+    { icon: Wallet, label: 'New System Development', externalUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSfbs_I-HzZT2miZUS6Aacvu6qd5vxkkD12Of_QjOKEnEZkphg/viewform?usp=header', path: '/employee-mobile', iconClass: 'bg-emerald-50 text-emerald-700 ring-emerald-100' },
     { icon: ClipboardList, label: 'HR Records', path: '/my-attendance', iconClass: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
     { icon: Fingerprint, label: 'Mark Attendance', path: '/mark-attendance', iconClass: 'bg-blue-50 text-blue-700 ring-blue-100' },
     { icon: FileText, label: 'Leave Request', path: '/leave-request', iconClass: 'bg-rose-50 text-rose-700 ring-rose-100' },
     { icon: CalendarDays, label: 'Leave History', path: '/leave-management', iconClass: 'bg-slate-100 text-slate-700 ring-slate-200' },
     { icon: User, label: 'My Profile', path: '/employee-profile', iconClass: 'bg-amber-50 text-amber-700 ring-amber-100' },
-    { icon: Briefcase, label: 'Projects / Tasks', path: '/employee-mobile', iconClass: 'bg-orange-50 text-orange-700 ring-orange-100' },
+    { icon: Briefcase, label: 'Alteration Form', externalUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSewFXJwJjtXErhqO_PoCLqIi-eH7i3Qau94LcnARJsgiwf2Lw/viewform?usp=publish-editor', path: '/employee-mobile', iconClass: 'bg-orange-50 text-orange-700 ring-orange-100' },
     { id: 'contacts', icon: Users, label: 'All Contacts', path: '/employee-mobile', iconClass: 'bg-cyan-50 text-cyan-700 ring-cyan-100' },
   ];
 
