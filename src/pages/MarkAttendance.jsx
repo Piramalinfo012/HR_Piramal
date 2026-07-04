@@ -456,6 +456,7 @@ const MarkAttendance = () => {
   const [error, setError] = useState(null);
   const [reason, setReason] = useState("");
   const [locationCheck, setLocationCheck] = useState(null);
+  const [rawLocation, setRawLocation] = useState(() => readCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, MARK_ATTENDANCE_LOCATION_CACHE_TTL_MS) || null);
 
   const matchedMasterUser = useMemo(
     () => getMatchedMasterUser(currentUser, masterUsers),
@@ -567,13 +568,6 @@ const MarkAttendance = () => {
   }, []);
 
   useEffect(() => {
-    if (!locationRule.source) return;
-
-    if (locationRule.requiresLocationMatch && (locationRule.latitude === null || locationRule.longitude === null)) {
-      setLocationCheck({ status: "error", message: "Master location is not configured." });
-      return;
-    }
-
     if (!navigator.geolocation) {
       setLocationCheck({ status: "error", message: "Browser location is not supported." });
       return;
@@ -581,74 +575,38 @@ const MarkAttendance = () => {
 
     let active = true;
 
-    const applyLocationCheck = ({ latitude, longitude, address = "" }) => {
+    const handleUpdate = (position) => {
       if (!active) return;
-
-      const distance = locationRule.requiresLocationMatch
-        ? haversineDistanceMeters(
-          { latitude, longitude },
-          { latitude: locationRule.latitude, longitude: locationRule.longitude }
-        )
-        : 0;
-      const roundedDistance = Math.round(distance);
-      const allowed = !locationRule.requiresLocationMatch || distance <= locationRule.rangeMeters;
-
-      setLocationCheck({
-        status: allowed ? "inside" : "outside",
-        distance: roundedDistance,
-        latitude,
-        longitude,
-        address,
-        message: !locationRule.requiresLocationMatch
-          ? "Location ready"
-          : allowed
-            ? `Inside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`
-            : `Outside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`,
+      const latitude = Number(position.coords.latitude.toFixed(7));
+      const longitude = Number(position.coords.longitude.toFixed(7));
+      const accuracy = position.coords.accuracy || 0;
+      
+      setRawLocation((prev) => {
+        // Prevent delayed low-accuracy network hits from overwriting a warm high-accuracy GPS lock
+        if (prev && prev.accuracy && prev.accuracy < 100 && accuracy > 500) {
+          return prev;
+        }
+        const address = prev?.latitude === latitude && prev?.longitude === longitude ? (prev.address || "") : "";
+        const nextLoc = { latitude, longitude, address, accuracy };
+        writeCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, nextLoc);
+        return nextLoc;
       });
     };
 
-    const updateLocationCheck = (position) => {
-      const latitude = Number(position.coords.latitude.toFixed(7));
-      const longitude = Number(position.coords.longitude.toFixed(7));
-      const previousLocation = readCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, MARK_ATTENDANCE_LOCATION_CACHE_TTL_MS);
-      const previousAddress = previousLocation?.latitude === latitude && previousLocation?.longitude === longitude
-        ? previousLocation.address || ""
-        : "";
-      const cachedLocation = { latitude, longitude, address: previousAddress };
-      writeCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, cachedLocation);
-      applyLocationCheck(cachedLocation);
-
-      if (!previousAddress) {
-        reverseGeocode(latitude, longitude).then((address) => {
-          if (!active || !address) return;
-          const enrichedLocation = { latitude, longitude, address };
-          writeCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, enrichedLocation);
-          applyLocationCheck(enrichedLocation);
-        });
-      }
-    };
-
-    const handleLocationError = (err) => {
+    const handleError = (err) => {
       if (!active) return;
-      setLocationCheck((current) => current || { status: "error", message: err.message || "Location check failed." });
+      setLocationCheck((current) => current?.status === "inside" || current?.status === "outside" ? current : { status: "error", message: err.message || "Location check failed." });
     };
 
-    const cachedLocation = readCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, MARK_ATTENDANCE_LOCATION_CACHE_TTL_MS);
-    if (cachedLocation?.latitude !== undefined && cachedLocation?.longitude !== undefined) {
-      applyLocationCheck(cachedLocation);
-    } else {
-      setLocationCheck({ status: "checking", message: "Checking location..." });
-    }
-
-    navigator.geolocation.getCurrentPosition(updateLocationCheck, handleLocationError, {
-      enableHighAccuracy: true,
-      timeout: 8000,
-      maximumAge: 60000,
+    navigator.geolocation.getCurrentPosition(handleUpdate, handleError, {
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 300000,
     });
 
-    const watchId = navigator.geolocation.watchPosition(updateLocationCheck, handleLocationError, {
+    const watchId = navigator.geolocation.watchPosition(handleUpdate, handleError, {
       enableHighAccuracy: true,
-      timeout: 8000,
+      timeout: 10000,
       maximumAge: 60000,
     });
 
@@ -656,7 +614,84 @@ const MarkAttendance = () => {
       active = false;
       navigator.geolocation.clearWatch(watchId);
     };
+  }, []);
+
+  useEffect(() => {
+    if (rawLocation?.latitude && rawLocation?.longitude && !rawLocation.address) {
+      let active = true;
+      reverseGeocode(rawLocation.latitude, rawLocation.longitude).then((address) => {
+        if (!active || !address) return;
+        setRawLocation((prev) => {
+          if (prev?.latitude === rawLocation.latitude && prev?.longitude === rawLocation.longitude) {
+            const nextLoc = { ...prev, address };
+            writeCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, nextLoc);
+            return nextLoc;
+          }
+          return prev;
+        });
+      });
+      return () => { active = false; };
+    }
+  }, [rawLocation?.latitude, rawLocation?.longitude, rawLocation?.address]);
+
+  useEffect(() => {
+    if (!locationRule.source) {
+      if (!rawLocation) {
+        setLocationCheck({ status: "checking", message: "Checking location..." });
+      } else {
+        setLocationCheck({ status: "checking", message: "Fetching user settings..." });
+      }
+      return;
+    }
+
+    if (locationRule.requiresLocationMatch && (locationRule.latitude === null || locationRule.longitude === null)) {
+      setLocationCheck({ status: "error", message: "Master location is not configured." });
+      return;
+    }
+
+    if (!rawLocation || rawLocation.latitude === undefined) {
+      setLocationCheck({ status: "checking", message: "Checking location..." });
+      return;
+    }
+
+    const accuracy = rawLocation.accuracy || 0;
+
+    const rawDistance = locationRule.requiresLocationMatch
+      ? haversineDistanceMeters(
+        { latitude: rawLocation.latitude, longitude: rawLocation.longitude },
+        { latitude: locationRule.latitude, longitude: locationRule.longitude }
+      )
+      : 0;
+    
+    // Account for GPS module inaccuracies on cheaper devices by subtracting the reported accuracy radius.
+    // We cap this leniency at 500 meters to prevent spoofing with cell towers.
+    const allowedError = Math.min(accuracy, 500); 
+    const effectiveDistance = Math.max(0, rawDistance - allowedError);
+    
+    const roundedDistance = Math.round(effectiveDistance);
+    const allowed = !locationRule.requiresLocationMatch || effectiveDistance <= locationRule.rangeMeters;
+
+    if (!allowed && locationRule.requiresLocationMatch && accuracy > 300) {
+      // If they appear outside the range, but their GPS accuracy is worse than 300m,
+      // it's likely a fast cell-tower lock. Show loading instead of a huge distance.
+      setLocationCheck({ status: "checking", message: "Acquiring precise GPS lock..." });
+      return;
+    }
+
+    setLocationCheck({
+      status: allowed ? "inside" : "outside",
+      distance: roundedDistance,
+      latitude: rawLocation.latitude,
+      longitude: rawLocation.longitude,
+      address: rawLocation.address,
+      message: !locationRule.requiresLocationMatch
+        ? "Location ready"
+        : allowed
+          ? `Inside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`
+          : `Outside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`,
+    });
   }, [
+    rawLocation,
     locationRule.source,
     locationRule.requiresLocationMatch,
     locationRule.latitude,
