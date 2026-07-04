@@ -288,6 +288,14 @@ const Indent = () => {
     try {
       setTableLoading(true);
       
+      const fetchRes = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Position Opning Form&action=fetch&_=${Date.now()}`);
+      const fetchData = await fetchRes.json();
+      if (!fetchData.success || !fetchData.data) throw new Error("Could not connect to database");
+
+      const index = fetchData.data.findIndex(row => row[1] === indent.indentNumber);
+      if (index === -1) throw new Error("Indent not found in database");
+      const realRowIndex = index + 1;
+      
       const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
         method: 'POST',
         headers: {
@@ -296,7 +304,7 @@ const Indent = () => {
         body: new URLSearchParams({
           sheetName: "Position Opning Form",
           action: 'delete',
-          rowIndex: indent.rowIndex,
+          rowIndex: realRowIndex,
         }).toString(),
       });
       
@@ -341,6 +349,14 @@ const Indent = () => {
       const formattedDate = formatDateForSheet(formData.competitionDate);
 
       if (editingIndent) {
+        const fetchRes = await fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=Position Opning Form&action=fetch&_=${Date.now()}`);
+        const fetchData = await fetchRes.json();
+        if (!fetchData.success || !fetchData.data) throw new Error("Could not connect to database");
+
+        const index = fetchData.data.findIndex(row => row[1] === editingIndent.indentNumber);
+        if (index === -1) throw new Error("Indent not found for editing");
+        const realRowIndex = index + 1;
+
         const p = posts[0];
         const updates = [
           { columnIndex: 3, value: p.indenterName || "" },
@@ -368,7 +384,7 @@ const Indent = () => {
             body: new URLSearchParams({
               sheetName: "Position Opning Form",
               action: "updateCell",
-              rowIndex: editingIndent.rowIndex,
+              rowIndex: realRowIndex,
               columnIndex: update.columnIndex,
               value: update.value
             }).toString(),
