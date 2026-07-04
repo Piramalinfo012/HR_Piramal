@@ -376,26 +376,10 @@ const LeaveManagement = () => {
     };
   };
 
-  const yieldToBrowser = () =>
-    new Promise((resolve) => window.setTimeout(resolve, 0));
-
-  const processLeaveRows = async (rows) => {
-    const processedData = [];
-
-    for (let start = 0; start < rows.length; start += LEAVE_PROCESS_CHUNK_SIZE) {
-      const chunk = rows
-        .slice(start, start + LEAVE_PROCESS_CHUNK_SIZE)
-        .map((row, index) => mapLeaveRow(row, start + index))
-        .filter((leave) => leave.serialNo || leave.employeeName || leave.startDate);
-
-      processedData.push(...chunk);
-
-      if (start + LEAVE_PROCESS_CHUNK_SIZE < rows.length) {
-        await yieldToBrowser();
-      }
-    }
-
-    return processedData;
+  const processLeaveRows = (rows) => {
+    return rows
+      .map((row, index) => mapLeaveRow(row, index))
+      .filter((leave) => leave.serialNo || leave.employeeName || leave.startDate);
   };
 
   const splitLeaveLists = (leaves) => ({
@@ -723,7 +707,7 @@ const LeaveManagement = () => {
       }
 
       const dataRows = rawData.length > LEAVE_DATA_START_INDEX ? rawData.slice(LEAVE_DATA_START_INDEX) : [];
-      const processedData = await processLeaveRows(dataRows);
+      const processedData = processLeaveRows(dataRows);
 
       setLeaveLists(processedData);
       setError(null);
@@ -1575,3 +1559,4 @@ const LeaveManagement = () => {
 };
 
 export default LeaveManagement;
+

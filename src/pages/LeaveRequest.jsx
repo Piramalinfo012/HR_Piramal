@@ -349,30 +349,13 @@ const LeaveRequest = () => {
     };
   };
 
-  const yieldToBrowser = () =>
-    new Promise((resolve) => window.setTimeout(resolve, 0));
-
-  const processLeaveRows = async (rows) => {
-    const processedData = [];
+  const processLeaveRows = (rows) => {
     const currentUserName = user.Name?.toString().trim().toLowerCase();
-
-    for (let start = 0; start < rows.length; start += LEAVE_PROCESS_CHUNK_SIZE) {
-      const chunk = rows
-        .slice(start, start + LEAVE_PROCESS_CHUNK_SIZE)
-        .map((row, index) => mapLeaveRow(row, start + index))
-        .filter((item) =>
-          isAdmin ||
-          item.employeeName?.toString().trim().toLowerCase() === currentUserName
-        );
-
-      processedData.push(...chunk);
-
-      if (start + LEAVE_PROCESS_CHUNK_SIZE < rows.length) {
-        await yieldToBrowser();
-      }
-    }
-
-    return processedData;
+    return rows
+      .map((row, index) => mapLeaveRow(row, index))
+      .filter((item) =>
+        isAdmin || item.employeeName?.toString().trim().toLowerCase() === currentUserName
+      );
   };
 
   const fetchLeaveData = async () => {
@@ -406,7 +389,7 @@ const LeaveRequest = () => {
       }
 
       const dataRows = rawData.length > LEAVE_DATA_START_INDEX ? rawData.slice(LEAVE_DATA_START_INDEX) : [];
-      const processedData = await processLeaveRows(dataRows);
+      const processedData = processLeaveRows(dataRows);
 
       setLeavesData(processedData);
 
