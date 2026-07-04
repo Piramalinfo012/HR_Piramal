@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { HistoryIcon, Plus, X, Search, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import useAuthStore from "../store/authStore";
 
 const Indent = () => {
+  const user = useAuthStore((state) => state.user);
 
   const [showModal, setShowModal] = useState(false);
   const [editingIndent, setEditingIndent] = useState(null);
@@ -20,6 +22,7 @@ const Indent = () => {
     residence: "",
     indenterName: "",
     qualifications: "",
+    location: "",
   }]);
   const [formData, setFormData] = useState({
     competitionDate: "",
@@ -148,6 +151,7 @@ const Indent = () => {
     const noOfPostIdx = getIndex("Number Of Post");
     const dateIdx = getIndex("Completion Date");
     const qualIdx = getIndex("Qualifications");
+    const locationIdx = getIndex("For Which Location");
 
     const processedData = dataRows
       .map((row, index) => ({ row, rowIndex: index + 10 }))
@@ -168,7 +172,18 @@ const Indent = () => {
         noOfPost: (row[noOfPostIdx] || "").toString(),
         completionDate: (row[dateIdx] || "").toString(),
         qualifications: (row[qualIdx] || "").toString(),
+        location: (locationIdx !== -1 && row[locationIdx] ? row[locationIdx] : "").toString(),
       }))
+      .filter(item => {
+        const isRecruiter = user?.Admin?.trim().toLowerCase() === "recruiter";
+        const userLocation = user?.Location?.trim().toLowerCase() || "";
+        const isRestrictedPlantRecruiter = isRecruiter && userLocation === "plant";
+        
+        if (isRestrictedPlantRecruiter) {
+          return item.location.toLowerCase() === "plant";
+        }
+        return true;
+      })
       .reverse();
 
     setIndentData(processedData);
@@ -216,6 +231,7 @@ const Indent = () => {
       residence: "",
       indenterName: "",
       qualifications: "",
+      location: "",
     }]);
   };
 
@@ -240,6 +256,7 @@ const Indent = () => {
       residence: indent.residence,
       indenterName: indent.indenterName,
       qualifications: indent.qualifications,
+      location: indent.location || "",
     }]);
     
     let parsedDate = "";
@@ -338,6 +355,7 @@ const Indent = () => {
           { columnIndex: 12, value: p.numberOfPost || "" },
           { columnIndex: 13, value: formattedDate },
           { columnIndex: 14, value: p.qualifications || "" },
+          { columnIndex: 15, value: p.location || "" },
           { columnIndex: 16, value: p.priority || "" },
         ];
 
@@ -388,7 +406,7 @@ const Indent = () => {
           p.qualifications || "",      // N (13): Required Qualifications
         ];
 
-        row.push("");                 // O (14): For Which Location
+        row.push(p.location || "");   // O (14): For Which Location
         row.push(p.priority || "");   // P (15): Priority
 
         console.log(`Post #${idx + 1} finalized row:`, row);
@@ -474,6 +492,7 @@ const Indent = () => {
       typeOfWeek: "",
       residence: "",
       qualifications: "",
+      location: "",
     }]);
     setFormData({
       competitionDate: "",
@@ -487,6 +506,17 @@ const Indent = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           Indent
+          <span className="text-sm font-medium text-white bg-navy px-2.5 py-0.5 rounded-full">
+            {indentData.filter(item => {
+              const matchesSearch = Object.values(item).some(val =>
+                val.toString().toLowerCase().includes(searchTerm.toLowerCase())
+              );
+              const matchesDept = !deptFilter || item.department === deptFilter;
+              const matchesDesig = !desigFilter || item.post === desigFilter;
+              const matchesStatus = !statusFilter || item.status === statusFilter;
+              return matchesSearch && matchesDept && matchesDesig && matchesStatus;
+            }).length}
+          </span>
         </h1>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -815,6 +845,26 @@ const Indent = () => {
                         </select>
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:contents">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Location
+                        </label>
+                        <select
+                          name="location"
+                          value={postField.location}
+                          onChange={(e) => handlePostInputChange(index, e)}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                        >
+                          <option value="">Select</option>
+                          <option value="Shankar Nagar">Shankar Nagar</option>
+                          <option value="Plant">Plant</option>
+                          <option value="Shyam Plaza">Shyam Plaza</option>
+                          <option value="Home">Home</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -896,6 +946,9 @@ const Indent = () => {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Indent Number
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -939,7 +992,7 @@ const Indent = () => {
               <tbody className="divide-y divide-gray-200 bg-white">
                 {tableLoading ? (
                   <tr>
-                    <td colSpan="14" className="px-6 py-12 text-center">
+                    <td colSpan="15" className="px-6 py-12 text-center">
                       <div className="flex justify-center flex-col items-center">
                         <div className="w-6 h-6 border-4 border-blue-500 border-dashed rounded-full animate-spin mb-2"></div>
                         <span className="text-gray-600 text-sm">
@@ -950,7 +1003,7 @@ const Indent = () => {
                   </tr>
                 ) : indentData.length === 0 ? (
                   <tr>
-                    <td colSpan="14" className="px-6 py-12 text-center">
+                    <td colSpan="15" className="px-6 py-12 text-center">
                       <p className="text-gray-500">No indent data found.</p>
                     </td>
                   </tr>
@@ -973,6 +1026,9 @@ const Indent = () => {
                             }`}>
                             {item.status}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.location}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">
                           {item.indentNumber}
