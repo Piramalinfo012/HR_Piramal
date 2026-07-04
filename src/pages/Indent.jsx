@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { HistoryIcon, Plus, X, Search } from "lucide-react";
+import { HistoryIcon, Plus, X, Search, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 const Indent = () => {
 
   const [showModal, setShowModal] = useState(false);
+  const [editingIndent, setEditingIndent] = useState(null);
   const [posts, setPosts] = useState([{
     post: "",
     gender: "",
@@ -149,8 +150,10 @@ const Indent = () => {
     const qualIdx = getIndex("Qualifications");
 
     const processedData = dataRows
-      .filter((row) => row && (row[statusIdx] || row[indentIdx]))
-      .map((row) => ({
+      .map((row, index) => ({ row, rowIndex: index + 10 }))
+      .filter(({ row }) => row && (row[statusIdx] || row[indentIdx]))
+      .map(({ row, rowIndex }) => ({
+        rowIndex,
         status: (row[statusIdx] || "OPEN").toString(),
         indentNumber: (row[indentIdx] || "").toString(),
         indenterName: (row[nameIdx] || "").toString(),
@@ -171,60 +174,6 @@ const Indent = () => {
     setIndentData(processedData);
 
   }, [globalFmsData]);
-
-  // fetchMasterData and fetchIndentDataFromRow7 replaced by effects
-
-  // Replaced fetchLastIndentNumber to use globalFmsData
-  const fetchLastIndentNumber = async () => {
-    try {
-      if (!globalFmsData || globalFmsData.length < 2) return { success: true, lastIndentNumber: 0 };
-      const data = globalFmsData;
-
-      let headerRowIndex = -1;
-      for (let i = 0; i < data.length; i++) {
-        const row = data[i];
-        if (row && (row.includes("Position Status") || row.includes("Indent No"))) {
-          headerRowIndex = i;
-          break;
-        }
-      }
-      if (headerRowIndex === -1) headerRowIndex = 6;
-
-      const headers = data[headerRowIndex].map((h) => h ? h.trim().toLowerCase() : "");
-      const possibleNames = ["indent number", "indentnumber", "indent_no", "indentno", "indent"];
-      let indentNumberIndex = -1;
-      for (const name of possibleNames) {
-        indentNumberIndex = headers.indexOf(name);
-        if (indentNumberIndex !== -1) break;
-      }
-      if (indentNumberIndex === -1) indentNumberIndex = 2;
-
-      let lastDataRowIndex = data.length - 1;
-      while (
-        lastDataRowIndex > headerRowIndex &&
-        (!data[lastDataRowIndex][indentNumberIndex] ||
-          data[lastDataRowIndex][indentNumberIndex].toString().trim() === "")
-      ) {
-        lastDataRowIndex--;
-      }
-
-      if (lastDataRowIndex <= headerRowIndex) return { success: true, lastIndentNumber: 0 };
-
-      const lastIndentNumber = data[lastDataRowIndex][indentNumberIndex];
-      let numericValue = 0;
-      if (typeof lastIndentNumber === "string") {
-        const match = lastIndentNumber.match(/\d+/);
-        numericValue = match ? parseInt(match[0]) : 0;
-      } else {
-        numericValue = parseInt(lastIndentNumber) || 0;
-      }
-
-      return { success: true, lastIndentNumber: numericValue };
-    } catch (error) {
-      console.error("error in fetchLastIndentNumber", error);
-      return { success: false, lastIndentNumber: 0 };
-    }
-  };
 
   const getCurrentTimestamp = () => {
     const now = new Date();
@@ -276,27 +225,80 @@ const Indent = () => {
     }
   };
 
-  const handleSocialSiteTypeChange = (e) => {
-    const { value, checked } = e.target;
-
-    setFormData((prev) => {
-      if (checked) {
-        return {
-          ...prev,
-          socialSiteTypes: [...prev.socialSiteTypes, value],
-        };
-      } else {
-        return {
-          ...prev,
-          socialSiteTypes: prev.socialSiteTypes.filter(
-            (type) => type !== value
-          ),
-        };
+  const handleEdit = (indent) => {
+    setEditingIndent(indent);
+    setPosts([{
+      post: indent.post,
+      gender: indent.gender,
+      priority: "", 
+      department: indent.department,
+      prefer: indent.prefer,
+      numberOfPost: indent.noOfPost,
+      salary: indent.salary,
+      officeTiming: indent.officeTiming,
+      typeOfWeek: indent.typeOfWeek,
+      residence: indent.residence,
+      indenterName: indent.indenterName,
+      qualifications: indent.qualifications,
+    }]);
+    
+    let parsedDate = "";
+    if (indent.completionDate) {
+      if (indent.completionDate.includes('/')) {
+         const parts = indent.completionDate.split('/');
+         if (parts.length === 3) {
+            const p1 = parseInt(parts[0], 10);
+            const p2 = parseInt(parts[1], 10);
+            if (p2 > 12) {
+               parsedDate = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+            } else {
+               parsedDate = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            }
+         }
+      } else if (indent.completionDate.includes('-')) {
+         parsedDate = indent.completionDate;
       }
-    });
+    }
+    setFormData({ competitionDate: parsedDate });
+    setShowModal(true);
   };
 
-
+  const handleDelete = async (indent) => {
+    if (!window.confirm(`Are you sure you want to delete indent ${indent.indentNumber}?`)) {
+      return;
+    }
+    
+    try {
+      setTableLoading(true);
+      
+      const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          sheetName: "Position Opning Form",
+          action: 'delete',
+          rowIndex: indent.rowIndex,
+        }).toString(),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success || result.status === 'success' || (result.message && result.message.toLowerCase().includes('success'))) {
+        toast.success('Indent deleted successfully!');
+        setIndentData(prev => prev.filter(l => l.indentNumber !== indent.indentNumber));
+        refreshData();
+      } else {
+        toast.error('Failed to delete: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Something went wrong!');
+    } finally {
+      setTableLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -319,9 +321,53 @@ const Indent = () => {
     try {
       setSubmitting(true);
 
+      const formattedDate = formatDateForSheet(formData.competitionDate);
+
+      if (editingIndent) {
+        const p = posts[0];
+        const updates = [
+          { columnIndex: 3, value: p.indenterName || "" },
+          { columnIndex: 4, value: p.post || "" },
+          { columnIndex: 5, value: p.salary || "" },
+          { columnIndex: 6, value: p.officeTiming || "" },
+          { columnIndex: 7, value: p.typeOfWeek || "" },
+          { columnIndex: 8, value: p.residence || "" },
+          { columnIndex: 9, value: p.gender || "" },
+          { columnIndex: 10, value: p.department || "" },
+          { columnIndex: 11, value: p.prefer || "" },
+          { columnIndex: 12, value: p.numberOfPost || "" },
+          { columnIndex: 13, value: formattedDate },
+          { columnIndex: 14, value: p.qualifications || "" },
+          { columnIndex: 16, value: p.priority || "" },
+        ];
+
+        const results = await Promise.all(updates.map((update) =>
+          fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+              sheetName: "Position Opning Form",
+              action: "updateCell",
+              rowIndex: editingIndent.rowIndex,
+              columnIndex: update.columnIndex,
+              value: update.value
+            }).toString(),
+          }).then((res) => res.json())
+        ));
+
+        if (results.every((result) => result.success)) {
+          toast.success("Indent updated successfully!");
+          handleCancel();
+          refreshData();
+        } else {
+          toast.error("Failed to update some fields");
+        }
+      } else {
+
       const now = new Date();
       const timestamp = getCurrentTimestamp();
-      const formattedDate = formatDateForSheet(formData.competitionDate);
 
       // --- FINAL SYNCHRONIZED MAPPING (A to P) ---
       const rowsData = posts.map((p, idx) => {
@@ -394,6 +440,7 @@ const Indent = () => {
       } else {
         toast.error("Failed to insert: " + (result.error || "Unknown error"));
       }
+      }
     } catch (error) {
       console.error("Insert error:", error);
       toast.error("Something went wrong!");
@@ -431,6 +478,7 @@ const Indent = () => {
     setFormData({
       competitionDate: "",
     });
+    setEditingIndent(null);
     setShowModal(false);
   };
 
@@ -526,7 +574,7 @@ const Indent = () => {
           <div className="flex w-full max-w-6xl max-h-[82vh] flex-col overflow-hidden rounded-lg bg-white shadow-lg">
             <div className="flex shrink-0 justify-between items-center p-5 border-b border-gray-200 bg-white z-20">
               <h3 className="text-lg font-medium text-gray-800">
-                Create Multiple Indents
+                {editingIndent ? 'Edit Indent' : 'Create Multiple Indents'}
               </h3>
               <button
                 onClick={handleCancel}
@@ -771,6 +819,7 @@ const Indent = () => {
                 </div>
               ))}
 
+              {!editingIndent && (
               <button
                 type="button"
                 onClick={addPostField}
@@ -779,6 +828,7 @@ const Indent = () => {
                 <Plus size={16} className="mr-2" />
                 Add Another Post entry
               </button>
+              )}
               </div>
 
               <div className="flex shrink-0 justify-end space-x-2 border-t border-gray-200 bg-white p-4">
@@ -819,6 +869,8 @@ const Indent = () => {
                       </svg>
                       Processing...
                     </>
+                  ) : editingIndent ? (
+                    "Update"
                   ) : (
                     "Submit"
                   )}
@@ -878,13 +930,16 @@ const Indent = () => {
                   </th>
                   <th className="px-4 py-2 text-sm font-medium text-gray5500 max-w-[880px] whitespace-normal break-words">
                     Qualification                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Action
+                  </th>
 
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
                 {tableLoading ? (
                   <tr>
-                    <td colSpan="13" className="px-6 py-12 text-center">
+                    <td colSpan="14" className="px-6 py-12 text-center">
                       <div className="flex justify-center flex-col items-center">
                         <div className="w-6 h-6 border-4 border-blue-500 border-dashed rounded-full animate-spin mb-2"></div>
                         <span className="text-gray-600 text-sm">
@@ -895,7 +950,7 @@ const Indent = () => {
                   </tr>
                 ) : indentData.length === 0 ? (
                   <tr>
-                    <td colSpan="13" className="px-6 py-12 text-center">
+                    <td colSpan="14" className="px-6 py-12 text-center">
                       <p className="text-gray-500">No indent data found.</p>
                     </td>
                   </tr>
@@ -954,6 +1009,22 @@ const Indent = () => {
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-500 max-w-[180px] whitespace-normal break-words">
                           {item.qualifications}                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="text-indigo-600 hover:text-indigo-900 mr-3 p-1 rounded-full hover:bg-indigo-50 transition-colors"
+                            title="Edit"
+                          >
+                            <Pencil size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item)}
+                            className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
 
                       </tr>
                     ))
