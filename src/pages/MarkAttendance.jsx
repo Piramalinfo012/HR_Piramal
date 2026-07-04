@@ -664,8 +664,8 @@ const MarkAttendance = () => {
       : 0;
     
     // Account for GPS module inaccuracies on cheaper devices by subtracting the reported accuracy radius.
-    // We cap this leniency at 500 meters to prevent spoofing with cell towers.
-    const allowedError = Math.min(accuracy, 500); 
+    // We cap this leniency at 3000 meters to prevent spoofing with city-level towers, but allow bad indoor signals.
+    const allowedError = Math.min(accuracy, 3000); 
     const effectiveDistance = Math.max(0, rawDistance - allowedError);
     
     const roundedDistance = Math.round(effectiveDistance);
