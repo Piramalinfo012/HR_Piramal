@@ -663,10 +663,9 @@ const MarkAttendance = () => {
       )
       : 0;
     
-    // Account for GPS module inaccuracies on cheaper devices by subtracting the reported accuracy radius.
-    // We cap this leniency at 3000 meters to prevent spoofing with city-level towers, but allow bad indoor signals.
-    const allowedError = Math.min(accuracy, 3000); 
-    const effectiveDistance = Math.max(0, rawDistance - allowedError);
+    // Do not aggressively subtract accuracy, as it breaks geofencing and shows 0m everywhere.
+    // Allow a small fixed leniency (e.g., 20m) for normal GPS jitter, but rely on raw distance.
+    const effectiveDistance = Math.max(0, rawDistance - 20);
     
     const roundedDistance = Math.round(effectiveDistance);
     const allowed = !locationRule.requiresLocationMatch || effectiveDistance <= locationRule.rangeMeters;
