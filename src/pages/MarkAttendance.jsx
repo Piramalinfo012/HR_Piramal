@@ -606,8 +606,8 @@ const MarkAttendance = () => {
 
     const watchId = navigator.geolocation.watchPosition(handleUpdate, handleError, {
       enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 60000,
+      timeout: 20000,
+      maximumAge: 0,
     });
 
     return () => {
@@ -671,12 +671,15 @@ const MarkAttendance = () => {
     const roundedDistance = Math.round(effectiveDistance);
     const allowed = !locationRule.requiresLocationMatch || effectiveDistance <= locationRule.rangeMeters;
 
-    if (!allowed && locationRule.requiresLocationMatch && accuracy > 300) {
-      // If they appear outside the range, but their GPS accuracy is worse than 300m,
-      // it's likely a fast cell-tower lock. Show loading instead of a huge distance.
-      setLocationCheck({ status: "checking", message: "Acquiring precise GPS lock..." });
-      return;
-    }
+    const baseMessage = !locationRule.requiresLocationMatch
+      ? "Location ready"
+      : allowed
+        ? `Inside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`
+        : `Outside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`;
+
+    const finalMessage = (!allowed && locationRule.requiresLocationMatch && accuracy > 300)
+      ? `${baseMessage} - Poor GPS signal (${Math.round(accuracy)}m). Please step near a window.`
+      : baseMessage;
 
     setLocationCheck({
       status: allowed ? "inside" : "outside",
@@ -684,11 +687,7 @@ const MarkAttendance = () => {
       latitude: rawLocation.latitude,
       longitude: rawLocation.longitude,
       address: rawLocation.address,
-      message: !locationRule.requiresLocationMatch
-        ? "Location ready"
-        : allowed
-          ? `Inside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`
-          : `Outside range (${roundedDistance}m / ${locationRule.rangeMeters}m)`,
+      message: finalMessage,
     });
   }, [
     rawLocation,
