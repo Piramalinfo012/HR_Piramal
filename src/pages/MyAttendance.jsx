@@ -25,8 +25,35 @@ import * as XLSX from "xlsx";
 import useAuthStore from "../store/authStore";
 
 const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
+const OUTSTATION_SPREADSHEET_ID = "1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw";
+const MASTER_SHEET_NAME = "Master";
 const OUTSTATION_ATTENDANCE_CACHE_PREFIX = "my_outstation_attendance_cache_v1";
 const OUTSTATION_ATTENDANCE_CACHE_TTL_MS = 10 * 60 * 1000;
+
+const parseGoogleSheetTable = (text, sheetLabel = "sheet") => {
+  const jsonStart = text.indexOf("{");
+  const jsonEnd = text.lastIndexOf("}");
+  if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+    throw new Error(`Invalid ${sheetLabel} response`);
+  }
+  const payload = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+  if (payload.status && payload.status !== "ok") {
+    throw new Error(payload.errors?.[0]?.detailed_message || `Failed to read ${sheetLabel}`);
+  }
+  return (payload.table?.rows || []).map((row) =>
+    (row.c || []).map((cell) => {
+      if (!cell) return "";
+      return cell.f ?? cell.v ?? "";
+    })
+  );
+};
+
+const fetchSheetRows = async (sheetName) => {
+  const url = `https://docs.google.com/spreadsheets/d/${OUTSTATION_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&cb=${Date.now()}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${sheetName} sheet HTTP error! status: ${response.status}`);
+  return parseGoogleSheetTable(await response.text(), sheetName);
+};
 
 const MONTHS = [
   "January",
@@ -249,6 +276,7 @@ const MyAttendance = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [attendanceData, setAttendanceData] = useState(initialAttendanceRows);
+  const [masterData, setMasterData] = useState([]);
 
   const fetchOutstationAttendance = async (options = {}) => {
     const silent = options?.silent === true;
@@ -262,13 +290,19 @@ const MyAttendance = () => {
     try {
       if (!OUTSTATION_SCRIPT_URL) throw new Error("VITE_OUTSTATION_SHEET_URL missing hai");
 
-      const response = await fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData&realtime=1&_=${Date.now()}`, {
+      const attendancePromise = fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData&realtime=1&_=${Date.now()}`, {
         cache: "no-store",
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
+        if (data.status !== "success") throw new Error(data.message || "Outstation attendance fetch failed");
+        return data;
       });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-      const result = await response.json();
-      if (result.status !== "success") throw new Error(result.message || "Outstation attendance fetch failed");
+      const masterPromise = fetchSheetRows(MASTER_SHEET_NAME).catch(() => []);
+
+      const [result, masterRows] = await Promise.all([attendancePromise, masterPromise]);
+      setMasterData(masterRows);
 
       const rawAttendance = Array.isArray(result.attendance) ? result.attendance : [];
       const grouped = {};
@@ -371,15 +405,15 @@ const MyAttendance = () => {
         record.outTime,
         record.address,
         record.mapLink,
-        getRecordStatus(record),
+        getRecordStatus(record, masterData),
       ]
         .map(normalize)
         .some((value) => value.includes(query))
     );
-  }, [monthRows, searchTerm]);
+  }, [monthRows, searchTerm, masterData]);
 
-  const halfDayDays = filteredAttendance.filter((record) => getRecordStatus(record) === "HD").length;
-  const presentDays = filteredAttendance.filter((record) => getRecordStatus(record) === "Present").length;
+  const halfDayDays = filteredAttendance.filter((record) => getRecordStatus(record, masterData) === "HD").length;
+  const presentDays = filteredAttendance.filter((record) => getRecordStatus(record, masterData) === "Present").length;
   const punchMissDays = filteredAttendance.filter(
     (record) => (record.inTime || record.outTime) && (!record.inTime || !record.outTime)
   ).length;
@@ -451,11 +485,11 @@ const MyAttendance = () => {
     const rows = calendarRowsByDay[cell.day] || [];
     let baseClass = "bg-white text-slate-700 border border-slate-100 shadow-sm";
 
-    if (rows.some((row) => getRecordStatus(row) === "Punch Miss")) {
+    if (rows.some((row) => getRecordStatus(row, masterData) === "Punch Miss")) {
       baseClass = "bg-orange-100 text-orange-800 font-black border-orange-200";
-    } else if (rows.some((row) => getRecordStatus(row) === "HD")) {
+    } else if (rows.some((row) => getRecordStatus(row, masterData) === "HD")) {
       baseClass = "half-day-dot text-slate-950";
-    } else if (rows.some((row) => getRecordStatus(row) === "Present")) {
+    } else if (rows.some((row) => getRecordStatus(row, masterData) === "Present")) {
       baseClass = "bg-emerald-100 text-emerald-800 font-black border-emerald-200";
     } else if (absentDaySet.has(cell.day)) {
       baseClass = "bg-rose-500 text-white font-black border-rose-500 shadow-sm shadow-rose-200";
@@ -473,7 +507,7 @@ const MyAttendance = () => {
         Employee: record.employeeName,
         "In Time": record.inTime || "-",
         "Out Time": record.outTime || "-",
-        Status: getRecordStatus(record),
+        Status: getRecordStatus(record, masterData),
         Address: record.address || "-",
         "Map Link": record.mapLink || "-",
       }))
@@ -546,8 +580,8 @@ const MyAttendance = () => {
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</p>
                 <h3 className="mt-1 text-base font-black text-slate-950">{record.date || "-"}</h3>
               </div>
-              <span className={`rounded-full px-3 py-1 text-xs font-black ${getStatusBadgeClass(record)}`}>
-                {getRecordStatus(record)}
+              <span className={`rounded-full px-3 py-1 text-xs font-black ${getStatusBadgeClass(record, masterData)}`}>
+                {getRecordStatus(record, masterData)}
               </span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
@@ -629,8 +663,8 @@ const MyAttendance = () => {
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.inTime || "-"}</td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{record.outTime || "-"}</td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm">
-                  <span className={`inline-flex min-w-20 justify-center rounded-full px-2.5 py-1 text-xs font-bold ${getStatusBadgeClass(record)}`}>
-                    {getRecordStatus(record)}
+                  <span className={`inline-flex min-w-20 justify-center rounded-full px-2.5 py-1 text-xs font-bold ${getStatusBadgeClass(record, masterData)}`}>
+                    {getRecordStatus(record, masterData)}
                   </span>
                 </td>
                 <td className="max-w-[360px] px-6 py-4 text-sm text-slate-600">
@@ -987,8 +1021,8 @@ const MyAttendance = () => {
                                   <td className="px-3 py-2 font-medium text-slate-600">{row.inTime || "-"}</td>
                                   <td className="px-3 py-2 font-medium text-slate-600">{row.outTime || "-"}</td>
                                   <td className="px-3 py-2">
-                                    <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${getStatusBadgeClass(row)}`}>
-                                      {getRecordStatus(row)}
+                                    <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold ${getStatusBadgeClass(row, masterData)}`}>
+                                      {getRecordStatus(row, masterData)}
                                     </span>
                                   </td>
                                   <td className="px-3 py-2">
@@ -1025,29 +1059,57 @@ const MyAttendance = () => {
   );
 };
 
-const getRecordStatus = (record) => {
+const getRecordStatus = (record, masterData = []) => {
   if (!record) return "-";
   if ((record.inTime || record.outTime) && (!record.inTime || !record.outTime)) return "Punch Miss";
-  if (isHalfDayRecord(record)) return "HD";
+  if (isHalfDayRecord(record, masterData)) return "HD";
   if (record.inTime && record.outTime) return "Present";
   return "Present";
 };
 
-const getStatusBadgeClass = (record) => {
-  const status = getRecordStatus(record);
+const getStatusBadgeClass = (record, masterData = []) => {
+  const status = getRecordStatus(record, masterData);
   if (status === "Present") return "bg-emerald-50 text-emerald-700 border border-emerald-200";
   if (status === "HD") return "bg-amber-50 text-amber-700 border border-amber-200";
   if (status === "Punch Miss") return "bg-orange-50 text-orange-700 border border-orange-200";
   return "bg-blue-50 text-blue-700 border border-blue-200";
 };
 
-const isHalfDayRecord = (record) => {
+const isHalfDayRecord = (record, masterData = []) => {
   if (!record?.inTime || !record?.outTime) return false;
 
   const inMinutes = parseTimeToMinutes(record.inTime);
   const outMinutes = parseTimeToMinutes(record.outTime);
-  const lateInLimit = 9 * 60 + 15;
-  const earlyOutLimit = 18 * 60;
+
+  let expectedInMinutes = 9 * 60 + 15;
+  let expectedOutMinutes = 18 * 60;
+
+  if (masterData && Array.isArray(masterData) && masterData.length > 0) {
+    const matchedMaster = masterData.find(
+      (row) =>
+        normalize(row[0]) === normalize(record.employeeName) ||
+        normalize(row[1]) === normalize(record.employeeName)
+    );
+
+    if (matchedMaster) {
+      // Find time in/out columns (usually J and K i.e., index 9 and 10)
+      const parseMasterTime = (val) => {
+        if (!val) return null;
+        const match = String(val).trim().match(/^(\d{1,2})[:.](\d{1,2})/);
+        if (match) return Number(match[1]) * 60 + Number(match[2]);
+        return null;
+      };
+
+      const mTimeIn = parseMasterTime(matchedMaster[9]) || parseMasterTime(matchedMaster[8]);
+      const mTimeOut = parseMasterTime(matchedMaster[10]) || parseMasterTime(matchedMaster[9]);
+      
+      if (mTimeIn !== null) expectedInMinutes = mTimeIn;
+      if (mTimeOut !== null) expectedOutMinutes = mTimeOut;
+    }
+  }
+
+  const lateInLimit = expectedInMinutes;
+  const earlyOutLimit = expectedOutMinutes;
 
   return (
     (inMinutes !== null && inMinutes > lateInLimit) ||

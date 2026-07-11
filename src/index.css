@@ -16,7 +16,27 @@
 }
 
 html {
-  font-size: 15px;
+  font-size: 16px;
+}
+
+/* Global scaling to prevent cropping on different systems/resolutions while keeping 100% zoom */
+@media (max-width: 1600px) {
+  html { font-size: 15px; }
+}
+@media (max-width: 1440px) {
+  html { font-size: 14px; }
+}
+@media (max-width: 1366px) {
+  html { font-size: 13px; }
+}
+@media (max-width: 1280px) {
+  html { font-size: 12px; }
+}
+@media (max-width: 1024px) {
+  html { font-size: 11px; }
+}
+@media (max-width: 768px) {
+  html { font-size: 14px; }
 }
 
 *,
@@ -43,7 +63,7 @@ textarea {
 
 @media (max-width: 640px) {
   html {
-    font-size: 14.5px;
+    font-size: 13.5px;
   }
 }
 
