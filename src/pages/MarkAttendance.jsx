@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   Clock,
   LocateFixed,
@@ -474,6 +474,8 @@ const MarkAttendance = () => {
   const [reason, setReason] = useState("");
   const [locationCheck, setLocationCheck] = useState(null);
   const [rawLocation, setRawLocation] = useState(() => readCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, MARK_ATTENDANCE_LOCATION_CACHE_TTL_MS) || null);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const matchedMasterUser = useMemo(
     () => getMatchedMasterUser(currentUser, masterUsers),
@@ -576,6 +578,7 @@ const MarkAttendance = () => {
       setError(err.message);
     } finally {
       if (!silent) setLoading(false);
+      setInitialFetchDone(true);
     }
   };
 
@@ -767,7 +770,20 @@ const MarkAttendance = () => {
     return rawEntries.filter((entry) => scopedAliases.includes(normalize(entry.employeeName)) && dateKey(entry.dateObj) === today).length;
   }, [rawEntries, scopedAliases]);
 
-  const isAttendanceComplete = todayPunchCount >= 2;
+  const isAttendanceComplete = useMemo(() => {
+    if (todayPunchCount === 0) return false;
+    const today = dateKey(new Date());
+    const todayEntries = rawEntries
+      .filter((entry) => scopedAliases.includes(normalize(entry.employeeName)) && dateKey(entry.dateObj) === today)
+      .sort((a, b) => a.dateObj - b.dateObj);
+    const lastEntry = todayEntries[todayEntries.length - 1];
+    
+    // If the last punch of today was IN, then attendance is not complete (needs OUT punch)
+    if (lastEntry?.status === "IN") return false;
+    
+    // Otherwise, if they have 2 or more punches and the last one was OUT, it's complete
+    return todayPunchCount >= 2;
+  }, [rawEntries, todayPunchCount, scopedAliases]);
 
   const myTodayRecord = useMemo(() => {
     const today = dateKey(new Date());
@@ -775,44 +791,46 @@ const MarkAttendance = () => {
   }, [attendanceData, scopedAliases]);
 
   const handleMarkAttendance = async () => {
+    if (isSubmittingRef.current) return;
     if (marking) return;
     if (isAttendanceComplete) return;
-
+ 
     if (!punchPersonName) {
       toast.error("Current user name was not found.");
       return;
     }
-
+ 
     if (!locationRule.source) {
       toast.error("Location settings are still loading. Please try again in a moment.");
       return;
     }
-
+ 
     if (locationRule.requiresLocationMatch && (locationRule.latitude === null || locationRule.longitude === null)) {
       toast.error("User latitude/longitude is not set in Master.");
       return;
     }
-
+ 
     if (!locationCheck || locationCheck.status === "checking") {
       toast.error("Location is still being checked. Please try again in a moment.");
       return;
     }
-
+ 
     if (locationCheck.status === "outside") {
       toast.error(`You are outside the allowed range (${locationCheck.distance}m / ${locationRule.rangeMeters}m). Attendance was not marked.`);
       return;
     }
-
+ 
     if (locationCheck.status === "error") {
       toast.error(locationCheck.message || "Location check failed.");
       return;
     }
-
+ 
     if (locationCheck.latitude === undefined || locationCheck.longitude === undefined) {
       toast.error("Location is not ready. Please try again.");
       return;
     }
-
+ 
+    isSubmittingRef.current = true;
     setMarking(true);
 
     try {
@@ -895,6 +913,7 @@ const MarkAttendance = () => {
         setLocationCheck({ status: "error", message: err.message || "Location error" });
       }
     } finally {
+      isSubmittingRef.current = false;
       window.setTimeout(() => setMarking(false), 2000);
     }
   };
@@ -993,7 +1012,16 @@ const MarkAttendance = () => {
               </div>
             </div>
 
-            {!isAttendanceComplete && !marking && (
+            {!initialFetchDone ? (
+              <button
+                type="button"
+                disabled
+                className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-black text-white bg-slate-300 shadow-md cursor-not-allowed"
+              >
+                <RefreshCw size={18} className="animate-spin" />
+                Syncing status...
+              </button>
+            ) : !isAttendanceComplete && !marking && (
               <button
                 type="button"
                 onClick={handleMarkAttendance}
