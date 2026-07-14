@@ -43,32 +43,9 @@ const getSheetCell = (headers, row, names, fallbackIndex = -1) => {
     return (row[index] || "").toString().trim();
 };
 
-const resolveEntryByName = (rows = []) => {
+const resolveEntryByName = () => {
     const storedUser = getStoredUser();
-    const storedUserId = normalizeValue(getUserId(storedUser));
-    const storedName = getUserDisplayName(storedUser);
-    const headers = rows[0] || [];
-
-    if (storedUserId && rows.length > 1) {
-        const matchedRow = rows.slice(1).find((row) => {
-            const possibleIds = [
-                getSheetCell(headers, row, ["Username", "User Name", "Login Username"], 1),
-                getSheetCell(headers, row, ["User ID", "User Id", "UserID", "Employee ID", "Employee Id"], -1),
-                getSheetCell(headers, row, ["Name", "Sales Person Name", "Person Name", "Employee Name"], 0),
-            ];
-            return possibleIds.some((value) => normalizeValue(value) === storedUserId);
-        });
-
-        if (matchedRow) {
-            return (
-                (matchedRow[8] || "").toString().trim() ||
-                getSheetCell(headers, matchedRow, ["Name", "Sales Person Name", "Person Name", "Employee Name"], 0) ||
-                storedName
-            );
-        }
-    }
-
-    return storedName;
+    return getUserDisplayName(storedUser);
 };
 
 
