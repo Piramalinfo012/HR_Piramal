@@ -65,6 +65,31 @@ const Layout = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('hrms-theme') === 'dark');
   const [showNotificationMenu, setShowNotificationMenu] = useState(false);
+  const notificationMenuRef = React.useRef(null);
+  const notificationButtonRef = React.useRef(null);
+  const notificationButtonDesktopRef = React.useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!showNotificationMenu) return;
+      if (
+        notificationMenuRef.current?.contains(event.target) ||
+        notificationButtonRef.current?.contains(event.target) ||
+        notificationButtonDesktopRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      setShowNotificationMenu(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showNotificationMenu]);
+
   const storedUser = (() => {
     try {
       return JSON.parse(localStorage.getItem('user') || '{}');
@@ -77,6 +102,124 @@ const Layout = () => {
   const isEmployee = currentRole === 'employee';
   const isEmployeeMobile = isEmployee && isMobile;
   const employeeAllowedPaths = ['/employee-mobile', '/my-attendance', '/mark-attendance', '/leave-request', '/leave-management', '/employee-profile'];
+
+  useEffect(() => {
+    if (!isEmployee) return;
+    if (!navigator.geolocation) return;
+
+    const handleUpdate = (position) => {
+      const latitude = Number(position.coords.latitude.toFixed(7));
+      const longitude = Number(position.coords.longitude.toFixed(7));
+      const accuracy = position.coords.accuracy || 0;
+
+      let cached = null;
+      try {
+        cached = JSON.parse(localStorage.getItem("mark_attendance_location_cache_v1") || "null");
+      } catch {}
+
+      const cachedData = cached?.data;
+      const address = (cachedData?.latitude === latitude && cachedData?.longitude === longitude)
+        ? (cachedData.address || "")
+        : "";
+
+      const nextLoc = { latitude, longitude, address, accuracy };
+      try {
+        localStorage.setItem(
+          "mark_attendance_location_cache_v1",
+          JSON.stringify({ savedAt: Date.now(), data: nextLoc })
+        );
+      } catch {}
+    };
+
+    const handleError = (err) => {
+      if (err.code === 3 || err.message?.includes("Timeout")) {
+        navigator.geolocation.getCurrentPosition(handleUpdate, () => {}, {
+          enableHighAccuracy: false,
+          timeout: 15000,
+          maximumAge: 60000,
+        });
+      }
+    };
+
+    navigator.geolocation.getCurrentPosition(handleUpdate, handleError, {
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 300000,
+    });
+
+    const watchId = navigator.geolocation.watchPosition(handleUpdate, handleError, {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 0,
+    });
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [isEmployee]);
+
+  useEffect(() => {
+    if (!isEmployee) return;
+
+    const prefetchMasterData = async () => {
+      let isCacheValid = false;
+      try {
+        const cached = JSON.parse(localStorage.getItem("mark_attendance_master_cache_v1") || "null");
+        if (cached && Date.now() - Number(cached.savedAt || 0) < 15 * 60 * 1000) {
+          isCacheValid = true;
+        }
+      } catch {}
+
+      if (isCacheValid) return;
+
+      try {
+        const url = `https://docs.google.com/spreadsheets/d/1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw/gviz/tq?tqx=out:json&sheet=Master&cb=${Date.now()}`;
+        const response = await fetch(url);
+        if (!response.ok) return;
+        const text = await response.text();
+        const jsonStart = text.indexOf("{");
+        const jsonEnd = text.lastIndexOf("}");
+        if (jsonStart === -1 || jsonEnd === -1) return;
+        const payload = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+        const rows = (payload.table?.rows || []).map((row) =>
+          (row.c || []).map((cell) => cell?.f ?? cell?.v ?? "")
+        );
+
+        const cleanNormalize = (val) => String(val || "").trim().toLowerCase();
+        const parseNumberOrNull = (val) => {
+          if (val === undefined || val === null || String(val).trim() === "") return null;
+          const parsed = Number(String(val).replace(/[^0-9.-]/g, ""));
+          return Number.isFinite(parsed) ? parsed : null;
+        };
+
+        const normalized = rows
+          .map((row) => ({
+            personName: row[0] || "",
+            username: row[1] || "",
+            role: row[3] || "",
+            access: row[4] || "",
+            employeeType: row[5] || "",
+            latitude: parseNumberOrNull(row[6]),
+            longitude: parseNumberOrNull(row[7]),
+            rangeMeters: parseNumberOrNull(row[8]) || 100,
+          }))
+          .filter((row) => {
+            const name = cleanNormalize(row.personName);
+            return name && name !== "sales person name";
+          });
+
+        localStorage.setItem(
+          "mark_attendance_master_cache_v1",
+          JSON.stringify({ savedAt: Date.now(), data: normalized })
+        );
+      } catch (err) {
+        console.error("Prefetch Master data error:", err);
+      }
+    };
+
+    prefetchMasterData();
+  }, [isEmployee]);
+
   const displayName =
     currentUser?._displayName ||
     currentUser?.Name ||
@@ -144,10 +287,10 @@ const Layout = () => {
 
   if (isEmployeeMobile) {
     return (
-      <div className="min-h-screen overflow-x-hidden bg-[#f7f7f4] pb-[100px]">
+      <div className="min-h-screen overflow-x-hidden bg-[#f4f7fb] pb-[100px]">
         <ScrollToTop />
-        <header className="fixed left-0 right-0 top-0 z-[110] bg-[#f7f7f4]/95 px-4 py-3 backdrop-blur-xl">
-          <div className="relative mx-auto flex max-w-md items-center justify-between">
+        <header className="fixed left-0 right-0 top-0 z-[110] bg-[#f4f7fb]/95 py-3 backdrop-blur-xl border-b border-slate-200/50">
+          <div className="relative mx-auto flex max-w-md items-center justify-between px-4">
             <div className="flex min-w-0 items-center gap-3">
               <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-white bg-white shadow-[0_12px_28px_rgba(15,23,42,0.12)]">
                 {profilePic ? (
@@ -172,6 +315,7 @@ const Layout = () => {
             <div className="flex items-center gap-2">
               <div className="relative">
                 <button
+                  ref={notificationButtonRef}
                   type="button"
                   onClick={() => setShowNotificationMenu((visible) => !visible)}
                   className="relative grid h-10 w-10 place-items-center rounded-2xl bg-white text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
@@ -186,7 +330,7 @@ const Layout = () => {
                 </button>
 
                 {showNotificationMenu ? (
-                  <div className="absolute right-0 top-12 z-[130] w-[min(340px,calc(100vw-32px))] overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_24px_54px_rgba(15,23,42,0.18)]">
+                  <div ref={notificationMenuRef} className="absolute right-0 top-12 z-[130] w-[min(340px,calc(100vw-32px))] overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_24px_54px_rgba(15,23,42,0.18)]">
                     <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                       <div>
                         <p className="text-sm font-black text-slate-950">Notifications</p>
@@ -252,7 +396,7 @@ const Layout = () => {
             </div>
           </div>
         </header>
-        <main className="min-h-screen w-full bg-[#f7f7f4] pt-[84px]">
+        <main className="mx-auto min-h-screen w-full max-w-md bg-[#f4f7fb] pt-[84px]">
           <Outlet />
         </main>
         <MobileBottomNav />
@@ -297,6 +441,7 @@ const Layout = () => {
             </button>
             <div className="relative">
               <button
+                ref={notificationButtonDesktopRef}
                 type="button"
                 onClick={() => setShowNotificationMenu((visible) => !visible)}
                 className="erp-icon-button relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100"
@@ -311,7 +456,7 @@ const Layout = () => {
               </button>
 
               {showNotificationMenu ? (
-                <div className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_24px_54px_rgba(15,23,42,0.18)]">
+                <div ref={notificationMenuRef} className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_24px_54px_rgba(15,23,42,0.18)]">
                   <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                     <div>
                       <p className="text-sm font-black text-slate-950">Notifications</p>

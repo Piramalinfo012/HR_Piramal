@@ -26,7 +26,7 @@ const MobileBottomNav = () => {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] md:hidden">
+    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] md:hidden">
       {/* Background with strong blur and glassmorphism */}
       <div className="absolute inset-0 bg-white/80 dark:bg-[#06101f]/80 backdrop-blur-2xl border-t border-slate-200/50 dark:border-slate-800/50 shadow-[0_-15px_40px_rgba(0,0,0,0.08)] rounded-t-3xl" />
       

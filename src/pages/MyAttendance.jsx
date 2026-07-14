@@ -277,6 +277,7 @@ const MyAttendance = () => {
   const [error, setError] = useState(null);
   const [attendanceData, setAttendanceData] = useState(initialAttendanceRows);
   const [masterData, setMasterData] = useState([]);
+  const [showPunchMissDetails, setShowPunchMissDetails] = useState(false);
 
   const fetchOutstationAttendance = async (options = {}) => {
     const silent = options?.silent === true;
@@ -470,6 +471,11 @@ const MyAttendance = () => {
 
   const weekDays = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
   const selectedDayRows = selectedCalendarDay ? calendarRowsByDay[selectedCalendarDay] || [] : [];
+  const punchMissRecords = useMemo(() => {
+    return filteredAttendance.filter(
+      (record) => (record.inTime || record.outTime) && (!record.inTime || !record.outTime)
+    );
+  }, [filteredAttendance]);
   const activeFilterCount = [searchTerm, selectedMonth !== new Date().getMonth(), selectedYear !== new Date().getFullYear()].filter(Boolean).length;
 
   const shiftCalendarMonth = (direction) => {
@@ -477,6 +483,7 @@ const MyAttendance = () => {
     setSelectedMonth(nextDate.getMonth());
     setSelectedYear(nextDate.getFullYear());
     setSelectedCalendarDay(null);
+    setShowPunchMissDetails(false);
   };
 
   const getCalendarDayClass = (cell) => {
@@ -810,6 +817,7 @@ const MyAttendance = () => {
                 onChange={(event) => {
                   setSelectedMonth(Number(event.target.value));
                   setSelectedCalendarDay(null);
+                  setShowPunchMissDetails(false);
                 }}
                 className="h-11 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-xs font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100 sm:h-12 sm:text-sm"
               >
@@ -830,6 +838,7 @@ const MyAttendance = () => {
                 onChange={(event) => {
                   setSelectedYear(Number(event.target.value));
                   setSelectedCalendarDay(null);
+                  setShowPunchMissDetails(false);
                 }}
                 className="h-11 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-10 pr-9 text-xs font-bold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100 sm:h-12 sm:text-sm"
               >
@@ -975,14 +984,33 @@ const MyAttendance = () => {
                   <div className="grid grid-cols-3 gap-2">
                     {summaryCards.map((card) => {
                       const Icon = card.icon;
+                      const isPunchMiss = card.label === "Punch Miss";
+                      const isActive = isPunchMiss && showPunchMissDetails;
                       return (
-                        <div key={card.label} className={`group flex flex-col items-center rounded-xl py-2.5 transition-all hover:shadow-md ${card.cardClass}`}>
+                        <button
+                          key={card.label}
+                          type="button"
+                          onClick={() => {
+                            if (isPunchMiss) {
+                              setShowPunchMissDetails((prev) => !prev);
+                            }
+                          }}
+                          className={`group flex flex-col items-center rounded-xl py-2.5 transition-all ${
+                            isPunchMiss 
+                              ? "cursor-pointer active:scale-95" 
+                              : "cursor-default"
+                          } ${
+                            isActive 
+                              ? "ring-2 ring-orange-500 ring-offset-1 shadow-md" 
+                              : "hover:shadow-md"
+                          } ${card.cardClass}`}
+                        >
                           <div className={`flex h-7 w-7 items-center justify-center rounded-full shadow-sm ${card.iconClass}`}>
                             <Icon size={14} />
                           </div>
                           <p className="mt-1.5 text-lg font-black">{card.value}</p>
                           <p className="text-[9px] font-bold uppercase tracking-wide">{card.label}</p>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -991,6 +1019,56 @@ const MyAttendance = () => {
                     <CalendarDays size={11} />
                     <span className="font-bold text-slate-500">{filteredAttendance.length}</span> records
                   </div>
+
+                  {showPunchMissDetails && (
+                    <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50/50 p-4 text-left shadow-sm">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-600">Punch Miss Details</p>
+                          <h3 className="text-sm font-black text-slate-800">Missed check-in or check-out dates</h3>
+                        </div>
+                        <button type="button" onClick={() => setShowPunchMissDetails(false)} className="rounded-full p-1 text-orange-400 transition hover:bg-orange-100 hover:text-orange-600">
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      {punchMissRecords.length > 0 ? (
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                          {punchMissRecords.map((row) => (
+                            <div key={`${row.employeeName}-${dateKey(row.dateObj)}`} className="flex flex-col gap-1.5 rounded-xl border border-orange-100 bg-white p-3 shadow-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-black text-slate-900">{row.date}</span>
+                                <span className="rounded-md bg-orange-100 px-2 py-0.5 text-[10px] font-black text-orange-700">
+                                  Punch Miss
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="rounded-lg bg-slate-50 p-2">
+                                  <span className="block text-[9px] font-bold text-slate-400 uppercase">In Time</span>
+                                  <span className={row.inTime ? "font-black text-slate-700" : "font-black text-rose-600"}>
+                                    {row.inTime || "Missed"}
+                                  </span>
+                                </div>
+                                <div className="rounded-lg bg-slate-50 p-2">
+                                  <span className="block text-[9px] font-bold text-slate-400 uppercase">Out Time</span>
+                                  <span className={row.outTime ? "font-black text-slate-700" : "font-black text-rose-600"}>
+                                    {row.outTime || "Missed"}
+                                  </span>
+                                </div>
+                              </div>
+                              {row.address && (
+                                <p className="text-[11px] font-medium text-slate-500 line-clamp-1 mt-0.5">
+                                  {row.address}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs font-semibold text-slate-500 text-center py-2">No punch miss records for this month.</p>
+                      )}
+                    </div>
+                  )}
 
                   {selectedCalendarDay && (
                     <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

@@ -1053,7 +1053,7 @@ const EmployeeMobileHome = () => {
               </motion.div>
 
               {/* Feed Cards */}
-              <div className="-mx-5 mt-4 flex flex-col gap-6 lg:mx-auto lg:max-w-[680px] lg:gap-5">
+              <div className="mt-4 flex flex-col gap-6 lg:mx-auto lg:max-w-[680px] lg:gap-5">
                 {newJoiners.slice(0, 10).map((person, idx) => (
                   <motion.div 
                     key={`feed-${idx}`}

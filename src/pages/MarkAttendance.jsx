@@ -352,21 +352,38 @@ const getTrustedNow = async () => {
   const timeoutId = window.setTimeout(() => controller.abort(), 5000);
 
   try {
-    const response = await fetch("https://timeapi.io/api/time/current/zone?timeZone=Asia/Kolkata", {
+    const response = await fetch("https://time.akamai.com/?cb=" + Date.now(), {
       cache: "no-store",
       signal: controller.signal,
     });
     if (!response.ok) throw new Error("Trusted time unavailable");
 
-    const data = await response.json();
+    const text = await response.text();
+    const epochSeconds = parseInt(text.trim(), 10);
+    if (Number.isNaN(epochSeconds)) throw new Error("Trusted time invalid");
+
+    const utcD = new Date(epochSeconds * 1000);
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(utcD);
+    const partVal = (type) => parseInt(parts.find((p) => p.type === type).value, 10);
+
     const trustedNow = new Date(
-      Number(data.year),
-      Number(data.month) - 1,
-      Number(data.day),
-      Number(data.hour),
-      Number(data.minute),
-      Number(data.seconds || 0),
-      Number(data.milliSeconds || 0)
+      partVal("year"),
+      partVal("month") - 1,
+      partVal("day"),
+      partVal("hour"),
+      partVal("minute"),
+      partVal("second")
     );
 
     if (Number.isNaN(trustedNow.getTime())) throw new Error("Trusted time invalid");
@@ -595,7 +612,33 @@ const MarkAttendance = () => {
 
     const handleError = (err) => {
       if (!active) return;
-      setLocationCheck((current) => current?.status === "inside" || current?.status === "outside" ? current : { status: "error", message: err.message || "Location check failed." });
+      
+      // If high accuracy times out, immediately try a low accuracy check to avoid timeout errors
+      if (err.code === 3 || err.message?.includes("Timeout")) {
+        navigator.geolocation.getCurrentPosition(
+          handleUpdate,
+          (fallbackErr) => {
+            if (!active) return;
+            setLocationCheck((current) =>
+              current?.status === "inside" || current?.status === "outside"
+                ? current
+                : { status: "error", message: fallbackErr.message || "Location check failed." }
+            );
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 15000,
+            maximumAge: 60000,
+          }
+        );
+        return;
+      }
+
+      setLocationCheck((current) =>
+        current?.status === "inside" || current?.status === "outside"
+          ? current
+          : { status: "error", message: err.message || "Location check failed." }
+      );
     };
 
     navigator.geolocation.getCurrentPosition(handleUpdate, handleError, {
@@ -650,7 +693,20 @@ const MarkAttendance = () => {
     }
 
     if (!rawLocation || rawLocation.latitude === undefined) {
-      setLocationCheck({ status: "checking", message: "Checking location..." });
+      if (!locationRule.requiresLocationMatch) {
+        setLocationCheck({
+          status: "inside",
+          distance: 0,
+          latitude: 0,
+          longitude: 0,
+          address: "Out of Office (No GPS)",
+          message: "Location ready",
+        });
+      } else if (locationCheck?.status === "error") {
+        // Keep the error status if it was set by handleError
+      } else {
+        setLocationCheck({ status: "checking", message: "Checking location..." });
+      }
       return;
     }
 
@@ -664,8 +720,8 @@ const MarkAttendance = () => {
       : 0;
     
     // Do not aggressively subtract accuracy, as it breaks geofencing and shows 0m everywhere.
-    // Allow a small fixed leniency (e.g., 20m) for normal GPS jitter, but rely on raw distance.
-    const effectiveDistance = Math.max(0, rawDistance - 20);
+    // Use the exact raw distance as requested for strictness.
+    const effectiveDistance = rawDistance;
     
     const roundedDistance = Math.round(effectiveDistance);
     const allowed = !locationRule.requiresLocationMatch || effectiveDistance <= locationRule.rangeMeters;
