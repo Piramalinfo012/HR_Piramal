@@ -712,7 +712,7 @@ const LeaveRequest = () => {
 
   return (
     <div className="page-content min-h-screen bg-[#f4f7fb] px-4 pb-24 pt-5 text-slate-950 sm:p-6">
-      <div className="mx-auto max-w-md space-y-5 lg:max-w-6xl">
+      <div className="w-full space-y-5 lg:max-w-6xl">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Employee Leave</p>

@@ -840,7 +840,7 @@ const MyProfile = () => {
   return (
     <>
     <div className="page-content min-h-screen bg-[#f4f7fb] px-4 pb-24 pt-5 text-slate-950 sm:p-6">
-      <div className="mx-auto max-w-md space-y-5 lg:max-w-7xl">
+      <div className="w-full space-y-5 lg:max-w-7xl">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Employee</p>
