@@ -731,7 +731,7 @@ const EmployeeMobileHome = () => {
 
   return (
     <div className="min-h-screen bg-[#f4f7fb] pb-24 text-slate-950 lg:bg-[#f0f2f5] lg:pb-10">
-      <div className="mx-auto max-w-md px-4 pt-5 lg:max-w-[1480px] lg:px-8 lg:pt-8">
+      <div className="w-full px-4 pt-5 lg:max-w-[1480px] lg:px-8 lg:pt-8">
         <header className="hidden">
           <button
             type="button"

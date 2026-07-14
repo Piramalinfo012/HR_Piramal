@@ -290,7 +290,7 @@ const Layout = () => {
       <div className="min-h-screen overflow-x-hidden bg-[#f4f7fb] pb-[100px]">
         <ScrollToTop />
         <header className="fixed left-0 right-0 top-0 z-[110] bg-[#f4f7fb]/95 py-3 backdrop-blur-xl border-b border-slate-200/50">
-          <div className="relative mx-auto flex max-w-md items-center justify-between px-4">
+          <div className="relative flex items-center justify-between px-4">
             <div className="flex min-w-0 items-center gap-3">
               <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-white bg-white shadow-[0_12px_28px_rgba(15,23,42,0.12)]">
                 {profilePic ? (
@@ -396,7 +396,7 @@ const Layout = () => {
             </div>
           </div>
         </header>
-        <main className="mx-auto min-h-screen w-full max-w-md bg-[#f4f7fb] pt-[84px]">
+        <main className="min-h-screen w-full bg-[#f4f7fb] pt-[84px]">
           <Outlet />
         </main>
         <MobileBottomNav />
