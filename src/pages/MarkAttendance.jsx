@@ -850,6 +850,19 @@ const MarkAttendance = () => {
 
       const lastTrustedEntry = trustedTodayEntries[trustedTodayEntries.length - 1];
       const statusToMark = lastTrustedEntry?.status === "IN" ? "OUT" : "IN";
+
+      if (statusToMark === "OUT" && lastTrustedEntry) {
+        const lastPunchTime = lastTrustedEntry.dateObj.getTime();
+        const currentTime = now.getTime();
+        const diffMs = currentTime - lastPunchTime;
+        const diffMins = diffMs / (1000 * 60);
+
+        if (diffMins < 10) {
+          const remainingMins = Math.ceil(10 - diffMins);
+          toast.error(`Check-out check-in ke 10 minutes baad hi kar sakte hain. ${remainingMins} min bache hain.`);
+          return;
+        }
+      }
       const latitude = locationCheck.latitude;
       const longitude = locationCheck.longitude;
       const mapLink = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
