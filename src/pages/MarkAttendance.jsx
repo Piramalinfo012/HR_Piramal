@@ -606,7 +606,11 @@ const MarkAttendance = () => {
         if (prev && prev.accuracy && prev.accuracy < 100 && accuracy > 500) {
           return prev;
         }
-        const address = prev?.latitude === latitude && prev?.longitude === longitude ? (prev.address || "") : "";
+        // Keep address if moved less than ~50m (approx 0.0004 degrees) to avoid clearing and re-fetching
+        const latDiff = prev ? Math.abs(prev.latitude - latitude) : 1;
+        const lngDiff = prev ? Math.abs(prev.longitude - longitude) : 1;
+        const address = (latDiff < 0.0004 && lngDiff < 0.0004) ? (prev?.address || "") : "";
+        
         const nextLoc = { latitude, longitude, address, accuracy };
         writeCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, nextLoc);
         return nextLoc;
@@ -630,7 +634,7 @@ const MarkAttendance = () => {
           },
           {
             enableHighAccuracy: false,
-            timeout: 15000,
+            timeout: 10000,
             maximumAge: 60000,
           }
         );
@@ -646,14 +650,14 @@ const MarkAttendance = () => {
 
     navigator.geolocation.getCurrentPosition(handleUpdate, handleError, {
       enableHighAccuracy: false,
-      timeout: 10000,
+      timeout: 5000,
       maximumAge: 300000,
     });
 
     const watchId = navigator.geolocation.watchPosition(handleUpdate, handleError, {
       enableHighAccuracy: true,
-      timeout: 20000,
-      maximumAge: 0,
+      timeout: 8000,
+      maximumAge: 30000,
     });
 
     return () => {
@@ -679,6 +683,8 @@ const MarkAttendance = () => {
       return () => { active = false; };
     }
   }, [rawLocation?.latitude, rawLocation?.longitude, rawLocation?.address]);
+
+
 
   useEffect(() => {
     if (!locationRule.source) {

@@ -118,9 +118,9 @@ const Layout = () => {
       } catch {}
 
       const cachedData = cached?.data;
-      const address = (cachedData?.latitude === latitude && cachedData?.longitude === longitude)
-        ? (cachedData.address || "")
-        : "";
+      const latDiff = cachedData ? Math.abs(cachedData.latitude - latitude) : 1;
+      const lngDiff = cachedData ? Math.abs(cachedData.longitude - longitude) : 1;
+      const address = (latDiff < 0.0004 && lngDiff < 0.0004) ? (cachedData.address || "") : "";
 
       const nextLoc = { latitude, longitude, address, accuracy };
       try {
@@ -135,7 +135,7 @@ const Layout = () => {
       if (err.code === 3 || err.message?.includes("Timeout")) {
         navigator.geolocation.getCurrentPosition(handleUpdate, () => {}, {
           enableHighAccuracy: false,
-          timeout: 15000,
+          timeout: 10000,
           maximumAge: 60000,
         });
       }
@@ -143,14 +143,14 @@ const Layout = () => {
 
     navigator.geolocation.getCurrentPosition(handleUpdate, handleError, {
       enableHighAccuracy: false,
-      timeout: 10000,
+      timeout: 5000,
       maximumAge: 300000,
     });
 
     const watchId = navigator.geolocation.watchPosition(handleUpdate, handleError, {
       enableHighAccuracy: true,
-      timeout: 20000,
-      maximumAge: 0,
+      timeout: 8000,
+      maximumAge: 30000,
     });
 
     return () => {
