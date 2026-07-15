@@ -27,6 +27,7 @@ import JoiningCalendar from "./pages/JoiningCalendar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Attendance from "./pages/Attendance";
 import MarkAttendance from "./pages/MarkAttendance";
+import MarkAttendanceErrorBoundary from "./components/MarkAttendanceErrorBoundary";
 import OutstationAttendance from "./pages/OutstationAttendance";
 import TaDa from "./pages/TaDa";
 import LeaveManagement from "./pages/LeaveManagement";
@@ -102,7 +103,14 @@ function App() {
             <Route path="leave-management" element={<LeaveManagement />} />
             <Route path="gate-pass" element={<GatePass />} />
             <Route path="gate-pass-request" element={<GatePassRequest />} />
-            <Route path="mark-attendance" element={<MarkAttendance />} />
+            <Route
+              path="mark-attendance"
+              element={
+                <MarkAttendanceErrorBoundary>
+                  <MarkAttendance />
+                </MarkAttendanceErrorBoundary>
+              }
+            />
             <Route path="attendance" element={<Attendance />} />
             <Route path="outstation-attendance" element={<OutstationAttendance />} />
             <Route path="ta-da" element={<TaDa />} />
