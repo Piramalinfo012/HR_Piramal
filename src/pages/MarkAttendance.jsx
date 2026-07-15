@@ -347,7 +347,13 @@ const reverseGeocode = async (latitude, longitude) => {
   }
 };
 
+let timeOffsetMs = null;
+
 const getTrustedNow = async () => {
+  if (timeOffsetMs !== null) {
+    return new Date(Date.now() + timeOffsetMs);
+  }
+
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 5000);
 
@@ -387,6 +393,8 @@ const getTrustedNow = async () => {
     );
 
     if (Number.isNaN(trustedNow.getTime())) throw new Error("Trusted time invalid");
+    
+    timeOffsetMs = trustedNow.getTime() - Date.now();
     return trustedNow;
   } finally {
     window.clearTimeout(timeoutId);
@@ -395,11 +403,13 @@ const getTrustedNow = async () => {
 
 const reviveAttendanceCache = (cached) => {
   if (!cached) return null;
+  const rawData = Array.isArray(cached.attendanceData) ? cached.attendanceData : [];
+  const rawList = Array.isArray(cached.rawEntries) ? cached.rawEntries : [];
   return {
-    attendanceData: (cached.attendanceData || [])
+    attendanceData: rawData
       .map((item) => ({ ...item, dateObj: parseDateToObj(item.dateObj) || parseDateToObj(item.date) }))
       .filter((item) => item.dateObj),
-    rawEntries: (cached.rawEntries || [])
+    rawEntries: rawList
       .map((item) => ({ ...item, dateObj: parseDateToObj(item.dateObj) || parseDateToObj(item.date) }))
       .filter((item) => item.dateObj),
   };
@@ -536,16 +546,40 @@ const MarkAttendance = () => {
           mapLink: entry.mapLink || "",
           address: entry.address || "",
         });
+      });
 
-        const key = `${normalize(employeeName)}_${dateKey(dateObj)}`;
+      // Merge local unsynced entries to prevent duplicate punches due to Google Sheets sync lag
+      const unsyncedLocals = Array.isArray(rawEntries) ? rawEntries.filter(
+        (entry) => entry && entry.isLocal && entry.dateObj && (Date.now() - new Date(entry.dateObj).getTime() < 120000)
+      ) : [];
+
+      const uniqueUnsynced = unsyncedLocals.filter((local) => {
+        if (!local || !local.employeeName || !local.dateObj) return false;
+        const alreadySynced = entries.some(
+          (fetched) =>
+            fetched &&
+            fetched.employeeName &&
+            fetched.dateObj &&
+            normalize(fetched.employeeName) === normalize(local.employeeName) &&
+            fetched.status === local.status &&
+            Math.abs(new Date(fetched.dateObj).getTime() - new Date(local.dateObj).getTime()) < 60000
+        );
+        return !alreadySynced;
+      });
+
+      entries.push(...uniqueUnsynced);
+
+      // Now build the grouped data from the merged entries
+      entries.forEach((entry) => {
+        const key = `${normalize(entry.employeeName)}_${dateKey(entry.dateObj)}`;
         if (!grouped[key]) {
           grouped[key] = {
-            employeeName,
-            dateObj,
-            date: formatDateValue(dateValue),
-            month: MONTHS[dateObj.getMonth()],
-            year: String(dateObj.getFullYear()),
-            day: dateObj.getDate(),
+            employeeName: entry.employeeName,
+            dateObj: entry.dateObj,
+            date: entry.date,
+            month: MONTHS[entry.dateObj.getMonth()],
+            year: String(entry.dateObj.getFullYear()),
+            day: entry.dateObj.getDate(),
             inTime: "",
             outTime: "",
             mapLink: "",
@@ -553,14 +587,14 @@ const MarkAttendance = () => {
           };
         }
 
-        if (status === "IN") {
-          grouped[key].inTime = formatTimeValue(dateValue);
+        if (entry.status === "IN") {
+          grouped[key].inTime = entry.time;
           grouped[key].mapLink = entry.mapLink || grouped[key].mapLink;
           grouped[key].address = entry.address || grouped[key].address;
         }
 
-        if (status === "OUT") {
-          grouped[key].outTime = formatTimeValue(dateValue);
+        if (entry.status === "OUT") {
+          grouped[key].outTime = entry.time;
           grouped[key].mapLink = entry.mapLink || grouped[key].mapLink;
           grouped[key].address = entry.address || grouped[key].address;
         }
@@ -585,6 +619,7 @@ const MarkAttendance = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchData({ silent: true });
+    getTrustedNow().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -893,7 +928,12 @@ const MarkAttendance = () => {
         now.toLocaleString("en-US", { month: "long" }),
       ];
 
-      await fetch(OUTSTATION_SCRIPT_URL, {
+      if (!navigator.onLine) {
+        toast.error("Internet connection check karein. Network offline hai.");
+        return;
+      }
+
+      const insertPromise = fetch(OUTSTATION_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
         body: new URLSearchParams({
@@ -901,6 +941,8 @@ const MarkAttendance = () => {
           action: "insert",
           rowData: JSON.stringify(rowData),
         }),
+      }).catch((err) => {
+        console.error("Background insert failed:", err);
       });
 
       const newEntry = {
@@ -911,6 +953,7 @@ const MarkAttendance = () => {
         time: formatTimeValue(now),
         mapLink,
         address,
+        isLocal: true,
       };
       const nextRawEntries = [...rawEntries, newEntry].sort((a, b) => b.dateObj - a.dateObj);
       const nextAttendanceData = mergeAttendanceEntry(attendanceData, newEntry);
@@ -923,7 +966,10 @@ const MarkAttendance = () => {
 
       toast.success(`${statusToMark} attendance marked`);
       setReason("");
-      await fetchData({ silent: true });
+
+      insertPromise.then(() => {
+        fetchData({ silent: true }).catch(() => {});
+      });
     } catch (err) {
       console.error("Mark attendance error:", err);
       const isTrustedTimeError = err.name === "AbortError" || String(err.message || "").includes("Trusted time");
