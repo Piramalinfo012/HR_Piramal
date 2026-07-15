@@ -723,18 +723,10 @@ const LeaveRequest = () => {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          disabled={hasSubmittedToday}
-          className={`inline-flex h-12 w-full items-center justify-center rounded-2xl border border-transparent px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] sm:w-auto ${hasSubmittedToday
-            ? 'bg-slate-400 cursor-not-allowed'
-            : 'bg-slate-950 hover:bg-slate-800'
-            }`}
-          title={hasSubmittedToday ? "You have already submitted a leave request today. Please try again tomorrow." : ""}
+          className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-transparent bg-slate-950 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] hover:bg-slate-800 sm:w-auto"
         >
           <Plus size={16} className="mr-2" />
           New Leave Request
-          {hasSubmittedToday && (
-            <span className="ml-2 text-xs">(Disabled for today)</span>
-          )}
         </button>
       </div>
 
