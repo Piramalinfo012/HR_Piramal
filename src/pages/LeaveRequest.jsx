@@ -1056,84 +1056,74 @@ const LeaveRequest = () => {
 
       {/* Modal for new leave request - Updated to match LeaveManagement */}
       {showModal && (
-        <div className="fixed inset-0 z-[120] bg-black bg-opacity-50 overflow-y-auto flex items-start justify-center pt-10 sm:pt-16 pb-28 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto scrollbar-hide">
+        <div className="fixed inset-0 z-[120] bg-black bg-opacity-50 overflow-y-auto flex items-start justify-center pt-6 pb-10 p-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white z-10">
               <h3 className="text-lg font-medium">New Leave Request</h3>
               <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-gray-700">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4" autoComplete="off">
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Requested By *</label>
-                <input
-                  type="text"
-                  name="employeeName"
-                  value={formData.employeeName}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
-                  readOnly
-                />
-                {employeeDetailsLoading && (
-                  <p className="mt-1 text-xs text-gray-500">Loading employee details...</p>
-                )}
-              </div>
+              {/* Row 1: Requested By, Departments, Total Leaves, Job Location */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Requested By *</label>
+                  <input
+                    type="text"
+                    name="employeeName"
+                    value={formData.employeeName}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
+                    readOnly
+                  />
+                  {employeeDetailsLoading && (
+                    <p className="mt-1 text-xs text-gray-500">Loading...</p>
+                  )}
+                </div>
 
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Departments *</label>
-                <button
-                  type="button"
-                  onClick={() => setDepartmentDropdownOpen((open) => !open)}
-                  className={`flex w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-left focus:outline-none focus:ring-2 focus:ring-navy ${formData.department ? 'border-gray-300 text-gray-900' : 'border-gray-300 text-gray-500'}`}
-                >
-                  <span>{formData.department || 'Select department'}</span>
-                  <ChevronRight size={16} className={`text-gray-400 transition ${departmentDropdownOpen ? 'rotate-90' : ''}`} />
-                </button>
-                {departmentDropdownOpen && (
-                  <div className="absolute left-0 right-0 z-[160] mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Departments *</label>
+                  <select
+                    name="department"
+                    value={formData.department}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-navy"
+                    required
+                  >
+                    <option value="">Select department</option>
                     {departmentOptions.map((department) => (
-                      <button
-                        key={department}
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => ({ ...prev, department }));
-                          setDepartmentDropdownOpen(false);
-                        }}
-                        className={`block w-full px-4 py-2.5 text-left text-sm font-medium transition hover:bg-indigo-50 hover:text-navy ${formData.department === department ? 'bg-indigo-50 text-navy' : 'text-gray-700'}`}
-                      >
-                        {department}
-                      </button>
+                      <option key={department} value={department}>{department}</option>
                     ))}
-                  </div>
-                )}
-                <input type="hidden" name="department" value={formData.department} required />
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Total No of leaves days</label>
+                  <input
+                    type="text"
+                    value={formatLeaveDays(formData.fromDate, formData.toDate, formData.halfDay)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
+                    placeholder="Auto calculated"
+                    readOnly
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Job location *</label>
+                  <input
+                    type="text"
+                    name="jobLocation"
+                    value={formData.jobLocation}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-navy"
+                    required
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Total No of leaves days</label>
-                <input
-                  type="text"
-                  value={formatLeaveDays(formData.fromDate, formData.toDate, formData.halfDay)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none"
-                  placeholder="Auto calculated"
-                  readOnly
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Job location *</label>
-                <input
-                  type="text"
-                  name="jobLocation"
-                  value={formData.jobLocation}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              {/* Row 2: Date From, Date To, Half Day, Image Upload */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date of leave FROM *</label>
                   <input
@@ -1141,7 +1131,7 @@ const LeaveRequest = () => {
                     name="fromDate"
                     value={formData.fromDate}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-navy"
                     required
                   />
                 </div>
@@ -1152,62 +1142,63 @@ const LeaveRequest = () => {
                     name="toDate"
                     value={formData.toDate}
                     onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-navy"
                     required
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Half Day</label>
-                <select
-                  name="halfDay"
-                  value={formData.halfDay}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                >
-                  <option value="">Full Day</option>
-                  <option value="1st Half">1st Half</option>
-                  <option value="2nd Half">2nd Half</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Taking Leave *</label>
-                <textarea
-                  name="reason"
-                  value={formData.reason}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="Please provide reason for leave..."
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Remark</label>
-                <textarea
-                  name="remark"
-                  value={formData.remark}
-                  onChange={handleInputChange}
-                  rows={2}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy"
-                  placeholder="Enter remark..."
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Half Day</label>
+                  <select
+                    name="halfDay"
+                    value={formData.halfDay}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-navy"
+                  >
+                    <option value="">Full Day</option>
+                    <option value="1st Half">1st Half</option>
+                    <option value="2nd Half">2nd Half</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                  <label className="flex h-[42px] w-full cursor-pointer items-center justify-center rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    {uploadingImage ? 'Uploading...' : formData.imageUrl ? 'Image uploaded ✓' : 'Upload image'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImage}
+                    />
+                  </label>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-                <label className="flex h-11 w-full cursor-pointer items-center justify-center rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  {uploadingImage ? 'Uploading...' : formData.imageUrl ? 'Image uploaded' : 'Upload image'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    disabled={uploadingImage}
+              {/* Row 3: Reason + Remark side by side */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Taking Leave *</label>
+                  <textarea
+                    name="reason"
+                    value={formData.reason}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-navy"
+                    placeholder="Please provide reason for leave..."
+                    required
                   />
-                </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Remark</label>
+                  <textarea
+                    name="remark"
+                    value={formData.remark}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-navy"
+                    placeholder="Enter remark..."
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
@@ -1220,8 +1211,7 @@ const LeaveRequest = () => {
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-white bg-navy rounded-md hover:bg-navy-dark min-h-[42px] flex items-center justify-center ${submitting ? 'opacity-75 cursor-not-allowed' : ''
-                    }`}
+                  className={`px-4 py-2 text-white bg-navy rounded-md hover:bg-navy-dark min-h-[42px] flex items-center justify-center ${submitting ? 'opacity-75 cursor-not-allowed' : ''}`}
                   disabled={submitting || uploadingImage}
                 >
                   {submitting ? (
