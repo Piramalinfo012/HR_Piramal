@@ -58,8 +58,43 @@ const Indent = () => {
 
   const fetchData = async () => {
     setStoreLoading(true);
+    // 1. Force clear App Script cache for "FMS" and "Master" sheets by writing empty values to column Z
     try {
-      const cb = `&_=${Date.now()}`;
+      await Promise.all([
+        fetch(FETCH_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            sheetName: "FMS",
+            action: "updateCell",
+            rowIndex: "2",
+            columnIndex: "26",
+            value: "",
+          }).toString(),
+        }),
+        fetch(FETCH_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            sheetName: "Master",
+            action: "updateCell",
+            rowIndex: "2",
+            columnIndex: "26",
+            value: "",
+          }).toString(),
+        })
+      ]);
+    } catch (cacheErr) {
+      console.warn("Cache clearing request failed, proceeding anyway", cacheErr);
+    }
+
+    // 2. Fetch the fresh data with multiple cache-busting options
+    try {
+      const cb = `&_=${Date.now()}&realtime=1&cache=false&bypassCache=true`;
       const [fmsRes, masterRes] = await Promise.all([
         fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json()),
         fetch(`${FETCH_URL}?sheet=Master&action=fetch${cb}`).then(res => res.json())
@@ -80,7 +115,42 @@ const Indent = () => {
     fetchData();
   }, []);
 
-  const refreshData = fetchData;
+  const refreshData = async () => {
+    setTableLoading(true);
+    // 1. Force clear App Script cache for "FMS" sheet by writing Cell Z2 to empty value
+    try {
+      await fetch(FETCH_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          sheetName: "FMS",
+          action: "updateCell",
+          rowIndex: "2",
+          columnIndex: "26",
+          value: "",
+        }).toString(),
+      });
+    } catch (cacheErr) {
+      console.warn("FMS cache clearing request failed, proceeding anyway", cacheErr);
+    }
+
+    // 2. Wait 3000ms to allow Google Sheets to complete recalculation/sync
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // 3. Fetch the fresh data with multiple cache-busting options
+    try {
+      const cb = `&_=${Date.now()}&realtime=1&cache=false&bypassCache=true`;
+      const fmsRes = await fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json());
+      if (fmsRes.success) setGlobalFmsData(fmsRes.data);
+    } catch (error) {
+      console.error("Indent Data Fetch Error:", error);
+      toast.error("Failed to load data");
+    } finally {
+      setTableLoading(false);
+    }
+  };
 
   useEffect(() => {
     setTableLoading(storeLoading);
@@ -313,7 +383,7 @@ const Indent = () => {
       if (result.success || result.status === 'success' || (result.message && result.message.toLowerCase().includes('success'))) {
         toast.success('Indent deleted successfully!');
         setIndentData(prev => prev.filter(l => l.indentNumber !== indent.indentNumber));
-        refreshData();
+        await refreshData();
       } else {
         toast.error('Failed to delete: ' + (result.error || 'Unknown error'));
       }
@@ -393,8 +463,33 @@ const Indent = () => {
 
         if (results.every((result) => result.success)) {
           toast.success("Indent updated successfully!");
+          const p = posts[0];
+          setIndentData((prev) =>
+            prev.map((item) => {
+              if (item.indentNumber === editingIndent.indentNumber) {
+                return {
+                  ...item,
+                  indenterName: p.indenterName || "",
+                  post: p.post || "",
+                  salary: p.salary || "",
+                  officeTiming: p.officeTiming || "",
+                  typeOfWeek: p.typeOfWeek || "",
+                  residence: p.residence || "",
+                  gender: p.gender || "",
+                  department: p.department || "",
+                  prefer: p.prefer || "",
+                  noOfPost: p.numberOfPost || "",
+                  completionDate: formattedDate,
+                  qualifications: p.qualifications || "",
+                  location: p.location || "",
+                  priority: p.priority || "",
+                };
+              }
+              return item;
+            })
+          );
           handleCancel();
-          refreshData();
+          await refreshData();
         } else {
           toast.error("Failed to update some fields");
         }
@@ -468,9 +563,7 @@ const Indent = () => {
         }]);
         setFormData({ competitionDate: "" });
         setShowModal(false);
-        setTableLoading(true);
-        refreshData();
-        setTableLoading(false);
+        await refreshData();
       } else {
         toast.error("Failed to insert: " + (result.error || "Unknown error"));
       }
