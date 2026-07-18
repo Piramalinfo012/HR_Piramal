@@ -270,10 +270,10 @@ const buildEmployeeContacts = (rawData = []) => {
 
     const normalizedRow = row.map((cell) => cell?.toString().trim().toLowerCase());
     const idIndex = normalizedRow.findIndex((cell) =>
-      cell && (cell === 'id' || cell.includes('joining id') || cell.includes('indent number'))
+      cell && (cell === 'id' || cell.includes('joining id') || cell.includes('indent number') || cell.includes('employee id'))
     );
     const nameIndex = normalizedRow.findIndex((cell) =>
-      cell && (cell.includes('candidate name') || cell.includes('candiate name') || cell.includes('name as per aadhar'))
+      cell && (cell.includes('candidate name') || cell.includes('candiate name') || cell.includes('name as per aadhar') || cell.includes('employee name'))
     );
 
     if (idIndex !== -1 && nameIndex !== -1) {
@@ -287,10 +287,10 @@ const buildEmployeeContacts = (rawData = []) => {
 
   const idxId = getJoiningHeaderIndex(headers, ['Joining ID', 'Indent Number', 'Employee ID', 'ID'], 5);
   const idxName = getJoiningHeaderIndex(headers, ['Name As Per Aadhar', 'Candidate Name', 'Candiate Name', 'Employee Name'], 10);
-  const idxDept = getJoiningHeaderIndex(headers, ['Department'], 2);
+  const idxDept = getJoiningHeaderIndex(headers, ['Department', 'Location'], 2);
   const idxDesignation = getJoiningHeaderIndex(headers, ['Designation'], 14);
   const idxPhoto = getJoiningHeaderIndex(headers, ["Candidate's Photo", 'Candidate Photo', 'Photo', 'Profile Pic'], 18);
-  const idxMobile = getJoiningHeaderIndex(headers, ['Contact No', 'Mobile No.', 'Mobile No', 'Phone'], 23);
+  const idxMobile = getJoiningHeaderIndex(headers, ['Contact No', 'Mobile No.', 'Mobile No', 'Phone', 'Contact Number'], 23);
   const idxStatus = getJoiningHeaderIndex(headers, ['Status'], 8);
 
   const uniqueContacts = new Map();
@@ -385,17 +385,35 @@ const EmployeeMobileHome = () => {
   }, []);
 
   const fetchContacts = async ({ silent = false } = {}) => {
-    if (!import.meta.env.VITE_JOINING_SHEET_URL) {
-      setContactsLoading(false);
-      return;
-    }
-
     try {
       if (!silent) setContactsLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_JOINING_SHEET_URL}?action=read&sheet=JOINING_FMS`);
-      const result = await response.json();
-      const rawData = Array.isArray(result?.data) ? result.data : [];
-      const parsedContacts = buildEmployeeContacts(rawData);
+      const url = `https://docs.google.com/spreadsheets/d/1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw/gviz/tq?tqx=out:json&sheet=All%20Contact&cb=${Date.now()}`;
+      const response = await fetch(url);
+      const text = await response.text();
+      const jsonStart = text.indexOf("{");
+      const jsonEnd = text.lastIndexOf("}");
+      if (jsonStart === -1 || jsonEnd === -1) throw new Error("Invalid response");
+      const payload = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+      
+      const parsedContacts = (payload.table?.rows || [])
+        .map((row) => {
+          const cells = row.c || [];
+          const getVal = (idx) => {
+            const cell = cells[idx];
+            return cell ? (cell.f ?? cell.v ?? "").toString().trim() : "";
+          };
+          return {
+            id: getVal(0),
+            name: getVal(1),
+            designation: getVal(2),
+            department: getVal(3),
+            mobileNo: getVal(4),
+            photo: "",
+          };
+        })
+        .filter((contact) => contact.name && contact.name.toLowerCase() !== "employee name")
+        .sort((a, b) => a.name.localeCompare(b.name));
+      
       setContacts(parsedContacts);
       writeCachedList(CONTACTS_CACHE_KEY, parsedContacts);
     } catch (error) {
@@ -407,7 +425,7 @@ const EmployeeMobileHome = () => {
   };
 
   useEffect(() => {
-    if (showContacts && contacts.length === 0) {
+    if (showContacts) {
       fetchContacts();
     }
   }, [showContacts]);
@@ -709,6 +727,7 @@ const EmployeeMobileHome = () => {
 
   const handleQuickAction = (action) => {
     if (action.id === 'contacts') {
+      setShowContacts(true);
       return;
     }
     if (action.externalUrl) {

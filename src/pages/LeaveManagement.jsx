@@ -1277,7 +1277,7 @@ const LeaveManagement = () => {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-transparent bg-navy px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(49,46,129,0.18)] hover:bg-navy-dark sm:h-auto sm:w-auto sm:rounded-md sm:py-2 sm:font-medium sm:shadow-sm"
+          className="hidden inline-flex h-12 w-full items-center justify-center rounded-2xl border border-transparent bg-navy px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(49,46,129,0.18)] hover:bg-navy-dark sm:h-auto sm:w-auto sm:rounded-md sm:py-2 sm:font-medium sm:shadow-sm"
         >
           <Plus size={16} className="mr-2" />
           New Leave Request

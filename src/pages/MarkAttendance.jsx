@@ -1032,7 +1032,7 @@ const MarkAttendance = () => {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-white/70 bg-white/80 p-3">
+              <div className="hidden rounded-xl border border-white/70 bg-white/80 p-3">
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Allowed Range</p>
                 <p className="mt-1 text-xl font-black text-slate-950">
                   {locationRule.requiresLocationMatch ? `${locationRule.rangeMeters}m` : "Anywhere"}
