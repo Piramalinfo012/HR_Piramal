@@ -1019,11 +1019,7 @@ const MarkAttendance = () => {
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-teal-700">Location Guard</p>
                   <h2 className="text-lg font-black text-slate-950">{punchPersonName || "User"}</h2>
-                  {matchedMasterUser?.role && (
-                    <p className="text-[11px] font-black uppercase tracking-wide text-teal-700">
-                      {matchedMasterUser.role} {locationRule.employeeType ? `- ${locationRule.employeeType}` : ""}
-                    </p>
-                  )}
+
                 </div>
               </div>
               <span className={`rounded-full px-3 py-1 text-xs font-black ${nextStatus === "IN" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>

@@ -18,6 +18,9 @@ const OutstationAttendance = () => {
   const [leaveData, setLeaveData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportMonth, setReportMonth] = useState('');
+  const [reportYear, setReportYear] = useState('');
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -91,6 +94,13 @@ const OutstationAttendance = () => {
         dateKeys: getLeaveDateKeys(row[6], row[7]),
       }))
       .filter((leave) => leave.employeeName && leave.dateKeys.length > 0);
+
+  const parseTimeToMinutes = (value) => {
+    if (!value) return null;
+    const match = value.toString().trim().match(/^(\d{1,2})[:.](\d{1,2})/);
+    if (!match) return null;
+    return Number(match[1]) * 60 + Number(match[2]);
+  };
 
   const formatTimeValue = (value) => {
     if (!value) return '-';
@@ -213,6 +223,83 @@ const OutstationAttendance = () => {
     XLSX.writeFile(wb, 'outstation_attendance.xlsx');
   };
 
+  const downloadSummaryReport = () => {
+    if (!reportMonth || !reportYear) {
+      alert('Please select month and year for report');
+      return;
+    }
+
+    const employees = [...new Set(attendanceData.map((i) => i.employeeName).filter(Boolean))].sort();
+    const monthIndex = monthOrder.indexOf(reportMonth);
+    const daysInMonth = new Date(Number(reportYear), monthIndex + 1, 0).getDate();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const reportRows = employees.map(employee => {
+      let present = 0;
+      let absent = 0;
+      let wo = 0;
+      let hd = 0;
+      let punchMiss = 0;
+
+      const empNameNorm = normalizeName(employee);
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(Number(reportYear), monthIndex, day);
+        date.setHours(0, 0, 0, 0);
+
+        const record = attendanceData.find(item =>
+          item.employeeName === employee &&
+          item.month === reportMonth &&
+          item.year === reportYear &&
+          item.day === day
+        );
+
+        if (date.getDay() === 0) {
+          wo += 1;
+        } else if (record) {
+          const inMins = parseTimeToMinutes(record.inTime);
+          const outMins = parseTimeToMinutes(record.outTime);
+
+          if ((record.inTime && record.inTime !== '-') && (!record.outTime || record.outTime === '-')) {
+             punchMiss += 1;
+             present += 1;
+          } else if ((inMins !== null && inMins > (9 * 60 + 15)) || (outMins !== null && outMins < (18 * 60))) {
+             hd += 1;
+          } else {
+             present += 1;
+          }
+        } else if (date <= todayStart) {
+          const dateKey = getDateKey(date);
+          const hasLeave = leaveData.some((leave) =>
+            normalizeName(leave.employeeName) === empNameNorm && leave.dateKeys.includes(dateKey)
+          );
+          if (!hasLeave) {
+            absent += 1;
+          }
+        }
+      }
+
+      return {
+        Month: reportMonth,
+        'Employee Name': employee,
+        'Total Present': present,
+        'Total Absent': absent,
+        'WO': wo,
+        'Late Coming/Half Day': hd,
+        'Punch Miss': punchMiss
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(reportRows, {
+      header: ['Month', 'Employee Name', 'Total Present', 'Total Absent', 'WO', 'Late Coming/Half Day', 'Punch Miss']
+    });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Outstation Report');
+    XLSX.writeFile(workbook, `outstation_attendance_report_${reportMonth}_${reportYear}.xlsx`);
+    setShowReportModal(false);
+  };
+
   // --- Calendar logic ---
   const calendarMonth = monthFilter || monthOptions[0] || monthOrder[new Date().getMonth()];
   const calendarYear = yearFilter || yearOptions[yearOptions.length - 1] || String(new Date().getFullYear());
@@ -318,12 +405,20 @@ const OutstationAttendance = () => {
               {filteredData.length} records shown from {attendanceData.length} total entries
             </p>
           </div>
-          <button
-            onClick={downloadExcel}
-            className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-rose-600"
-          >
-            <Download size={18} /> Download Excel
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-navy-dark"
+            >
+              <Download size={18} /> Download Report
+            </button>
+            <button
+              onClick={downloadExcel}
+              className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-rose-600"
+            >
+              <Download size={18} /> Download Excel
+            </button>
+          </div>
         </div>
       </div>
 
@@ -587,6 +682,72 @@ const OutstationAttendance = () => {
           </div>
         )}
       </div>
+
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Download Outstation Report</h2>
+                <p className="mt-1 text-sm text-slate-500">Select a month and year to export outstation employee summary.</p>
+              </div>
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Month</label>
+                <select
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-navy focus:ring-2 focus:ring-indigo-100"
+                >
+                  <option value="">Select Month</option>
+                  {monthOptions.map((month) => (
+                    <option key={month} value={month}>
+                      {month}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Year</label>
+                <select
+                  value={reportYear}
+                  onChange={(e) => setReportYear(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-navy focus:ring-2 focus:ring-indigo-100"
+                >
+                  <option value="">Select Year</option>
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={downloadSummaryReport}
+                className="inline-flex items-center justify-center rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-dark"
+              >
+                <Download size={18} className="mr-2" />
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

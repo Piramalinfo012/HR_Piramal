@@ -414,7 +414,10 @@ const MyAttendance = () => {
   }, [monthRows, searchTerm, masterData]);
 
   const halfDayDays = filteredAttendance.filter((record) => getRecordStatus(record, masterData) === "HD").length;
-  const presentDays = filteredAttendance.filter((record) => getRecordStatus(record, masterData) === "Present").length;
+  const presentDays = filteredAttendance.filter((record) => {
+    const status = getRecordStatus(record, masterData);
+    return status === "Present" || status === "Punch Miss";
+  }).length;
   const punchMissDays = filteredAttendance.filter(
     (record) => (record.inTime || record.outTime) && (!record.inTime || !record.outTime)
   ).length;

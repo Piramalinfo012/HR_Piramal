@@ -58,7 +58,6 @@ export const adminNavigationItems = [
     items: [
       { path: "/mark-attendance", label: "Mark Attendance" },
       { path: "/attendance", label: "Biometric Attendance", aliases: ["Attendance"] },
-      { path: "/shift-management", label: "Shift Management", placeholder: true },
       { path: "/outstation-attendance", label: "Outstation Attendance" },
       { path: "/ta-da", label: "TA & DA" },
     ],
@@ -79,8 +78,6 @@ export const adminNavigationItems = [
     items: [
       { path: "/payroll", label: "Salary Processing", aliases: ["Payroll"] },
       { path: "/salary-slip-generation", label: "Salary Slip Generation", placeholder: true },
-      { path: "/reimbursement-management", label: "Reimbursement Management", placeholder: true },
-      { path: "/full-final-settlement", label: "Full & Final Settlement", placeholder: true },
     ],
   },
   {
@@ -89,8 +86,6 @@ export const adminNavigationItems = [
     label: "Exit Management",
     items: [
       { path: "/leaving", label: "Leaving / Resignation", aliases: ["Leaving"] },
-      { path: "/exit-interview", label: "Exit Interview", placeholder: true },
-      { path: "/clearance-process", label: "Clearance Process", placeholder: true },
       { path: "/full-final-settlement", label: "Full & Final Settlement", placeholder: true },
     ],
   },
@@ -101,9 +96,6 @@ export const adminNavigationItems = [
     items: [
       { path: "/user-management", label: "User Management" },
       { path: "/outstation-master", label: "Outstation Master" },
-      { path: "/role-management", label: "Role Management", placeholder: true },
-      { path: "/permission-management", label: "Permission Management", placeholder: true },
-      { path: "/login-activity-logs", label: "Login Activity Logs", placeholder: true },
     ],
   },
 ];
