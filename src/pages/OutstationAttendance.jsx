@@ -622,6 +622,7 @@ const OutstationAttendance = () => {
       return {
         Month: reportMonth,
         'Employee Name': employee,
+        'Total Days': daysInMonth,
         'Total Present': present + (hd / 2),
         'Total Absent': absent + (hd / 2),
         'WO': wo,
@@ -632,7 +633,7 @@ const OutstationAttendance = () => {
     });
 
     const worksheet = XLSX.utils.json_to_sheet(reportRows, {
-      header: ['Month', 'Employee Name', 'Total Present', 'Total Absent', 'WO', 'Late Coming/Half Day', 'Punch Miss', 'Pay Days']
+      header: ['Month', 'Employee Name', 'Total Days', 'Total Present', 'Total Absent', 'WO', 'Late Coming/Half Day', 'Punch Miss', 'Pay Days']
     });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Outstation Report');
