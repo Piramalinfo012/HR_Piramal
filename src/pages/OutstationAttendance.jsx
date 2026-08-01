@@ -126,10 +126,14 @@ const OutstationAttendance = () => {
   };
 
   const isHalfDayRecord = (record, mData = []) => {
-    if (!record?.inTime || !record?.outTime || record.inTime === '-' || record.outTime === '-') return false;
+    if (!record) return false;
+    const inTime = record.inTime && record.inTime !== '-' ? record.inTime : null;
+    const outTime = record.outTime && record.outTime !== '-' ? record.outTime : null;
 
-    const inMinutes = parseTimeToMinutes(record.inTime);
-    const outMinutes = parseTimeToMinutes(record.outTime);
+    if (!inTime && !outTime) return false;
+
+    const inMinutes = inTime ? parseTimeToMinutes(inTime) : null;
+    const outMinutes = outTime ? parseTimeToMinutes(outTime) : null;
 
     let expectedInMinutes = 9 * 60 + 15;
     let expectedOutMinutes = 18 * 60;
@@ -157,10 +161,10 @@ const OutstationAttendance = () => {
       }
     }
 
-    return (
-      (inMinutes !== null && inMinutes > expectedInMinutes) ||
-      (outMinutes !== null && outMinutes < expectedOutMinutes)
-    );
+    const isLateIn = inMinutes !== null && inMinutes > expectedInMinutes;
+    const isEarlyOut = outMinutes !== null && outMinutes < expectedOutMinutes;
+
+    return isLateIn || isEarlyOut;
   };
 
   const formatTimeValue = (value) => {
@@ -454,19 +458,19 @@ const OutstationAttendance = () => {
 
           // Late Mark check
           const isPunchMiss = record.inTime && record.inTime !== '-' && (!record.outTime || record.outTime === '-');
-          const isHD = !isPunchMiss && isHalfDayRecord(record, masterData);
+          const isHD = isHalfDayRecord(record, masterData);
 
-          if (isPunchMiss) {
-            // Orange background for Punch Miss, not counted in lateMarks
-            setCell(rIndex, cIndex, cellVal, {
-              fill: { fgColor: { rgb: "FFA500" } }, // Orange
-              font: { sz: 6 }
-            });
-          } else if (isHD) {
+          if (isHD) {
             lateMarks += 1;
             // Yellow background for Late mark
             setCell(rIndex, cIndex, cellVal, {
               fill: { fgColor: { rgb: "FFFF00" } }, // Yellow
+              font: { sz: 6 }
+            });
+          } else if (isPunchMiss) {
+            // Orange background for Punch Miss, not counted in lateMarks
+            setCell(rIndex, cIndex, cellVal, {
+              fill: { fgColor: { rgb: "FFA500" } }, // Orange
               font: { sz: 6 }
             });
           } else if (!inTime && !outTime) {
@@ -487,8 +491,10 @@ const OutstationAttendance = () => {
           });
           workingDays += 1; // WO counts as Working Day
         } else if (hasLeave) {
-          setCell(rIndex, cIndex, "L", {
-            font: { sz: 6 }
+          // Display Leave (L) as Absent (A) with red background
+          setCell(rIndex, cIndex, "A", {
+            fill: { fgColor: { rgb: "FF0000" } }, // Red
+            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 6 }
           });
           leaves += 1;
         } else if (date <= todayStart) {
@@ -677,11 +683,11 @@ const OutstationAttendance = () => {
 
   const calendarSummary = calendarRows.reduce((s, item) => {
     const isPunchMiss = item.inTime && item.inTime !== '-' && (!item.outTime || item.outTime === '-');
-    const isHD = !isPunchMiss && isHalfDayRecord(item, masterData);
+    const isHD = isHalfDayRecord(item, masterData);
     
-    if (isPunchMiss) s.punchMiss += 1;
     if (isHD) s.halfDay += 1;
-    else if (!isPunchMiss) s.fullPresent += 1;
+    else if (isPunchMiss) s.punchMiss += 1;
+    else s.fullPresent += 1;
     
     return s;
   }, { fullPresent: 0, halfDay: 0, punchMiss: 0, absent: absentDayCount });
@@ -727,11 +733,11 @@ const OutstationAttendance = () => {
     let baseClass = 'bg-white text-slate-900';
     if (rows.length > 0) {
       const isPunchMiss = rows.some(r => r.inTime && r.inTime !== '-' && (!r.outTime || r.outTime === '-'));
-      const isHD = !isPunchMiss && rows.some(r => isHalfDayRecord(r, masterData));
-      if (isPunchMiss) {
-        baseClass = 'bg-orange-100 ring-2 ring-orange-200 text-orange-800 font-bold';
-      } else if (isHD) {
+      const isHD = rows.some(r => isHalfDayRecord(r, masterData));
+      if (isHD) {
         baseClass = 'half-day-dot text-slate-950 font-bold shadow-sm';
+      } else if (isPunchMiss) {
+        baseClass = 'bg-orange-100 ring-2 ring-orange-200 text-orange-800 font-bold';
       } else {
         baseClass = 'bg-emerald-200 text-slate-950 font-bold shadow-sm';
       }
