@@ -78,9 +78,12 @@ const Leaving = () => {
         // Filter out "Archived" rows based on Column AS (Index 44)
         // If "Yes", hide from this page (Leaving Page)
         const row = item.originalRow;
-        const isArchived = row[44] && row[44].toString().trim().toLowerCase() === 'yes';
+        const isArchivedManual = row[44] && row[44].toString().trim().toLowerCase() === 'yes';
+        const isChecklistFilled = (row[29] && row[29].toString().trim() === 'Done') && 
+                                  (row[33] && row[33].toString().trim() === 'Done') && 
+                                  (row[42] && row[42].toString().trim() === 'Done');
 
-        return !isArchived;
+        return !isArchivedManual && !isChecklistFilled;
       });
 
       setLeavingData(processedData);
