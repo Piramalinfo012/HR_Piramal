@@ -1,11 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Download, X, Filter, User, ChevronDown, CalendarDays, Table2, ChevronLeft, ChevronRight, MoreVertical, CheckCircle2, XCircle, Clock, Coffee, AlertCircle, TrendingUp, MapPin, ExternalLink } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 
 const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
+const OUTSTATION_SPREADSHEET_ID = '1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw';
 const LEAVE_API_URL = import.meta.env.VITE_LEAVE_REQUEST_SHEET_URL;
 const LEAVE_SHEET_NAME = 'FMS';
 const LEAVE_DATA_START_INDEX = 6;
+
+const parseGoogleSheetTable = (text, sheetLabel = "sheet") => {
+  const jsonStart = text.indexOf("{");
+  const jsonEnd = text.lastIndexOf("}");
+  if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
+    throw new Error(`Invalid ${sheetLabel} response`);
+  }
+  const payload = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+  if (payload.status && payload.status !== "ok") {
+    throw new Error(payload.errors?.[0]?.detailed_message || `Failed to read ${sheetLabel}`);
+  }
+  return (payload.table?.rows || []).map((row) =>
+    (row.c || []).map((cell) => {
+      if (!cell) return "";
+      return cell.f ?? cell.v ?? "";
+    })
+  );
+};
 
 const OutstationAttendance = () => {
   const currentMonthName = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][new Date().getMonth()];
@@ -23,6 +42,8 @@ const OutstationAttendance = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportMonth, setReportMonth] = useState('');
   const [reportYear, setReportYear] = useState('');
+  const [empCodeMap, setEmpCodeMap] = useState({});
+  const [masterData, setMasterData] = useState([]);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -104,6 +125,44 @@ const OutstationAttendance = () => {
     return Number(match[1]) * 60 + Number(match[2]);
   };
 
+  const isHalfDayRecord = (record, mData = []) => {
+    if (!record?.inTime || !record?.outTime || record.inTime === '-' || record.outTime === '-') return false;
+
+    const inMinutes = parseTimeToMinutes(record.inTime);
+    const outMinutes = parseTimeToMinutes(record.outTime);
+
+    let expectedInMinutes = 9 * 60 + 15;
+    let expectedOutMinutes = 18 * 60;
+
+    if (mData && Array.isArray(mData) && mData.length > 0) {
+      const matchedMaster = mData.find(
+        (row) =>
+          normalizeName(row[0]) === normalizeName(record.employeeName) ||
+          normalizeName(row[1]) === normalizeName(record.employeeName)
+      );
+
+      if (matchedMaster) {
+        const parseMasterTime = (val) => {
+          if (!val) return null;
+          const match = String(val).trim().match(/^(\d{1,2})[:.](\d{1,2})/);
+          if (match) return Number(match[1]) * 60 + Number(match[2]);
+          return null;
+        };
+
+        const mTimeIn = parseMasterTime(matchedMaster[9]) || parseMasterTime(matchedMaster[8]);
+        const mTimeOut = parseMasterTime(matchedMaster[10]) || parseMasterTime(matchedMaster[9]);
+        
+        if (mTimeIn !== null) expectedInMinutes = mTimeIn;
+        if (mTimeOut !== null) expectedOutMinutes = mTimeOut;
+      }
+    }
+
+    return (
+      (inMinutes !== null && inMinutes > expectedInMinutes) ||
+      (outMinutes !== null && outMinutes < expectedOutMinutes)
+    );
+  };
+
   const formatTimeValue = (value) => {
     if (!value) return '-';
     const raw = value.toString().trim();
@@ -125,25 +184,64 @@ const OutstationAttendance = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData`);
+      const [response, rawLeaves, joiningResponse, masterResponse] = await Promise.all([
+        fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData`),
+        LEAVE_API_URL
+          ? fetch(`${LEAVE_API_URL}?sheet=${encodeURIComponent(LEAVE_SHEET_NAME)}&action=fetch`)
+            .then(async (leaveResponse) => {
+              if (!leaveResponse.ok) throw new Error(`Leave HTTP error! status: ${leaveResponse.status}`);
+              const leaveResult = await leaveResponse.json();
+              if (!leaveResult.success) throw new Error(leaveResult.error || 'Failed to fetch leave data');
+              return Array.isArray(leaveResult.data || leaveResult) ? (leaveResult.data || leaveResult) : [];
+            })
+            .catch((leaveError) => {
+              console.warn('Leave data skipped for absent calculation:', leaveError);
+              return [];
+            })
+          : Promise.resolve([]),
+        fetch(`${import.meta.env.VITE_JOINING_SHEET_URL}?action=read&sheet=JOINING_FMS`)
+          .then(res => res.ok ? res.json() : null)
+          .catch(e => {
+            console.warn('Joining data skipped for Emp Code map:', e);
+            return null;
+          }),
+        fetch(`https://docs.google.com/spreadsheets/d/${OUTSTATION_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=Master&cb=${Date.now()}`)
+          .then(async (res) => {
+            if (!res.ok) throw new Error(`Master sheet HTTP error! status: ${res.status}`);
+            const text = await res.text();
+            return parseGoogleSheetTable(text, "Master");
+          })
+          .catch((e) => {
+            console.warn('Master shift data skipped:', e);
+            return [];
+          })
+      ]);
+
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const result = await response.json();
       if (result.status !== 'success') throw new Error(result.message || 'Failed to fetch data');
 
       const rawAttendance = result.attendance || [];
-      const rawLeaves = LEAVE_API_URL
-        ? await fetch(`${LEAVE_API_URL}?sheet=${encodeURIComponent(LEAVE_SHEET_NAME)}&action=fetch`)
-          .then(async (leaveResponse) => {
-            if (!leaveResponse.ok) throw new Error(`Leave HTTP error! status: ${leaveResponse.status}`);
-            const leaveResult = await leaveResponse.json();
-            if (!leaveResult.success) throw new Error(leaveResult.error || 'Failed to fetch leave data');
-            return Array.isArray(leaveResult.data || leaveResult) ? (leaveResult.data || leaveResult) : [];
-          })
-          .catch((leaveError) => {
-            console.warn('Leave data skipped for absent calculation:', leaveError);
-            return [];
-          })
-        : [];
+      setMasterData(masterResponse || []);
+
+      // Build Employee Code Map from Joining Sheet
+      const codeMap = {};
+      if (joiningResponse && joiningResponse.data) {
+        const rawJoining = joiningResponse.data;
+        if (rawJoining.length > 7) {
+          const headers = rawJoining[6] || [];
+          const getIndex = (name) => headers.findIndex(h => h && h.toString().trim().toLowerCase() === name.trim().toLowerCase());
+          const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
+          rawJoining.slice(7).forEach(row => {
+            const name = (row[idxName] || '').toString().trim();
+            const code = (row[0] || '').toString().trim(); // Column A (Index 0) is the Sr No / ID!
+            if (name && code) {
+              codeMap[normalizeName(name)] = code;
+            }
+          });
+        }
+      }
+      setEmpCodeMap(codeMap);
 
       // Group IN/OUT entries by person + date
       const grouped = {};
@@ -215,15 +313,259 @@ const OutstationAttendance = () => {
   });
 
   const downloadExcel = () => {
-    const exp = filteredData.map((item) => ({
-      Date: item.date, 'Employee Name': item.employeeName,
-      'In Time': item.inTime, 'Out Time': item.outTime,
-      Address: item.address, 'Map Link': item.mapLink,
-    }));
-    const ws = XLSX.utils.json_to_sheet(exp);
+    // 1. Determine Report Month and Year from filters or current date
+    const currentMonthName = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][new Date().getMonth()];
+    const reportMonth = monthFilter || currentMonthName;
+    const reportYear = yearFilter || String(new Date().getFullYear());
+
+    // 2. Find days in month
+    const monthIndex = monthOrder.indexOf(reportMonth);
+    const daysInMonth = new Date(Number(reportYear), monthIndex + 1, 0).getDate();
+
+    // 3. Get unique employees (either matching filter or all)
+    const employees = employeeFilter
+      ? [employeeFilter]
+      : [...new Set(attendanceData.map((i) => i.employeeName).filter(Boolean))].sort();
+
+    const ws = {};
+    const lastColIndex = 2 + daysInMonth + 4 - 1;
+
+    // Helper for regular cells
+    const setCell = (r, c, val, styles = {}) => {
+      const cellRef = XLSX.utils.encode_cell({ r, c });
+
+      const defaultBorder = {
+        top: { style: "thin", color: { rgb: "D3D3D3" } },
+        bottom: { style: "thin", color: { rgb: "D3D3D3" } },
+        left: { style: "thin", color: { rgb: "D3D3D3" } },
+        right: { style: "thin", color: { rgb: "D3D3D3" } }
+      };
+
+      ws[cellRef] = {
+        v: val,
+        t: typeof val === "number" ? "n" : "s",
+        s: {
+          font: { name: "Calibri", sz: 10, ...styles.font },
+          alignment: { horizontal: "center", vertical: "center", wrapText: true, ...styles.alignment },
+          border: styles.border || defaultBorder,
+          fill: styles.fill || undefined
+        }
+      };
+    };
+
+    // Helper for title cells (no border, left align)
+    const setTitleCell = (r, c, val, fontStyles = {}) => {
+      const cellRef = XLSX.utils.encode_cell({ r, c });
+      ws[cellRef] = {
+        v: val,
+        t: "s",
+        s: {
+          font: { name: "Calibri", ...fontStyles },
+          alignment: { horizontal: "left", vertical: "center" }
+        }
+      };
+    };
+
+    // Row 0, 1, 2 Titles
+    setTitleCell(0, 0, "Monthly Attendance Report with (In/Out) Time", { bold: true, sz: 14 });
+    setTitleCell(1, 0, `For Period : 1-${reportMonth}-${reportYear} To ${daysInMonth}-${reportMonth}-${reportYear}`, { sz: 10 });
+    setTitleCell(2, 0, "Company Name : PIRAMAL PETROLEUM PRIVATE", { bold: true, sz: 11 });
+
+    // Initialize all title cells empty up to last column so that merge bounds are set correctly
+    for (let c = 1; c <= lastColIndex; c++) {
+      setTitleCell(0, c, "");
+      setTitleCell(1, c, "");
+      setTitleCell(2, c, "");
+    }
+
+    // Row 3 Headers
+    const headerStyle = {
+      fill: { fgColor: { rgb: "F2F2F2" } },
+      font: { bold: true, sz: 10 },
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+
+    setCell(3, 0, "Emp Code", headerStyle);
+    setCell(3, 1, "Emp Name", headerStyle);
+    for (let d = 1; d <= daysInMonth; d++) {
+      setCell(3, 1 + d, d, { ...headerStyle, font: { bold: true, sz: 7 } });
+    }
+    setCell(3, 2 + daysInMonth, "Working Day", headerStyle);
+    setCell(3, 2 + daysInMonth + 1, "Late Mark", headerStyle);
+    setCell(3, 2 + daysInMonth + 2, "Leave", headerStyle);
+    setCell(3, 2 + daysInMonth + 3, "pay day", headerStyle);
+
+    // Row 4 onwards: Data
+    employees.forEach((employee, idx) => {
+      const rIndex = 4 + idx;
+      const empNorm = normalizeName(employee);
+
+      // Emp Code (Column A, index 0): get the serial number / Sr. No from JOINING_FMS
+      const empCodeRaw = empCodeMap[empNorm] || "";
+      const empCodeNum = Number(empCodeRaw);
+      const empCode = isNaN(empCodeNum) || empCodeRaw === "" ? empCodeRaw : empCodeNum;
+
+      setCell(rIndex, 0, empCode, {
+        font: { bold: true, sz: 10 },
+        alignment: { horizontal: "center", vertical: "center" }
+      });
+
+      // Emp Name
+      setCell(rIndex, 1, employee, {
+        font: { bold: true, sz: 10 },
+        alignment: { horizontal: "left", vertical: "center" }
+      });
+
+      let workingDays = 0;
+      let lateMarks = 0;
+      let leaves = 0;
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const cIndex = 1 + day;
+        const date = new Date(Number(reportYear), monthIndex, day);
+        const isSunday = date.getDay() === 0;
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const record = attendanceData.find(item =>
+          normalizeName(item.employeeName) === empNorm &&
+          item.month === reportMonth &&
+          item.year === reportYear &&
+          item.day === day
+        );
+
+        // Check if there is an approved leave
+        const hasLeave = leaveData.some(leave => {
+          const dateKey = getDateKey(new Date(Number(reportYear), monthIndex, day));
+          return normalizeName(leave.employeeName) === empNorm && leave.dateKeys.includes(dateKey);
+        });
+
+        if (record) {
+          const inTime = record.inTime && record.inTime !== '-' ? record.inTime : '';
+          const outTime = record.outTime && record.outTime !== '-' ? record.outTime : '';
+
+          let cellVal = "";
+          if (inTime && outTime) {
+            cellVal = `${inTime}\n${outTime}`;
+          } else if (inTime) {
+            cellVal = `${inTime}`;
+          } else if (outTime) {
+            cellVal = `${outTime}`;
+          } else {
+            cellVal = "P";
+          }
+
+          workingDays += 1;
+
+          // Late Mark check
+          const isPunchMiss = record.inTime && record.inTime !== '-' && (!record.outTime || record.outTime === '-');
+          const isHD = !isPunchMiss && isHalfDayRecord(record, masterData);
+
+          if (isPunchMiss) {
+            // Orange background for Punch Miss, not counted in lateMarks
+            setCell(rIndex, cIndex, cellVal, {
+              fill: { fgColor: { rgb: "FFA500" } }, // Orange
+              font: { sz: 6 }
+            });
+          } else if (isHD) {
+            lateMarks += 1;
+            // Yellow background for Late mark
+            setCell(rIndex, cIndex, cellVal, {
+              fill: { fgColor: { rgb: "FFFF00" } }, // Yellow
+              font: { sz: 6 }
+            });
+          } else if (!inTime && !outTime) {
+            // Present without times: Green background
+            setCell(rIndex, cIndex, cellVal, {
+              fill: { fgColor: { rgb: "A9DFBF" } }, // Light Green
+              font: { bold: true, sz: 6 }
+            });
+          } else {
+            // Present with times: white background
+            setCell(rIndex, cIndex, cellVal, {
+              font: { sz: 6 }
+            });
+          }
+        } else if (isSunday) {
+          setCell(rIndex, cIndex, "WO-I", {
+            font: { sz: 6 }
+          });
+          workingDays += 1; // WO counts as Working Day
+        } else if (hasLeave) {
+          setCell(rIndex, cIndex, "L", {
+            font: { sz: 6 }
+          });
+          leaves += 1;
+        } else if (date <= todayStart) {
+          // Absent: Red background, white bold text
+          setCell(rIndex, cIndex, "A", {
+            fill: { fgColor: { rgb: "FF0000" } }, // Red
+            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 6 }
+          });
+          leaves += 1;
+        } else {
+          setCell(rIndex, cIndex, "");
+        }
+      }
+
+      const payDays = Math.max(0, Math.round(daysInMonth - leaves - (lateMarks * 0.5)));
+
+      // Totals columns
+      const totalColStart = 2 + daysInMonth;
+      const totalStyle = { font: { bold: true, sz: 10 } };
+
+      setCell(rIndex, totalColStart, workingDays, totalStyle);
+      setCell(rIndex, totalColStart + 1, lateMarks, totalStyle);
+      setCell(rIndex, totalColStart + 2, leaves, totalStyle);
+      setCell(rIndex, totalColStart + 3, payDays, totalStyle);
+    });
+
+    // Merges for title rows
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: lastColIndex } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: lastColIndex } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: lastColIndex } }
+    ];
+
+    // Set column widths
+    const wscols = [
+      { wch: 10 }, // Emp Code
+      { wch: 22 }  // Emp Name
+    ];
+    for (let d = 1; d <= daysInMonth; d++) {
+      wscols.push({ wch: 9 });
+    }
+    wscols.push({ wch: 13 }); // Working Day
+    wscols.push({ wch: 11 }); // Late Mark
+    wscols.push({ wch: 9 });  // Leave
+    wscols.push({ wch: 11 }); // pay day
+    ws['!cols'] = wscols;
+
+    // Set row heights
+    const wsrows = [
+      { hpt: 26 }, // Title 1
+      { hpt: 20 }, // Title 2
+      { hpt: 20 }, // Title 3
+      { hpt: 22 }  // Headers
+    ];
+    for (let i = 0; i < employees.length; i++) {
+      wsrows.push({ hpt: 30 }); // High height for cells with newlines
+    }
+    ws['!rows'] = wsrows;
+
+    // Set range reference
+    ws['!ref'] = XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: 4 + employees.length - 1, c: lastColIndex }
+    });
+
+    // Write and save workbook
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Outstation');
-    XLSX.writeFile(wb, 'outstation_attendance.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, 'Attendance Matrix');
+    
+    // File name
+    const fileName = `Outstation_Monthly_Attendance_Report_${reportMonth}_${reportYear}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   const downloadSummaryReport = () => {
@@ -267,7 +609,7 @@ const OutstationAttendance = () => {
           if ((record.inTime && record.inTime !== '-') && (!record.outTime || record.outTime === '-')) {
              punchMiss += 1;
              present += 1;
-          } else if ((inMins !== null && inMins > (9 * 60 + 15)) || (outMins !== null && outMins < (18 * 60))) {
+          } else if (isHalfDayRecord(record, masterData)) {
              hd += 1;
           } else {
              present += 1;
@@ -284,12 +626,13 @@ const OutstationAttendance = () => {
         'Total Absent': absent + (hd / 2),
         'WO': wo,
         'Late Coming/Half Day': hd,
-        'Punch Miss': punchMiss
+        'Punch Miss': punchMiss,
+        'Pay Days': Math.max(0, Math.round(present + wo + (hd / 2)))
       };
     });
 
     const worksheet = XLSX.utils.json_to_sheet(reportRows, {
-      header: ['Month', 'Employee Name', 'Total Present', 'Total Absent', 'WO', 'Late Coming/Half Day', 'Punch Miss']
+      header: ['Month', 'Employee Name', 'Total Present', 'Total Absent', 'WO', 'Late Coming/Half Day', 'Punch Miss', 'Pay Days']
     });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Outstation Report');
@@ -342,9 +685,7 @@ const OutstationAttendance = () => {
 
   const calendarSummary = calendarRows.reduce((s, item) => {
     const isPunchMiss = item.inTime && item.inTime !== '-' && (!item.outTime || item.outTime === '-');
-    const inMins = parseTimeToMinutes(item.inTime);
-    const outMins = parseTimeToMinutes(item.outTime);
-    const isHD = !isPunchMiss && ((inMins !== null && inMins > (9 * 60 + 15)) || (outMins !== null && outMins < (18 * 60)));
+    const isHD = !isPunchMiss && isHalfDayRecord(item, masterData);
     
     if (isPunchMiss) s.punchMiss += 1;
     if (isHD) s.halfDay += 1;
@@ -394,11 +735,7 @@ const OutstationAttendance = () => {
     let baseClass = 'bg-white text-slate-900';
     if (rows.length > 0) {
       const isPunchMiss = rows.some(r => r.inTime && r.inTime !== '-' && (!r.outTime || r.outTime === '-'));
-      const isHD = !isPunchMiss && rows.some(r => {
-        const inMins = parseTimeToMinutes(r.inTime);
-        const outMins = parseTimeToMinutes(r.outTime);
-        return (inMins !== null && inMins > (9 * 60 + 15)) || (outMins !== null && outMins < (18 * 60));
-      });
+      const isHD = !isPunchMiss && rows.some(r => isHalfDayRecord(r, masterData));
       if (isPunchMiss) {
         baseClass = 'bg-orange-100 ring-2 ring-orange-200 text-orange-800 font-bold';
       } else if (isHD) {

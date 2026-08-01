@@ -275,9 +275,10 @@ const TaDa = () => {
           const fmsSheetRow = fmsSheetRows[index] || {};
           const dateSource = pickValue(row, ['date', 'returnDate', 'inTime', 'outTime']);
           const dateMeta = getMonthYear(dateSource);
-          const totalRunningKm = fmsSheetRow.totalRunningKm || parseNumber(pickValue(row, ['totalRunning', 'Total Running Km']));
+          const rawKm = fmsSheetRow.totalRunningKm || parseNumber(pickValue(row, ['totalRunning', 'Total Running Km']));
+          const totalRunningKm = Math.round(rawKm);
           const vehicleType = pickValue(row, ['vehicleType', 'inVehicleType', 'IN Vehicle Type']) || fmsSheetRow.vehicleType || '';
-          const calculatedAmount = totalRunningKm * getVehicleKmRate(vehicleType);
+          const calculatedAmount = Math.round(rawKm * getVehicleKmRate(vehicleType));
           const inProofUrl = pickValue(row, [
             'inVehicleProof',
             'inVehiclePic',
@@ -728,7 +729,7 @@ const TaDa = () => {
             <Route size={18} className="text-emerald-500" />
           </div>
           <p className="mt-2 text-3xl font-black text-emerald-950">
-            {activeTab === 'advance' ? summary.approved : summary.totalKm}
+            {activeTab === 'advance' ? summary.approved : Math.round(summary.totalKm)}
           </p>
         </div>
         <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
@@ -736,7 +737,7 @@ const TaDa = () => {
             <p className="text-xs font-black uppercase tracking-wide text-amber-700">Amount</p>
             <Wallet size={18} className="text-amber-500" />
           </div>
-          <p className="mt-2 text-3xl font-black text-amber-950">Rs. {summary.totalAmount}</p>
+          <p className="mt-2 text-3xl font-black text-amber-950">Rs. {Math.round(summary.totalAmount)}</p>
         </div>
         <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
           <div className="flex items-center justify-between">
