@@ -13,6 +13,50 @@ const Employee = () => {
     salary: ""
   });
   const [joiningData, setJoiningData] = useState([]);
+  const [sheetHeaders, setSheetHeaders] = useState([]);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    candidateName: "",
+    fatherName: "",
+    dateOfJoining: "",
+    joiningPlace: "",
+    designation: "",
+    salary: "",
+    currentAddress: "",
+    addressAsPerAadhar: "",
+    dobAsPerAadhar: "",
+    gender: "",
+    mobileNo: "",
+    familyMobileNo: "",
+    twoReferenceNo: "",
+    pastPfId: "",
+    currentBankAcNo: "",
+    ifscCode: "",
+    branchName: "",
+    personalEmail: "",
+    esicNo: "",
+    highestQualification: "",
+    aadharCardNo: "",
+    department: "",
+
+    aadharPhotoFile: null,
+    panCardFile: null,
+    candidatePhotoFile: null,
+    bankPassbookPhotoFile: null,
+    qualificationPhotoFile: null,
+    salarySlipFile: null,
+    resumeUploadFile: null,
+
+    aadharPhotoUrl: "",
+    panCardUrl: "",
+    candidatePhotoUrl: "",
+    bankPassbookPhotoUrl: "",
+    qualificationPhotoUrl: "",
+    salarySlipUrl: "",
+    resumeUploadUrl: "",
+  });
+  const [updating, setUpdating] = useState(false);
   const [leavingData, setLeavingData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
@@ -83,6 +127,10 @@ const Employee = () => {
       const rawJoining = joiningJson.data || [];
       const rawLeaving = leavingJson.data || [];
 
+      if (rawJoining.length > 6) {
+        setSheetHeaders(rawJoining[6] || []);
+      }
+
       // --- Process FMS / Leaving Data ---
       // We need FMS IDs to filter Joining Data
       const fmsIds = new Set();
@@ -149,7 +197,8 @@ const Employee = () => {
 
         const seenJoiningKeys = new Set();
         
-        processedJoining = rawJoining.slice(7).map(row => ({
+        processedJoining = rawJoining.slice(7).map((row, idx) => ({
+          rowIndex: idx + 8, // row index in sheet (7 sliceOffset + 1 base index == 8)
           employeeId: row[idxIndent] || "",
           candidateName: row[idxName] || "",
           department: row[idxDept] || "",
@@ -163,6 +212,7 @@ const Employee = () => {
           candidatePhoto: row[18] || "",
           status: row[idxStatus] || "",
           colBM: row[64] || "", // Column BM (Index 64)
+          originalRow: row, // Keep original row to reconstruct for update
         })).filter(item => {
           // Filter 1: Status is DONE (Case Insensitive)
           const isDone = item.status && item.status.toString().trim().toUpperCase() === "DONE";
@@ -273,6 +323,269 @@ const Employee = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const convertToInputDate = (dateVal) => {
+    if (!dateVal) return "";
+    const date = new Date(dateVal);
+    if (!isNaN(date.getTime())) {
+      try {
+        return date.toISOString().split('T')[0];
+      } catch (e) {
+        // Fallback below
+      }
+    }
+    // Try dd/mm/yyyy format
+    const parts = dateVal.toString().trim().split('/');
+    if (parts.length === 3) {
+      const day = parts[0].padStart(2, '0');
+      const month = parts[1].padStart(2, '0');
+      const year = parts[2];
+      if (year.length === 4) {
+        return `${year}-${month}-${day}`;
+      }
+    }
+    return "";
+  };
+
+  const uploadFile = async (file, folderId) => {
+    if (!file) return "";
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64Data = e.target.result;
+          const targetUrl = import.meta.env.VITE_GOOGLE_SHEET_URL || import.meta.env.VITE_JOINING_SHEET_URL;
+          const response = await fetch(targetUrl, {
+            method: "POST",
+            body: new URLSearchParams({
+              action: "uploadFile",
+              base64Data: base64Data,
+              fileName: file.name,
+              mimeType: file.type,
+              folderId: folderId,
+            }),
+          });
+          const result = await response.json();
+          if (result.success) {
+            resolve(result.fileUrl);
+          } else {
+            console.error("Upload failed:", result.error);
+            resolve("");
+          }
+        } catch (error) {
+          console.error("Upload error:", error);
+          resolve("");
+        }
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleEditClick = (item) => {
+    setEditingItem(item);
+    const row = item.originalRow || [];
+    const getVal = (names, defaultIdx) => {
+      const idx = sheetHeaders.findIndex(
+        (h) => h && names.map(n => n.toLowerCase()).includes(h.toString().trim().toLowerCase())
+      );
+      const useIdx = idx !== -1 ? idx : defaultIdx;
+      return row[useIdx] || "";
+    };
+
+    setEditFormData({
+      candidateName: getVal(["Candidate Name", "Name as per Aadhar", "Name"], 10),
+      fatherName: getVal(["Father Name", "Father's Name"], 11),
+      dateOfJoining: convertToInputDate(getVal(["Date of Joining"], 12)),
+      joiningPlace: getVal(["Joining Place"], 13),
+      designation: getVal(["Designation"], 14),
+      salary: getVal(["Salary"], 15),
+      currentAddress: getVal(["Current Address"], 19),
+      addressAsPerAadhar: getVal(["Address as per Aadhar"], 20),
+      dobAsPerAadhar: convertToInputDate(getVal(["DOB as per Aadhar", "Date of Birth"], 21)),
+      gender: getVal(["Gender"], 22),
+      mobileNo: getVal(["Contact No", "Mobile No", "Mobile Number"], 23),
+      familyMobileNo: getVal(["Family Mobile No"], 24),
+      twoReferenceNo: getVal(["Two Reference No", "Reference"], 25),
+      pastPfId: getVal(["Past PF ID", "PF ID"], 26),
+      currentBankAcNo: getVal(["Current Bank AC No", "Bank Account No"], 27),
+      ifscCode: getVal(["IFSC Code"], 28),
+      branchName: getVal(["Branch Name"], 29),
+      personalEmail: getVal(["Email Id", "Personal Email", "Email"], 31),
+      esicNo: getVal(["ESIC No"], 32),
+      highestQualification: getVal(["Highest Qualification"], 33),
+      aadharCardNo: getVal(["Aadhar Card No", "Aadhar No"], 34),
+      department: getVal(["Department"], 2),
+
+      aadharPhotoFile: null,
+      panCardFile: null,
+      candidatePhotoFile: null,
+      bankPassbookPhotoFile: null,
+      qualificationPhotoFile: null,
+      salarySlipFile: null,
+      resumeUploadFile: null,
+
+      aadharPhotoUrl: getVal(["Aadhar Front Photo", "Aadhar Photo"], 16),
+      panCardUrl: getVal(["PAN Card"], 17),
+      candidatePhotoUrl: getVal(["Candidate Photo", "Profile Photo"], 18),
+      bankPassbookPhotoUrl: getVal(["Bank Passbook Photo"], 30),
+      qualificationPhotoUrl: getVal(["Qualification Photo"], 35),
+      salarySlipUrl: getVal(["Salary Slip"], 36),
+      resumeUploadUrl: getVal(["Resume Upload", "Resume"], 37),
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setUpdating(true);
+    try {
+      let aadharUrl = editFormData.aadharPhotoUrl;
+      let panUrl = editFormData.panCardUrl;
+      let photoUrl = editFormData.candidatePhotoUrl;
+      let passbookUrl = editFormData.bankPassbookPhotoUrl;
+      let qualUrl = editFormData.qualificationPhotoUrl;
+      let salarySlipUrl = editFormData.salarySlipUrl;
+      let resumeUrl = editFormData.resumeUploadUrl;
+
+      if (editFormData.aadharPhotoFile) {
+        aadharUrl = await uploadFile(editFormData.aadharPhotoFile, "1G4C-jwXRmkpbpR0d-7LW46jmtINqmEDtIEfGeyFya02oPVaODGQbh-zgWH5mUSlYPB_g1NnH");
+      }
+      if (editFormData.panCardFile) {
+        panUrl = await uploadFile(editFormData.panCardFile, "1KF3kXxiteLk5WFy_zRCyQSg_7YSp-1ngoLNIoc29xly2OVdspjTgw9g-tZekv0OfIPaH_iXB");
+      }
+      if (editFormData.candidatePhotoFile) {
+        photoUrl = await uploadFile(editFormData.candidatePhotoFile, "1Mu3MgyDhc-kM2UesunFRJxLo1sPYOQvdZa1cyKX8yvhPfiz5ssUDxIofM_MAIjlggXAOR4P9");
+      }
+      if (editFormData.bankPassbookPhotoFile) {
+        passbookUrl = await uploadFile(editFormData.bankPassbookPhotoFile, "13WCUdwjeDfmC5Prfayqx45gv6GRebLpIwe2d0dHzVJ0mefMivnBqKD9YPqRiBytXaBJjs0P9");
+      }
+      if (editFormData.qualificationPhotoFile) {
+        qualUrl = await uploadFile(editFormData.qualificationPhotoFile, "1H8kcgIU2Xr2JZWbIBklPiyOX7bnJ58WUn4Xnl3OlS2mV4B2KHk1wWOAmuIwZ3lEauSk4pClI");
+      }
+      if (editFormData.salarySlipFile) {
+        salarySlipUrl = await uploadFile(editFormData.salarySlipFile, "1G2bX00chZoWyqeVm_P_Od7Fg901yqt6yZp3OogK4d1gjmIeVy1C2293fqqyaNyzUVj5P0aLd");
+      }
+      if (editFormData.resumeUploadFile) {
+        resumeUrl = await uploadFile(editFormData.resumeUploadFile, "1wofoM_7jVDj61UV1R5QoxSdQeJhZTOgJMaAOKEqrbvqO-5HUis6qoc3z65K2e2JDIPMZpC7q");
+      }
+
+      const getIndex = (names) => sheetHeaders.findIndex(h => h && names.map(n => n.toLowerCase()).includes(h.toString().trim().toLowerCase()));
+      
+      const idxName = getIndex(["Candidate Name", "Name as per Aadhar", "Name"]);
+      const idxFather = getIndex(["Father Name", "Father's Name"]);
+      const idxDOJ = getIndex(["Date of Joining"]);
+      const idxPlace = getIndex(["Joining Place"]);
+      const idxDesig = getIndex(["Designation"]);
+      const idxDept = getIndex(["Department"]);
+      const idxSalary = getIndex(["Salary"]);
+      const idxAadharPhoto = getIndex(["Aadhar Front Photo", "Aadhar Photo"]);
+      const idxPanPhoto = getIndex(["PAN Card"]);
+      const idxCandidatePhoto = getIndex(["Candidate Photo", "Profile Photo"]);
+      const idxCurrentAddress = getIndex(["Current Address"]);
+      const idxAadharAddress = getIndex(["Address as per Aadhar"]);
+      const idxDOB = getIndex(["DOB as per Aadhar", "Date of Birth"]);
+      const idxGender = getIndex(["Gender"]);
+      const idxMobile = getIndex(["Contact No", "Mobile No", "Mobile Number"]);
+      const idxFamilyMobile = getIndex(["Family Mobile No"]);
+      const idxReference = getIndex(["Two Reference No", "Reference"]);
+      const idxPf = getIndex(["Past PF ID", "PF ID"]);
+      const idxBankAc = getIndex(["Current Bank AC No", "Bank Account No"]);
+      const idxIfsc = getIndex(["IFSC Code"]);
+      const idxBranch = getIndex(["Branch Name"]);
+      const idxPassbookPhoto = getIndex(["Bank Passbook Photo"]);
+      const idxEmail = getIndex(["Email Id", "Personal Email", "Email"]);
+      const idxEsic = getIndex(["ESIC No"]);
+      const idxQualification = getIndex(["Highest Qualification"]);
+      const idxAadharNo = getIndex(["Aadhar Card No", "Aadhar No"]);
+      const idxQualPhoto = getIndex(["Qualification Photo"]);
+      const idxSalarySlip = getIndex(["Salary Slip"]);
+      const idxResume = getIndex(["Resume Upload", "Resume"]);
+
+      let updatedRow = [...editingItem.originalRow];
+
+      const writeVal = (idx, val) => {
+        if (idx !== -1) updatedRow[idx] = val;
+      };
+
+      writeVal(idxName, editFormData.candidateName);
+      writeVal(idxFather, editFormData.fatherName);
+      
+      if (editFormData.dateOfJoining) {
+        const d = new Date(editFormData.dateOfJoining);
+        writeVal(idxDOJ, `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`);
+      } else {
+        writeVal(idxDOJ, "");
+      }
+      
+      writeVal(idxPlace, editFormData.joiningPlace);
+      writeVal(idxDesig, editFormData.designation);
+      writeVal(idxDept, editFormData.department);
+      writeVal(idxSalary, editFormData.salary);
+      writeVal(idxCurrentAddress, editFormData.currentAddress);
+      writeVal(idxAadharAddress, editFormData.addressAsPerAadhar);
+      
+      if (editFormData.dobAsPerAadhar) {
+        const d = new Date(editFormData.dobAsPerAadhar);
+        writeVal(idxDOB, `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`);
+      } else {
+        writeVal(idxDOB, "");
+      }
+      
+      writeVal(idxGender, editFormData.gender);
+      writeVal(idxMobile, editFormData.mobileNo);
+      writeVal(idxFamilyMobile, editFormData.familyMobileNo);
+      writeVal(idxReference, editFormData.twoReferenceNo);
+      writeVal(idxPf, editFormData.pastPfId);
+      writeVal(idxBankAc, editFormData.currentBankAcNo);
+      writeVal(idxIfsc, editFormData.ifscCode);
+      writeVal(idxBranch, editFormData.branchName);
+      writeVal(idxEmail, editFormData.personalEmail);
+      writeVal(idxEsic, editFormData.esicNo);
+      writeVal(idxQualification, editFormData.highestQualification);
+      writeVal(idxAadharNo, editFormData.aadharCardNo);
+      
+      writeVal(idxAadharPhoto, aadharUrl);
+      writeVal(idxPanPhoto, panUrl);
+      writeVal(idxCandidatePhoto, photoUrl);
+      writeVal(idxPassbookPhoto, passbookUrl);
+      writeVal(idxQualPhoto, qualUrl);
+      writeVal(idxSalarySlip, salarySlipUrl);
+      writeVal(idxResume, resumeUrl);
+
+      const payload = {
+        sheetName: "JOINING_FMS",
+        action: "update",
+        rowIndex: editingItem.rowIndex,
+        rowData: JSON.stringify(updatedRow)
+      };
+
+      const response = await fetch(
+        import.meta.env.VITE_JOINING_SHEET_URL,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams(payload).toString(),
+        }
+      );
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Employee updated successfully!");
+        setShowEditModal(false);
+        fetchData();
+      } else {
+        throw new Error(result.error || "Failed to update employee details");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Something went wrong");
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -520,12 +833,23 @@ const Employee = () => {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <button
-                            onClick={(e) => handleLeaveClick(e, item)}
-                            className="px-4 py-2 bg-white border-2 border-rose-200 text-rose-600 font-bold rounded-xl hover:bg-rose-50 hover:border-rose-300 transition-colors shadow-sm"
-                          >
-                            Mark Leave
-                          </button>
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditClick(item);
+                              }}
+                              className="px-4 py-2 bg-white border-2 border-indigo-200 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-colors shadow-sm"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={(e) => handleLeaveClick(e, item)}
+                              className="px-4 py-2 bg-white border-2 border-rose-200 text-rose-600 font-bold rounded-xl hover:bg-rose-50 hover:border-rose-300 transition-colors shadow-sm"
+                            >
+                              Mark Leave
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -894,6 +1218,407 @@ const Employee = () => {
               )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editingItem && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col relative">
+            <div className="flex justify-between items-center px-6 py-5 border-b border-gray-150">
+              <div>
+                <h3 className="text-lg font-black text-gray-800 tracking-tight">Edit Employee Details</h3>
+                <p className="text-xs text-gray-500 font-medium">Update profile, documents and general details</p>
+              </div>
+              <button onClick={() => setShowEditModal(false)} className="p-1.5 bg-gray-100 rounded-full text-gray-500 hover:text-gray-900 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto p-6 space-y-8">
+              {/* Section 1: Personal Info */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold text-indigo-600 uppercase tracking-wider pb-1.5 border-b border-gray-100">Personal Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Employee Name</label>
+                    <input
+                      type="text"
+                      value={editFormData.candidateName}
+                      onChange={(e) => setEditFormData({ ...editFormData, candidateName: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Father's Name</label>
+                    <input
+                      type="text"
+                      value={editFormData.fatherName}
+                      onChange={(e) => setEditFormData({ ...editFormData, fatherName: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={editFormData.dobAsPerAadhar}
+                      onChange={(e) => setEditFormData({ ...editFormData, dobAsPerAadhar: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Gender</label>
+                    <select
+                      value={editFormData.gender}
+                      onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all h-9.5"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Aadhar Card No</label>
+                    <input
+                      type="text"
+                      value={editFormData.aadharCardNo}
+                      onChange={(e) => setEditFormData({ ...editFormData, aadharCardNo: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Highest Qualification</label>
+                    <input
+                      type="text"
+                      value={editFormData.highestQualification}
+                      onChange={(e) => setEditFormData({ ...editFormData, highestQualification: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Contact & Address */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold text-indigo-600 uppercase tracking-wider pb-1.5 border-b border-gray-100">Contact & Address Details</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Mobile No</label>
+                    <input
+                      type="text"
+                      value={editFormData.mobileNo}
+                      onChange={(e) => setEditFormData({ ...editFormData, mobileNo: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Family Mobile No</label>
+                    <input
+                      type="text"
+                      value={editFormData.familyMobileNo}
+                      onChange={(e) => setEditFormData({ ...editFormData, familyMobileNo: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Personal Email</label>
+                    <input
+                      type="email"
+                      value={editFormData.personalEmail}
+                      onChange={(e) => setEditFormData({ ...editFormData, personalEmail: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Current Address</label>
+                    <textarea
+                      value={editFormData.currentAddress}
+                      onChange={(e) => setEditFormData({ ...editFormData, currentAddress: e.target.value })}
+                      rows={2}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Address as per Aadhar</label>
+                    <textarea
+                      value={editFormData.addressAsPerAadhar}
+                      onChange={(e) => setEditFormData({ ...editFormData, addressAsPerAadhar: e.target.value })}
+                      rows={2}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Employment Details */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold text-indigo-600 uppercase tracking-wider pb-1.5 border-b border-gray-100">Employment details</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Date of Joining</label>
+                    <input
+                      type="date"
+                      value={editFormData.dateOfJoining}
+                      onChange={(e) => setEditFormData({ ...editFormData, dateOfJoining: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Joining Place</label>
+                    <input
+                      type="text"
+                      value={editFormData.joiningPlace}
+                      onChange={(e) => setEditFormData({ ...editFormData, joiningPlace: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Department</label>
+                    <input
+                      type="text"
+                      value={editFormData.department}
+                      onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Designation</label>
+                    <input
+                      type="text"
+                      value={editFormData.designation}
+                      onChange={(e) => setEditFormData({ ...editFormData, designation: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Salary</label>
+                    <input
+                      type="text"
+                      value={editFormData.salary}
+                      onChange={(e) => setEditFormData({ ...editFormData, salary: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Past PF ID</label>
+                    <input
+                      type="text"
+                      value={editFormData.pastPfId}
+                      onChange={(e) => setEditFormData({ ...editFormData, pastPfId: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">ESIC No</label>
+                    <input
+                      type="text"
+                      value={editFormData.esicNo}
+                      onChange={(e) => setEditFormData({ ...editFormData, esicNo: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">References (Two Reference No)</label>
+                    <input
+                      type="text"
+                      value={editFormData.twoReferenceNo}
+                      onChange={(e) => setEditFormData({ ...editFormData, twoReferenceNo: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Bank Account Details */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold text-indigo-600 uppercase tracking-wider pb-1.5 border-b border-gray-100">Bank Account Details</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Bank Account No</label>
+                    <input
+                      type="text"
+                      value={editFormData.currentBankAcNo}
+                      onChange={(e) => setEditFormData({ ...editFormData, currentBankAcNo: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">IFSC Code</label>
+                    <input
+                      type="text"
+                      value={editFormData.ifscCode}
+                      onChange={(e) => setEditFormData({ ...editFormData, ifscCode: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Branch Name</label>
+                    <input
+                      type="text"
+                      value={editFormData.branchName}
+                      onChange={(e) => setEditFormData({ ...editFormData, branchName: e.target.value })}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 bg-white text-gray-800 text-sm font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Documents Upload */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold text-indigo-600 uppercase tracking-wider pb-1.5 border-b border-gray-100">Documents Upload</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Row 1 */}
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col justify-between">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Aadhar Card Document</label>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setEditFormData({ ...editFormData, aadharPhotoFile: e.target.files[0] })}
+                        className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                    {editFormData.aadharPhotoUrl && (
+                      <p className="mt-2 text-xs font-medium text-gray-500 truncate">
+                        Current: <a href={editFormData.aadharPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">View Document</a>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col justify-between">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Profile Photo (Candidate Photo)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setEditFormData({ ...editFormData, candidatePhotoFile: e.target.files[0] })}
+                        className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                    {editFormData.candidatePhotoUrl && (
+                      <p className="mt-2 text-xs font-medium text-gray-500 truncate">
+                        Current: <a href={editFormData.candidatePhotoUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">View Photo</a>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Row 2 */}
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col justify-between">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">PAN Card</label>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setEditFormData({ ...editFormData, panCardFile: e.target.files[0] })}
+                        className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                    {editFormData.panCardUrl && (
+                      <p className="mt-2 text-xs font-medium text-gray-500 truncate">
+                        Current: <a href={editFormData.panCardUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">View PAN Card</a>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col justify-between">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Bank Passbook Photo</label>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setEditFormData({ ...editFormData, bankPassbookPhotoFile: e.target.files[0] })}
+                        className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                    {editFormData.bankPassbookPhotoUrl && (
+                      <p className="mt-2 text-xs font-medium text-gray-500 truncate">
+                        Current: <a href={editFormData.bankPassbookPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">View Passbook</a>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Row 3 */}
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col justify-between">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Qualification Photo</label>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setEditFormData({ ...editFormData, qualificationPhotoFile: e.target.files[0] })}
+                        className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                    {editFormData.qualificationPhotoUrl && (
+                      <p className="mt-2 text-xs font-medium text-gray-500 truncate">
+                        Current: <a href={editFormData.qualificationPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">View Qualification</a>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col justify-between">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Salary Slip</label>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setEditFormData({ ...editFormData, salarySlipFile: e.target.files[0] })}
+                        className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                    {editFormData.salarySlipUrl && (
+                      <p className="mt-2 text-xs font-medium text-gray-500 truncate">
+                        Current: <a href={editFormData.salarySlipUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">View Salary Slip</a>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Row 4 */}
+                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 flex flex-col justify-between md:col-span-2">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Resume Upload</label>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={(e) => setEditFormData({ ...editFormData, resumeUploadFile: e.target.files[0] })}
+                        className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                    {editFormData.resumeUploadUrl && (
+                      <p className="mt-2 text-xs font-medium text-gray-500 truncate">
+                        Current: <a href={editFormData.resumeUploadUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">View Resume</a>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 border-t border-gray-100 pt-5">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-sm font-bold transition-all flex items-center justify-center min-w-[120px]"
+                >
+                  {updating ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Saving...</span>
+                    </div>
+                  ) : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
