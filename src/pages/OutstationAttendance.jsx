@@ -366,38 +366,33 @@ const OutstationAttendance = () => {
       };
     };
 
-    // Row 0, 1, 2 Titles
-    setTitleCell(0, 0, "Monthly Attendance Report with (In/Out) Time", { bold: true, sz: 14 });
-    setTitleCell(1, 0, `For Period : 1-${reportMonth}-${reportYear} To ${daysInMonth}-${reportMonth}-${reportYear}`, { sz: 10 });
-    setTitleCell(2, 0, "Company Name : PIRAMAL PETROLEUM PRIVATE", { bold: true, sz: 11 });
-
-    // Initialize all title cells empty up to last column so that merge bounds are set correctly
+    // Row 0 Combined Title
+    const combinedTitle = `Monthly Attendance Report with (In/Out) Time  -  For Period : 1-${reportMonth}-${reportYear} To ${daysInMonth}-${reportMonth}-${reportYear}  -  Company Name : PIRAMAL PETROLEUM PRIVATE`;
+    setTitleCell(0, 0, combinedTitle, { bold: true, sz: 11 });
     for (let c = 1; c <= lastColIndex; c++) {
       setTitleCell(0, c, "");
-      setTitleCell(1, c, "");
-      setTitleCell(2, c, "");
     }
 
-    // Row 3 Headers
+    // Row 1 Headers
     const headerStyle = {
       fill: { fgColor: { rgb: "F2F2F2" } },
       font: { bold: true, sz: 10 },
       alignment: { horizontal: "center", vertical: "center" }
     };
 
-    setCell(3, 0, "Emp Code", headerStyle);
-    setCell(3, 1, "Emp Name", headerStyle);
+    setCell(1, 0, "Emp Code", headerStyle);
+    setCell(1, 1, "Emp Name", headerStyle);
     for (let d = 1; d <= daysInMonth; d++) {
-      setCell(3, 1 + d, d, { ...headerStyle, font: { bold: true, sz: 7 } });
+      setCell(1, 1 + d, d, { ...headerStyle, font: { bold: true, sz: 7 } });
     }
-    setCell(3, 2 + daysInMonth, "Working Day", headerStyle);
-    setCell(3, 2 + daysInMonth + 1, "Late Mark", headerStyle);
-    setCell(3, 2 + daysInMonth + 2, "Leave", headerStyle);
-    setCell(3, 2 + daysInMonth + 3, "pay day", headerStyle);
+    setCell(1, 2 + daysInMonth, "Working Day", headerStyle);
+    setCell(1, 2 + daysInMonth + 1, "Late Mark", headerStyle);
+    setCell(1, 2 + daysInMonth + 2, "Leave", headerStyle);
+    setCell(1, 2 + daysInMonth + 3, "pay day", headerStyle);
 
-    // Row 4 onwards: Data
+    // Row 2 onwards: Data
     employees.forEach((employee, idx) => {
-      const rIndex = 4 + idx;
+      const rIndex = 2 + idx;
       const empNorm = normalizeName(employee);
 
       // Emp Code (Column A, index 0): get the serial number / Sr. No from JOINING_FMS
@@ -520,11 +515,9 @@ const OutstationAttendance = () => {
       setCell(rIndex, totalColStart + 3, payDays, totalStyle);
     });
 
-    // Merges for title rows
+    // Merges for title row (only Row 0 is merged)
     ws['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: lastColIndex } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: lastColIndex } },
-      { s: { r: 2, c: 0 }, e: { r: 2, c: lastColIndex } }
+      { s: { r: 0, c: 0 }, e: { r: 0, c: lastColIndex } }
     ];
 
     // Set column widths
@@ -543,10 +536,8 @@ const OutstationAttendance = () => {
 
     // Set row heights
     const wsrows = [
-      { hpt: 26 }, // Title 1
-      { hpt: 20 }, // Title 2
-      { hpt: 20 }, // Title 3
-      { hpt: 22 }  // Headers
+      { hpt: 26 }, // Title (row 0)
+      { hpt: 22 }  // Headers (row 1)
     ];
     for (let i = 0; i < employees.length; i++) {
       wsrows.push({ hpt: 30 }); // High height for cells with newlines
@@ -556,7 +547,7 @@ const OutstationAttendance = () => {
     // Set range reference
     ws['!ref'] = XLSX.utils.encode_range({
       s: { r: 0, c: 0 },
-      e: { r: 4 + employees.length - 1, c: lastColIndex }
+      e: { r: 2 + employees.length - 1, c: lastColIndex }
     });
 
     // Write and save workbook
