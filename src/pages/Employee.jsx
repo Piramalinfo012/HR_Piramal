@@ -134,6 +134,33 @@ const Employee = () => {
       // --- Process FMS / Leaving Data ---
       // We need FMS IDs to filter Joining Data
       const fmsIds = new Set();
+      
+      const joiningMap = new Map();
+      let jIdxIndent = 5, jIdxDept = 2, jIdxDOJ = 12, jIdxPlace = 13, jIdxPhoto = 18, jIdxFather = 11;
+      
+      if (rawJoining.length > 7) {
+        const jHeaders = rawJoining[6] || [];
+        const getJIdx = (name) => jHeaders.findIndex(h => h && h.toString().trim().toLowerCase() === name.trim().toLowerCase());
+        
+        if(getJIdx("Indent Number") !== -1) jIdxIndent = getJIdx("Indent Number");
+        if(getJIdx("Department") !== -1) jIdxDept = getJIdx("Department");
+        if(getJIdx("Date of Joining") !== -1) jIdxDOJ = getJIdx("Date of Joining");
+        if(getJIdx("Joining Place") !== -1) jIdxPlace = getJIdx("Joining Place");
+        
+        if(getJIdx("Candidate Photo") !== -1) jIdxPhoto = getJIdx("Candidate Photo");
+        else if(getJIdx("Profile Photo") !== -1) jIdxPhoto = getJIdx("Profile Photo");
+        
+        if(getJIdx("Father Name") !== -1) jIdxFather = getJIdx("Father Name");
+        else if(getJIdx("Father's Name") !== -1) jIdxFather = getJIdx("Father's Name");
+
+        rawJoining.slice(7).forEach(row => {
+          const id = normalizeId(row[jIdxIndent]);
+          if (id) {
+            joiningMap.set(id, row);
+          }
+        });
+      }
+
       let processedLeaving = [];
 
       if (rawLeaving.length > 7) {
@@ -147,24 +174,35 @@ const Employee = () => {
 
         const seenLeavingKeys = new Set();
         // 2. Process for Leaving Tab Display (Column AS / Index 44 == 'Yes')
-        processedLeaving = leavingRows.map(row => ({
-          originalRow: row,
-          employeeId: row[5] || "",
-          name: row[10] || "",
-          candidateName: row[10] || "", // For modal compatibility
-          designation: row[11] || "",
-          mobileNo: row[12] || "",
-          lastWorkingDay: row[7] || "",
-          dateOfLeaving: row[7] || "",
-          reasonOfLeaving: row[8] || "",
-          salary: row[9] || "",
-          dateOfJoining: "",
-          joiningPlace: "",
-          department: "",
-          fatherName: "",
+        processedLeaving = leavingRows.map(row => {
+          const isArchivedManual = row[44] && row[44].toString().trim().toLowerCase() === 'yes';
+          const isChecklistFilled = (row[29] && row[29].toString().trim() === 'Done') && 
+                                    (row[33] && row[33].toString().trim() === 'Done') && 
+                                    (row[42] && row[42].toString().trim() === 'Done');
 
-          isArchived: row[44] && row[44].toString().trim().toLowerCase() === 'yes'
-        })).filter(item => {
+          const idStr = normalizeId(row[5]);
+          const jRow = joiningMap.get(idStr) || [];
+
+          return {
+            originalRow: row,
+            employeeId: row[5] || "",
+            name: row[10] || "",
+            candidateName: row[10] || "", // For modal compatibility
+            designation: row[11] || "",
+            mobileNo: row[12] || "",
+            lastWorkingDay: row[7] || "",
+            dateOfLeaving: row[7] || "",
+            reasonOfLeaving: row[8] || "",
+            salary: row[9] || "",
+            dateOfJoining: jRow[jIdxDOJ] || "",
+            joiningPlace: jRow[jIdxPlace] || "",
+            department: jRow[jIdxDept] || "",
+            fatherName: jRow[jIdxFather] || "",
+            candidatePhoto: jRow[jIdxPhoto] || "",
+
+            isArchived: isArchivedManual || isChecklistFilled
+          };
+        }).filter(item => {
           if (!item.isArchived) return false;
           
           const id = normalizeId(item.employeeId);
@@ -753,13 +791,13 @@ const Employee = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tl-lg">Profile</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee ID</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Details</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Joining Date</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Documents</th>
-                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tr-lg">Action</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tl-lg">Profile</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee ID</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Details</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Joining Date</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Location</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Documents</th>
+                    <th className="px-4 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tr-lg">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
@@ -785,7 +823,7 @@ const Employee = () => {
                   ) : (
                     filteredJoiningData.map((item, index) => (
                       <tr key={index} onClick={() => handleViewProfile(item)} className="hover:bg-indigo-50/80 transition-colors group cursor-pointer">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 min-w-[200px]">
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-full bg-indigo-100 overflow-hidden flex items-center justify-center border-2 border-white shadow-sm flex-shrink-0">
                               {item.candidatePhoto ? (
@@ -801,28 +839,28 @@ const Employee = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           <span className="font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md text-sm">{item.employeeId}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 min-w-[150px]">
                           <p className="text-sm font-semibold text-gray-700 flex items-center"><Briefcase size={14} className="mr-1.5 text-gray-400"/>{item.designation || 'N/A'}</p>
                           {item.department && item.department !== "N/A" && item.department !== "na" && (
                             <p className="text-xs text-gray-500 mt-1">{item.department}</p>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex items-center text-sm font-medium text-gray-600">
                             <Calendar size={14} className="mr-2 text-indigo-400" />
                             {item.dateOfJoining ? formatDOB(item.dateOfJoining) : "-"}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 min-w-[150px]">
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
                             <MapPin size={12} className="mr-1" />
                             {item.joiningPlace || 'N/A'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           {item.aadharPhoto ? (
                             <a href={item.aadharPhoto} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg text-xs font-bold transition-colors">
                               <FileText size={14} />
@@ -832,20 +870,20 @@ const Employee = () => {
                             <span className="text-gray-400 text-xs font-medium bg-gray-50 px-2 py-1 rounded">No doc</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <td className="px-4 py-4 whitespace-nowrap text-right">
                           <div className="flex justify-end gap-2">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEditClick(item);
                               }}
-                              className="px-4 py-2 bg-white border-2 border-indigo-200 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-colors shadow-sm"
+                              className="px-3 py-1.5 text-sm bg-white border-2 border-indigo-200 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-colors shadow-sm"
                             >
                               Edit
                             </button>
                             <button
                               onClick={(e) => handleLeaveClick(e, item)}
-                              className="px-4 py-2 bg-white border-2 border-rose-200 text-rose-600 font-bold rounded-xl hover:bg-rose-50 hover:border-rose-300 transition-colors shadow-sm"
+                              className="px-3 py-1.5 text-sm bg-white border-2 border-rose-200 text-rose-600 font-bold rounded-xl hover:bg-rose-50 hover:border-rose-300 transition-colors shadow-sm"
                             >
                               Mark Leave
                             </button>
@@ -871,12 +909,12 @@ const Employee = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tl-lg">Profile</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee ID</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Role & Details</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Duration</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tr-lg">Reason for Leaving</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tl-lg">Profile</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Employee ID</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Role & Details</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Duration</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider rounded-tr-lg">Reason for Leaving</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
@@ -902,7 +940,7 @@ const Employee = () => {
                   ) : (
                     filteredLeavingData.map((item, index) => (
                       <tr key={index} onClick={() => handleViewProfile(item)} className="hover:bg-rose-50/80 transition-colors group cursor-pointer">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 min-w-[200px]">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center border-2 border-white shadow-sm flex-shrink-0">
                               {item.candidatePhoto ? (
@@ -915,14 +953,14 @@ const Employee = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           <span className="font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md text-sm opacity-80">{item.employeeId}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 min-w-[150px]">
                           <p className="text-sm font-semibold text-gray-600">{item.designation}</p>
                           {item.department && <p className="text-xs text-gray-400 mt-0.5">{item.department}</p>}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex flex-col gap-1.5">
                             {item.dateOfJoining && (
                               <div className="flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded w-max border border-emerald-100">
@@ -934,10 +972,10 @@ const Employee = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
                           {item.mobileNo || '-'}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-4">
                           <p className="text-sm text-gray-600 italic border-l-2 border-rose-200 pl-3 py-1 bg-gray-50 rounded-r-lg max-w-xs truncate" title={item.reasonOfLeaving}>
                             "{item.reasonOfLeaving || 'No reason provided'}"
                           </p>
