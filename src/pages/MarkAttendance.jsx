@@ -549,9 +549,11 @@ const MarkAttendance = () => {
       });
 
       // Merge local unsynced entries to prevent duplicate punches due to Google Sheets sync lag
-      const unsyncedLocals = Array.isArray(rawEntries) ? rawEntries.filter(
+      const cachedData = readCache(MARK_ATTENDANCE_DATA_CACHE_KEY, MARK_ATTENDANCE_CACHE_TTL_MS) || {};
+      const latestRawEntries = Array.isArray(cachedData.rawEntries) ? cachedData.rawEntries : (Array.isArray(rawEntries) ? rawEntries : []);
+      const unsyncedLocals = latestRawEntries.filter(
         (entry) => entry && entry.isLocal && entry.dateObj && (Date.now() - new Date(entry.dateObj).getTime() < 120000)
-      ) : [];
+      );
 
       const uniqueUnsynced = unsyncedLocals.filter((local) => {
         if (!local || !local.employeeName || !local.dateObj) return false;

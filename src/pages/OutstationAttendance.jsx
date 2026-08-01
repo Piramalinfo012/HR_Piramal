@@ -8,11 +8,13 @@ const LEAVE_SHEET_NAME = 'FMS';
 const LEAVE_DATA_START_INDEX = 6;
 
 const OutstationAttendance = () => {
+  const currentMonthName = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][new Date().getMonth()];
   const [searchTerm, setSearchTerm] = useState('');
   const [employeeFilter, setEmployeeFilter] = useState('');
-  const [monthFilter, setMonthFilter] = useState('');
-  const [yearFilter, setYearFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState(currentMonthName);
+  const [yearFilter, setYearFilter] = useState(String(new Date().getFullYear()));
   const [attendanceView, setAttendanceView] = useState('calendar');
+  const [logDateFilter, setLogDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
   const [leaveData, setLeaveData] = useState([]);
@@ -205,6 +207,7 @@ const OutstationAttendance = () => {
       item.inTime.toLowerCase().includes(s) ||
       item.outTime.toLowerCase().includes(s) ||
       (item.address || '').toLowerCase().includes(s);
+      
     return matchesSearch &&
       (!employeeFilter || item.employeeName === employeeFilter) &&
       (!monthFilter || item.month === monthFilter) &&
@@ -270,21 +273,15 @@ const OutstationAttendance = () => {
              present += 1;
           }
         } else if (date <= todayStart) {
-          const dateKey = getDateKey(date);
-          const hasLeave = leaveData.some((leave) =>
-            normalizeName(leave.employeeName) === empNameNorm && leave.dateKeys.includes(dateKey)
-          );
-          if (!hasLeave) {
-            absent += 1;
-          }
+          absent += 1;
         }
       }
 
       return {
         Month: reportMonth,
         'Employee Name': employee,
-        'Total Present': present,
-        'Total Absent': absent,
+        'Total Present': present + (hd / 2),
+        'Total Absent': absent + (hd / 2),
         'WO': wo,
         'Late Coming/Half Day': hd,
         'Punch Miss': punchMiss
@@ -332,7 +329,6 @@ const OutstationAttendance = () => {
   const isAbsentCalendarDay = (day) => {
     if (!employeeFilter || !hasCalendarMonth || !day) return false;
     if ((calendarRowsByDay[day] || []).length > 0) return false;
-    if (hasLeaveFormOnDay(day)) return false;
 
     const date = new Date(Number(calendarYear), calendarMonthIndex, day);
     date.setHours(0, 0, 0, 0);
@@ -345,10 +341,20 @@ const OutstationAttendance = () => {
   const absentDayCount = absentCalendarDays.size;
 
   const calendarSummary = calendarRows.reduce((s, item) => {
-    s.present += 1;
-    if (item.inTime && item.inTime !== '-' && (!item.outTime || item.outTime === '-')) s.punchMiss += 1;
+    const isPunchMiss = item.inTime && item.inTime !== '-' && (!item.outTime || item.outTime === '-');
+    const inMins = parseTimeToMinutes(item.inTime);
+    const outMins = parseTimeToMinutes(item.outTime);
+    const isHD = !isPunchMiss && ((inMins !== null && inMins > (9 * 60 + 15)) || (outMins !== null && outMins < (18 * 60)));
+    
+    if (isPunchMiss) s.punchMiss += 1;
+    if (isHD) s.halfDay += 1;
+    else if (!isPunchMiss) s.fullPresent += 1;
+    
     return s;
-  }, { present: 0, punchMiss: 0, absent: absentDayCount });
+  }, { fullPresent: 0, halfDay: 0, punchMiss: 0, absent: absentDayCount });
+
+  calendarSummary.present = calendarSummary.fullPresent + calendarSummary.punchMiss + (calendarSummary.halfDay / 2);
+  calendarSummary.absent = calendarSummary.absent + (calendarSummary.halfDay / 2);
 
   const firstCalendarWeekday = hasCalendarMonth ? new Date(Number(calendarYear), calendarMonthIndex, 1).getDay() : 0;
   const calendarStartDate = hasCalendarMonth
@@ -386,7 +392,22 @@ const OutstationAttendance = () => {
     if (!cell.isCurrentMonth) return 'bg-transparent text-slate-400';
     const rows = calendarRowsByDay[cell.day] || [];
     let baseClass = 'bg-white text-slate-900';
-    if (rows.length > 0) baseClass = 'bg-emerald-200 text-slate-950';
+    if (rows.length > 0) {
+      const isPunchMiss = rows.some(r => r.inTime && r.inTime !== '-' && (!r.outTime || r.outTime === '-'));
+      const isHD = !isPunchMiss && rows.some(r => {
+        const inMins = parseTimeToMinutes(r.inTime);
+        const outMins = parseTimeToMinutes(r.outTime);
+        return (inMins !== null && inMins > (9 * 60 + 15)) || (outMins !== null && outMins < (18 * 60));
+      });
+      if (isPunchMiss) {
+        baseClass = 'bg-orange-100 ring-2 ring-orange-200 text-orange-800 font-bold';
+      } else if (isHD) {
+        baseClass = 'half-day-dot text-slate-950 font-bold shadow-sm';
+      } else {
+        baseClass = 'bg-emerald-200 text-slate-950 font-bold shadow-sm';
+      }
+    }
+    else if (hasLeaveFormOnDay(cell.day)) baseClass = 'bg-violet-200 text-violet-900 font-bold';
     else if (cell.weekday === 0) baseClass = 'bg-violet-100 text-violet-800';
     else if (absentCalendarDays.has(cell.day)) baseClass = 'bg-rose-500 text-white shadow-sm shadow-rose-200';
     return `${baseClass} ${isToday ? 'ring-2 ring-cyan-500 ring-offset-2' : ''}`;
@@ -487,13 +508,25 @@ const OutstationAttendance = () => {
             <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">Outstation Calendar</h2>
             <p className="text-xs text-slate-500">{calendarTitle}</p>
           </div>
-          <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-            <button onClick={() => setAttendanceView('calendar')} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition ${attendanceView === 'calendar' ? 'bg-navy text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}>
-              <CalendarDays size={16} /> Calendar
-            </button>
-            <button onClick={() => setAttendanceView('log')} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition ${attendanceView === 'log' ? 'bg-navy text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}>
-              <Table2 size={16} /> Attendance Log
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            {attendanceView === 'log' && (
+              <div className="relative">
+                <input type="date" value={logDateFilter} onChange={(e) => setLogDateFilter(e.target.value)} className="h-9 w-36 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100" />
+                {logDateFilter && (
+                  <button onClick={() => setLogDateFilter('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+              <button onClick={() => setAttendanceView('calendar')} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition ${attendanceView === 'calendar' ? 'bg-navy text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}>
+                <CalendarDays size={16} /> Calendar
+              </button>
+              <button onClick={() => setAttendanceView('log')} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition ${attendanceView === 'log' ? 'bg-navy text-white shadow-sm' : 'text-slate-600 hover:bg-white'}`}>
+                <Table2 size={16} /> Attendance Log
+              </button>
+            </div>
           </div>
         </div>
 
@@ -563,7 +596,7 @@ const OutstationAttendance = () => {
                       </div>
                       <TrendingUp size={14} className="text-slate-300" />
                     </div>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <div className="group flex flex-col items-center rounded-xl bg-emerald-50 py-2.5 transition-all hover:shadow-md hover:shadow-emerald-100">
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm shadow-emerald-200"><CheckCircle2 size={14} /></div>
                         <p className="mt-1.5 text-lg font-black text-emerald-700">{calendarSummary.present}</p>
@@ -573,6 +606,11 @@ const OutstationAttendance = () => {
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white shadow-sm shadow-rose-200"><XCircle size={14} /></div>
                         <p className="mt-1.5 text-lg font-black text-rose-700">{calendarSummary.absent}</p>
                         <p className="text-[9px] font-bold uppercase tracking-wide text-rose-500">Absent</p>
+                      </div>
+                      <div className="group flex flex-col items-center rounded-xl bg-amber-50 py-2.5 transition-all hover:shadow-md hover:shadow-amber-100">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm shadow-amber-200"><Clock size={14} /></div>
+                        <p className="mt-1.5 text-lg font-black text-amber-700">{calendarSummary.halfDay}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-amber-500">Half Day</p>
                       </div>
                       <div className="group flex flex-col items-center rounded-xl bg-orange-50 py-2.5 transition-all hover:shadow-md hover:shadow-orange-100">
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-white shadow-sm shadow-orange-200"><AlertCircle size={14} /></div>
@@ -626,7 +664,7 @@ const OutstationAttendance = () => {
                         <button type="button" onClick={() => setSelectedCalendarDay(null)} className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"><X size={16} /></button>
                       </div>
                       <p className={`text-xs font-medium ${absentCalendarDays.has(selectedCalendarDay) ? 'text-rose-600' : 'text-slate-400'}`}>
-                        {absentCalendarDays.has(selectedCalendarDay) ? 'Absent: no attendance mark and no leave form found for this date.' : 'No outstation records for this date.'}
+                        {hasLeaveFormOnDay(selectedCalendarDay) ? 'Absent: Leave form found for this date.' : absentCalendarDays.has(selectedCalendarDay) ? 'Absent: no attendance mark and no leave form found for this date.' : 'No outstation records for this date.'}
                       </p>
                     </div>
                   )}
@@ -649,10 +687,17 @@ const OutstationAttendance = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
-                {filteredData.length > 0 ? filteredData.map((item, index) => (
-                  <tr key={index} className="transition hover:bg-slate-50">
-                    <td className="whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-800">{item.date}</td>
-                    <td className="whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-700">{item.employeeName}</td>
+                {(() => {
+                  const tableData = filteredData.filter(item => {
+                    if (!logDateFilter) return true;
+                    const itemDateISO = item.dateObj ? `${item.dateObj.getFullYear()}-${String(item.dateObj.getMonth() + 1).padStart(2, '0')}-${String(item.dateObj.getDate()).padStart(2, '0')}` : '';
+                    return itemDateISO === logDateFilter;
+                  });
+
+                  return tableData.length > 0 ? tableData.map((item, index) => (
+                    <tr key={index} className="transition hover:bg-slate-50">
+                      <td className="whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-800">{item.date}</td>
+                      <td className="whitespace-nowrap px-5 py-3 text-sm font-semibold text-slate-700">{item.employeeName}</td>
                     <td className="whitespace-nowrap px-5 py-3 text-sm">
                       {item.inTime && item.inTime !== '-' ? (
                         <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700"><Clock size={12} />{item.inTime}</span>
@@ -676,7 +721,7 @@ const OutstationAttendance = () => {
                   </tr>
                 )) : (
                   <tr><td colSpan="6" className="px-6 py-16 text-center text-sm text-slate-500">No outstation attendance records found.</td></tr>
-                )}
+                ) })()}
               </tbody>
             </table>
           </div>
@@ -742,7 +787,7 @@ const OutstationAttendance = () => {
                 className="inline-flex items-center justify-center rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-dark"
               >
                 <Download size={18} className="mr-2" />
-                Download
+                Download Report
               </button>
             </div>
           </div>

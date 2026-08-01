@@ -10,10 +10,11 @@ const Attendance = () => {
   const ATTENDANCE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_GRdhFbP5zQX_HV72t9Ofcj5IHurSBJnPC5o0yr6_HvkLkMs9hOSLHIP0e26uG1iDlA/exec';
   const ATTENDANCE_SHEET_NAME = 'Data';
 
+  const currentMonthName = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][new Date().getMonth()];
   const [searchTerm, setSearchTerm] = useState('');
   const [employeeFilter, setEmployeeFilter] = useState('');
-  const [monthFilter, setMonthFilter] = useState('');
-  const [yearFilter, setYearFilter] = useState('');
+  const [monthFilter, setMonthFilter] = useState(currentMonthName);
+  const [yearFilter, setYearFilter] = useState(String(new Date().getFullYear()));
   const [reportMonth, setReportMonth] = useState('');
   const [reportYear, setReportYear] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);

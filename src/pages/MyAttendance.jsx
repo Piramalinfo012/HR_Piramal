@@ -414,10 +414,11 @@ const MyAttendance = () => {
   }, [monthRows, searchTerm, masterData]);
 
   const halfDayDays = filteredAttendance.filter((record) => getRecordStatus(record, masterData) === "HD").length;
-  const presentDays = filteredAttendance.filter((record) => {
+  const fullPresentDays = filteredAttendance.filter((record) => {
     const status = getRecordStatus(record, masterData);
     return status === "Present" || status === "Punch Miss";
   }).length;
+  const presentDays = fullPresentDays + (halfDayDays / 2);
   const punchMissDays = filteredAttendance.filter(
     (record) => (record.inTime || record.outTime) && (!record.inTime || !record.outTime)
   ).length;
@@ -439,7 +440,7 @@ const MyAttendance = () => {
     const date = new Date(selectedYear, selectedMonth, day);
     return date.getDay() !== 0 && !attendanceDaySet.has(day);
   }));
-  const absentDays = absentDaySet.size;
+  const absentDays = absentDaySet.size + (halfDayDays / 2);
   const weekOffDays = Array.from({ length: monthEndDay }, (_, index) => index + 1).filter((day) => {
     const date = new Date(selectedYear, selectedMonth, day);
     return date.getDay() === 0;
