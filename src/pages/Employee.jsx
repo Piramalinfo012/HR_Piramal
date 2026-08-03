@@ -593,7 +593,7 @@ const Employee = () => {
       writeVal(idxResume, resumeUrl);
 
       const payload = {
-        sheetName: "JOINING_FMS",
+        sheetName: "JOINING ENTRY FORM",
         action: "update",
         rowIndex: editingItem.rowIndex,
         rowData: JSON.stringify(updatedRow)
