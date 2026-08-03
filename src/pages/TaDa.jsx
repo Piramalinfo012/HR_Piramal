@@ -242,6 +242,7 @@ const TaDa = () => {
   const [activeTab, setActiveTab] = useState('fms');
   const [searchTerm, setSearchTerm] = useState('');
   const [employeeFilter, setEmployeeFilter] = useState('');
+  const [vehicleFilter, setVehicleFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [yearFilter, setYearFilter] = useState('');
   const [loading, setLoading] = useState(false);
@@ -443,6 +444,10 @@ const TaDa = () => {
     () => [...new Set(allRows.map((item) => item.year).filter(Boolean))].sort(),
     [allRows]
   );
+  const vehicleOptions = useMemo(
+    () => [...new Set(allRows.map((item) => item.vehicleType).filter(Boolean))].sort(),
+    [allRows]
+  );
 
   const matchesFilters = (item, useEmployeeFilter = true) => {
     const search = searchTerm.toLowerCase();
@@ -460,6 +465,7 @@ const TaDa = () => {
 
     return matchesSearch &&
       (!useEmployeeFilter || !employeeFilter || item.employeeName === employeeFilter) &&
+      (activeTab !== 'fms' || !vehicleFilter || item.vehicleType === vehicleFilter) &&
       (!monthFilter || item.month === monthFilter) &&
       (!yearFilter || item.year === yearFilter);
   };
@@ -624,6 +630,7 @@ const TaDa = () => {
   const clearFilters = () => {
     setSearchTerm('');
     setEmployeeFilter('');
+    setVehicleFilter('');
     setMonthFilter('');
     setYearFilter('');
   };
@@ -772,7 +779,7 @@ const TaDa = () => {
           </button>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr_0.75fr_0.65fr]">
+        <div className={`grid gap-3 ${activeTab === 'fms' ? 'lg:grid-cols-[1.4fr_1fr_0.9fr_0.75fr_0.65fr]' : 'lg:grid-cols-[1.5fr_1fr_0.75fr_0.65fr]'}`}>
           <label className="relative block">
             <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -797,6 +804,23 @@ const TaDa = () => {
             </select>
             <ChevronDown size={17} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
           </label>
+
+          {activeTab === 'fms' && (
+            <label className="relative block">
+              <Car size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <select
+                value={vehicleFilter}
+                onChange={(event) => setVehicleFilter(event.target.value)}
+                className="h-12 w-full appearance-none rounded-xl border border-slate-300 bg-white pl-12 pr-10 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-4 focus:ring-indigo-100"
+              >
+                <option value="">All Vehicles</option>
+                {vehicleOptions.map((vehicle) => (
+                  <option key={vehicle} value={vehicle}>{vehicle}</option>
+                ))}
+              </select>
+              <ChevronDown size={17} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            </label>
+          )}
 
           <label className="relative block">
             <CalendarDays size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
