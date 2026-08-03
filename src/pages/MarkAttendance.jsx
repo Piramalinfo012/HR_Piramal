@@ -13,8 +13,8 @@ const OUTSTATION_SPREADSHEET_ID = "1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw"
 const ATTENDANCE_SHEET_NAME = "Attendance";
 const MASTER_SHEET_NAME = "Master";
 const DEFAULT_ALLOWED_RADIUS_METERS = 100;
-const MARK_ATTENDANCE_CACHE_TTL_MS = 5 * 60 * 1000;
-const MARK_ATTENDANCE_MASTER_CACHE_TTL_MS = 15 * 60 * 1000;
+const MARK_ATTENDANCE_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days cache for attendance log
+const MARK_ATTENDANCE_MASTER_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days cache for master settings
 const MARK_ATTENDANCE_LOCATION_CACHE_TTL_MS = 2 * 60 * 1000;
 const MARK_ATTENDANCE_DATA_CACHE_KEY = "mark_attendance_data_cache_v1";
 const MARK_ATTENDANCE_MASTER_CACHE_KEY = "mark_attendance_master_cache_v1";
@@ -484,7 +484,9 @@ const MarkAttendance = () => {
   const [reason, setReason] = useState("");
   const [locationCheck, setLocationCheck] = useState(null);
   const [rawLocation, setRawLocation] = useState(() => readCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, MARK_ATTENDANCE_LOCATION_CACHE_TTL_MS) || null);
-  const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const [initialFetchDone, setInitialFetchDone] = useState(() => {
+    return !!(cachedAttendance?.attendanceData && cachedMasterUsers && cachedMasterUsers.length > 0);
+  });
   const isSubmittingRef = useRef(false);
 
   const matchedMasterUser = useMemo(
