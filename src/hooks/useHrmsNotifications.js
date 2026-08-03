@@ -292,10 +292,21 @@ export const useHrmsNotifications = ({ enabled = true, showToast = false } = {})
           fetch(`${import.meta.env.VITE_GOOGLE_SHEET_URL}?action=fetch&sheet=${encodeURIComponent('Onboard and Status')}${cacheBuster}`, { cache: 'no-store' }),
         ]);
 
-        const [joiningJson, feedJson] = await Promise.all([
-          joiningResponse.json(),
-          feedResponse.json(),
+        const [joiningText, feedText] = await Promise.all([
+          joiningResponse.text(),
+          feedResponse.text(),
         ]);
+
+        let joiningJson, feedJson;
+        try {
+          joiningJson = JSON.parse(joiningText);
+          feedJson = JSON.parse(feedText);
+        } catch (parseError) {
+          // Apps Script occasionally returns an HTML error/redirect page instead
+          // of JSON under concurrent load. Skip this cycle and keep existing data.
+          if (isMounted) setNotificationsLoading(false);
+          return;
+        }
 
         const joiningRows = joiningJson.data || joiningJson;
         const feedRows = feedJson.data || feedJson;

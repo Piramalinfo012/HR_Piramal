@@ -401,7 +401,7 @@ const Employee = () => {
               base64Data: base64Data,
               fileName: file.name,
               mimeType: file.type,
-              folderId: folderId,
+              folderId: '1DL_Xf0_9fszToIDlZ3MMsiebDSK4OeIu2FOa1kvA8vPZCGoVKN6Johxc95FLVqP9Qp7cBp9v',
             }),
           });
           const result = await response.json();
@@ -509,94 +509,87 @@ const Employee = () => {
         resumeUrl = await uploadFile(editFormData.resumeUploadFile, "1wofoM_7jVDj61UV1R5QoxSdQeJhZTOgJMaAOKEqrbvqO-5HUis6qoc3z65K2e2JDIPMZpC7q");
       }
 
-      const getIndex = (names) => sheetHeaders.findIndex(h => h && names.map(n => n.toLowerCase()).includes(h.toString().trim().toLowerCase()));
-      
-      const idxName = getIndex(["Candidate Name", "Name as per Aadhar", "Name"]);
-      const idxFather = getIndex(["Father Name", "Father's Name"]);
-      const idxDOJ = getIndex(["Date of Joining"]);
-      const idxPlace = getIndex(["Joining Place"]);
-      const idxDesig = getIndex(["Designation"]);
-      const idxDept = getIndex(["Department"]);
-      const idxSalary = getIndex(["Salary"]);
-      const idxAadharPhoto = getIndex(["Aadhar Front Photo", "Aadhar Photo"]);
-      const idxPanPhoto = getIndex(["PAN Card"]);
-      const idxCandidatePhoto = getIndex(["Candidate Photo", "Profile Photo"]);
-      const idxCurrentAddress = getIndex(["Current Address"]);
-      const idxAadharAddress = getIndex(["Address as per Aadhar"]);
-      const idxDOB = getIndex(["DOB as per Aadhar", "Date of Birth"]);
-      const idxGender = getIndex(["Gender"]);
-      const idxMobile = getIndex(["Contact No", "Mobile No", "Mobile Number"]);
-      const idxFamilyMobile = getIndex(["Family Mobile No"]);
-      const idxReference = getIndex(["Two Reference No", "Reference"]);
-      const idxPf = getIndex(["Past PF ID", "PF ID"]);
-      const idxBankAc = getIndex(["Current Bank AC No", "Bank Account No"]);
-      const idxIfsc = getIndex(["IFSC Code"]);
-      const idxBranch = getIndex(["Branch Name"]);
-      const idxPassbookPhoto = getIndex(["Bank Passbook Photo"]);
-      const idxEmail = getIndex(["Email Id", "Personal Email", "Email"]);
-      const idxEsic = getIndex(["ESIC No"]);
-      const idxQualification = getIndex(["Highest Qualification"]);
-      const idxAadharNo = getIndex(["Aadhar Card No", "Aadhar No"]);
-      const idxQualPhoto = getIndex(["Qualification Photo"]);
-      const idxSalarySlip = getIndex(["Salary Slip"]);
-      const idxResume = getIndex(["Resume Upload", "Resume"]);
+      // Joining details are stored in the "JOINING ENTRY FORM" sheet.
+      // Read it and locate this employee's row by Candidate Enquiry No.
+      // (row order differs from JOINING_FMS, so we must match by key, not row index).
+      const jefResponse = await fetch(
+        `${import.meta.env.VITE_JOINING_SHEET_URL}?action=read&sheet=${encodeURIComponent("JOINING ENTRY FORM")}&_=${Date.now()}`
+      );
+      const jefJson = JSON.parse(await jefResponse.text());
+      const jefData = jefJson.data || [];
+      const jefHeaders = jefData[0] || [];
 
-      let updatedRow = [...editingItem.originalRow];
+      const getIndex = (names) => jefHeaders.findIndex(h => h && names.map(n => n.toLowerCase().trim()).includes(h.toString().trim().toLowerCase()));
+
+      const idxEnquiry = getIndex(["Candidate Enquiry No.", "Candidate Enquiry No", "Indent Number"]);
+      const targetKey = normalizeId(editingItem.employeeId);
+
+      let matchRow = -1;
+      for (let i = 1; i < jefData.length; i++) {
+        if (idxEnquiry !== -1 && normalizeId(jefData[i][idxEnquiry]) === targetKey && targetKey !== "") {
+          matchRow = i;
+          break;
+        }
+      }
+      if (matchRow === -1) {
+        throw new Error("Matching joining record not found in JOINING ENTRY FORM");
+      }
+
+      let updatedRow = [...jefData[matchRow]];
 
       const writeVal = (idx, val) => {
         if (idx !== -1) updatedRow[idx] = val;
       };
 
-      writeVal(idxName, editFormData.candidateName);
-      writeVal(idxFather, editFormData.fatherName);
-      
+      writeVal(getIndex(["Name As per Aadhar", "Candidate Name", "Name"]), editFormData.candidateName);
+      writeVal(getIndex(["Father Name", "Father's Name"]), editFormData.fatherName);
+
       if (editFormData.dateOfJoining) {
         const d = new Date(editFormData.dateOfJoining);
-        writeVal(idxDOJ, `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`);
+        writeVal(getIndex(["Date of Joining"]), `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`);
       } else {
-        writeVal(idxDOJ, "");
+        writeVal(getIndex(["Date of Joining"]), "");
       }
-      
-      writeVal(idxPlace, editFormData.joiningPlace);
-      writeVal(idxDesig, editFormData.designation);
-      writeVal(idxDept, editFormData.department);
-      writeVal(idxSalary, editFormData.salary);
-      writeVal(idxCurrentAddress, editFormData.currentAddress);
-      writeVal(idxAadharAddress, editFormData.addressAsPerAadhar);
-      
+
+      writeVal(getIndex(["Joining Place"]), editFormData.joiningPlace);
+      writeVal(getIndex(["Designation"]), editFormData.designation);
+      writeVal(getIndex(["Salary"]), editFormData.salary);
+      writeVal(getIndex(["Current Address"]), editFormData.currentAddress);
+      writeVal(getIndex(["Address  As per Aadhar Card", "Address As per Aadhar Card", "Address as per Aadhar"]), editFormData.addressAsPerAadhar);
+
       if (editFormData.dobAsPerAadhar) {
         const d = new Date(editFormData.dobAsPerAadhar);
-        writeVal(idxDOB, `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`);
+        writeVal(getIndex(["Date of Birth As Per Aadhar Card", "DOB as per Aadhar", "Date of Birth"]), `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`);
       } else {
-        writeVal(idxDOB, "");
+        writeVal(getIndex(["Date of Birth As Per Aadhar Card", "DOB as per Aadhar", "Date of Birth"]), "");
       }
-      
-      writeVal(idxGender, editFormData.gender);
-      writeVal(idxMobile, editFormData.mobileNo);
-      writeVal(idxFamilyMobile, editFormData.familyMobileNo);
-      writeVal(idxReference, editFormData.twoReferenceNo);
-      writeVal(idxPf, editFormData.pastPfId);
-      writeVal(idxBankAc, editFormData.currentBankAcNo);
-      writeVal(idxIfsc, editFormData.ifscCode);
-      writeVal(idxBranch, editFormData.branchName);
-      writeVal(idxEmail, editFormData.personalEmail);
-      writeVal(idxEsic, editFormData.esicNo);
-      writeVal(idxQualification, editFormData.highestQualification);
-      writeVal(idxAadharNo, editFormData.aadharCardNo);
-      
-      writeVal(idxAadharPhoto, aadharUrl);
-      writeVal(idxPanPhoto, panUrl);
-      writeVal(idxCandidatePhoto, photoUrl);
-      writeVal(idxPassbookPhoto, passbookUrl);
-      writeVal(idxQualPhoto, qualUrl);
-      writeVal(idxSalarySlip, salarySlipUrl);
-      writeVal(idxResume, resumeUrl);
+
+      writeVal(getIndex(["Gender"]), editFormData.gender);
+      writeVal(getIndex(["Mobile No.", "Contact No", "Mobile No", "Mobile Number"]), editFormData.mobileNo);
+      writeVal(getIndex(["Family Mobile No.", "Family Mobile No"]), editFormData.familyMobileNo);
+      writeVal(getIndex(["2 Reference No", "Two Reference No", "Reference"]), editFormData.twoReferenceNo);
+      writeVal(getIndex(["Past Pf Id No. (If Any)", "Past PF ID", "PF ID"]), editFormData.pastPfId);
+      writeVal(getIndex(["Current Bank AC No.", "Current Bank AC No", "Bank Account No"]), editFormData.currentBankAcNo);
+      writeVal(getIndex(["IFSC Code"]), editFormData.ifscCode);
+      writeVal(getIndex(["Branch Name"]), editFormData.branchName);
+      writeVal(getIndex(["Personal Email-Id", "Email Id", "Personal Email", "Email"]), editFormData.personalEmail);
+      writeVal(getIndex(["ESIC No (IF Any)", "ESIC No"]), editFormData.esicNo);
+      writeVal(getIndex(["Highest Qualification"]), editFormData.highestQualification);
+      writeVal(getIndex(["Aadhar Card No", "Aadhar No"]), editFormData.aadharCardNo);
+
+      writeVal(getIndex(["Aadhar Frontside photo", "Aadhar Front Photo", "Aadhar Photo"]), aadharUrl);
+      writeVal(getIndex(["Pan Card", "PAN Card"]), panUrl);
+      writeVal(getIndex(["Candidate Photo", "Profile Photo"]), photoUrl);
+      writeVal(getIndex(["Photo Of Front Bank Passbook", "Bank Passbook Photo"]), passbookUrl);
+      writeVal(getIndex(["Highest  Qualification Photo", "Highest Qualification Photo", "Qualification Photo"]), qualUrl);
+      writeVal(getIndex(["Salary Slip"]), salarySlipUrl);
+      writeVal(getIndex(["Resume/Cv Upload", "Resume Upload", "Resume"]), resumeUrl);
 
       const payload = {
-        sheetName: "JOINING ENTRY FORM",
+        sheet: "JOINING ENTRY FORM",
         action: "update",
-        rowIndex: editingItem.rowIndex,
-        rowData: JSON.stringify(updatedRow)
+        rowNumber: matchRow + 1,
+        data: JSON.stringify(updatedRow)
       };
 
       const response = await fetch(
