@@ -48,11 +48,22 @@ const getDocumentPreviewUrl = (url) => {
   return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w600` : url;
 };
 
+const DOCUMENTS_CACHE_KEY = 'hrms_documents_folders_cache_v2';
+
+const getCachedFolders = () => {
+  try {
+    const cached = localStorage.getItem(DOCUMENTS_CACHE_KEY);
+    return cached ? JSON.parse(cached) : [];
+  } catch {
+    return [];
+  }
+};
+
 const Documents = () => {
-  const [employeeFolders, setEmployeeFolders] = useState([]);
+  const [employeeFolders, setEmployeeFolders] = useState(getCachedFolders);
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => getCachedFolders().length === 0);
   const [error, setError] = useState(null);
 
   const googleSheetUrl = import.meta.env.VITE_GOOGLE_SHEET_URL;
@@ -135,19 +146,34 @@ const Documents = () => {
   };
 
   const fetchJoiningRows = async () => {
+    // Prioritize fast joiningSheetUrl (JOINING_FMS) over slower main googleSheetUrl
     const sources = [
-      `${googleSheetUrl}?sheet=JOINING&action=fetch`,
       `${joiningSheetUrl}?action=read&sheet=JOINING_FMS`,
-    ];
+      `${googleSheetUrl}?sheet=JOINING&action=fetch`,
+    ].filter((src) => src && !src.startsWith('undefined'));
 
     for (const source of sources) {
-      if (!source || source.startsWith('undefined')) continue;
-
       try {
-        const response = await fetch(source);
-        const result = await response.json();
-        const rows = result.data || result;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const response = await fetch(source, { signal: controller.signal });
+        clearTimeout(timeoutId);
 
+        const text = await response.text();
+        let result;
+        try {
+          const jsonStart = text.indexOf('{');
+          const jsonEnd = text.lastIndexOf('}');
+          if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+            result = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+          } else {
+            result = JSON.parse(text);
+          }
+        } catch {
+          continue;
+        }
+
+        const rows = result.data || result;
         if (Array.isArray(rows) && rows.length > 0) {
           const folders = buildEmployeeFolders(rows);
           if (folders.length > 0) return folders;
@@ -160,24 +186,32 @@ const Documents = () => {
     throw new Error('No employee document data found');
   };
 
-  const fetchDocuments = async () => {
-    setLoading(true);
+  const fetchDocuments = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     setError(null);
 
     try {
       const folders = await fetchJoiningRows();
       setEmployeeFolders(folders);
+      try {
+        localStorage.setItem(DOCUMENTS_CACHE_KEY, JSON.stringify(folders));
+      } catch (e) {
+        // ignore quota errors
+      }
     } catch (fetchError) {
       console.error('Error fetching employee documents:', fetchError);
-      setError(fetchError.message);
-      setEmployeeFolders([]);
+      setEmployeeFolders((prev) => {
+        if (prev.length === 0) setError(fetchError.message);
+        return prev;
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDocuments();
+    const hasCache = getCachedFolders().length > 0;
+    fetchDocuments(hasCache);
   }, []);
 
   const filteredFolders = useMemo(() => {
