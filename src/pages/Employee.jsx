@@ -103,6 +103,25 @@ const Employee = () => {
   // Removes all non-alphanumeric characters and lowercases
   const normalizeId = (id) => id ? id.toString().toLowerCase().replace(/[^a-z0-9]/g, "") : "";
 
+  const parseJsonSafely = (text, fallback = { data: [] }) => {
+    if (!text || typeof text !== "string") return fallback;
+    try {
+      const jsonStart = text.indexOf("{");
+      const jsonEnd = text.lastIndexOf("}");
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        return JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+      }
+      const arrStart = text.indexOf("[");
+      const arrEnd = text.lastIndexOf("]");
+      if (arrStart !== -1 && arrEnd !== -1 && arrEnd > arrStart) {
+        return JSON.parse(text.slice(arrStart, arrEnd + 1));
+      }
+      return JSON.parse(text);
+    } catch (e) {
+      return fallback;
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     setTableLoading(true);
@@ -119,10 +138,9 @@ const Employee = () => {
         leavingResponse.text()
       ]);
 
-      // Parse JSON
-      let joiningJson, leavingJson;
-      try { joiningJson = JSON.parse(joiningText); } catch (e) { console.error("Joining Parse Error", e); joiningJson = { data: [] }; }
-      try { leavingJson = JSON.parse(leavingText); } catch (e) { console.error("Leaving Parse Error", e); leavingJson = { data: [] }; }
+      // Parse JSON safely
+      const joiningJson = parseJsonSafely(joiningText, { data: [] });
+      const leavingJson = parseJsonSafely(leavingText, { data: [] });
 
       const rawJoining = joiningJson.data || [];
       const rawLeaving = leavingJson.data || [];
@@ -515,7 +533,7 @@ const Employee = () => {
       const jefResponse = await fetch(
         `${import.meta.env.VITE_JOINING_SHEET_URL}?action=read&sheet=${encodeURIComponent("JOINING ENTRY FORM")}&_=${Date.now()}`
       );
-      const jefJson = JSON.parse(await jefResponse.text());
+      const jefJson = parseJsonSafely(await jefResponse.text(), { data: [] });
       const jefData = jefJson.data || [];
       const jefHeaders = jefData[0] || [];
 

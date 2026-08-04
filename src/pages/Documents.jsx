@@ -96,7 +96,7 @@ const Documents = () => {
       return acc;
     }, {});
 
-    return dataRows
+    const allFolders = dataRows
       .map((row, index) => {
         const employeeName = row[nameIndex]?.toString().trim() || '';
         const employeeId = row[idIndex]?.toString().trim() || '';
@@ -120,7 +120,17 @@ const Documents = () => {
           uploadedCount: documents.filter((doc) => doc.url).length,
         };
       })
-      .filter(Boolean)
+      .filter(Boolean);
+
+    const uniqueFolders = new Map();
+    allFolders.forEach(folder => {
+      const key = folder.employeeId || folder.name;
+      if (!uniqueFolders.has(key) || uniqueFolders.get(key).uploadedCount < folder.uploadedCount) {
+        uniqueFolders.set(key, folder);
+      }
+    });
+
+    return Array.from(uniqueFolders.values())
       .sort((a, b) => a.name.localeCompare(b.name));
   };
 

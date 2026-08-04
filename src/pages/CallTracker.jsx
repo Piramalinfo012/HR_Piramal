@@ -1,8 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 // Module-level cache — survives re-renders and page navigation
-// (React re-creates state on every mount, but module vars persist)
-let _cachedCallTrackerData = null; // raw full data from sheet
+let _cachedCallTrackerData = null;
+try {
+  const cached = localStorage.getItem('call_tracker_cache');
+  if (cached) {
+    _cachedCallTrackerData = JSON.parse(cached);
+  }
+} catch (e) {
+  console.error("Cache read error", e);
+}
 
 import { Search, X, Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -26,26 +33,6 @@ const CallTracker = () => {
   // Local State
   const [callingTrackingData, setCallingTrackingData] = useState([]);
   const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
-
-  const fetchCallingTrackingData = async () => {
-    try {
-      const cb = `&_=${Date.now()}`;
-      const res = await fetch(
-        `${FETCH_URL}?sheet=Calling Tracking&action=fetch${cb}`,
-      );
-      const json = await res.json();
-      if (json.success && json.data) {
-        setCallingTrackingData(json.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch calling tracking data for counts", error);
-    }
-  };
-
-  useEffect(() => {
-    // Get fresh data for counts on mount
-    fetchCallingTrackingData();
-  }, []);
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -160,7 +147,7 @@ const CallTracker = () => {
   useEffect(() => {
     if (!initialLoaded) return;
     const timer = setTimeout(() => {
-      loadData(true); // background fetch to avoid loading flashes
+      applyFiltersAndSet(_cachedCallTrackerData); // instantly filter locally, don't hit server on every keystroke
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm, dateFilter, currentPage, fromDate, toDate, entryByFilter]);
@@ -202,14 +189,14 @@ const CallTracker = () => {
   };
 
   const loadData = async (isBackground = false) => {
-    // Serve from module cache instantly (no spinner) while we refresh in background
-    if (_cachedCallTrackerData && !isBackground) {
-      // Apply filters on cached data immediately, show instantly
+    const isEvent = typeof isBackground === 'object';
+    const isBg = isBackground === true;
+
+    // Serve from module cache instantly (no spinner) on mount
+    if (_cachedCallTrackerData && !isBg && !isEvent) {
       applyFiltersAndSet(_cachedCallTrackerData);
       setTableLoading(false);
-      // Still refresh in background
-      isBackground = true;
-    } else if (!isBackground) {
+    } else if (!isBg) {
       setTableLoading(true);
     }
 
@@ -220,8 +207,14 @@ const CallTracker = () => {
       const json = await res.json();
 
       if (json.success && json.data) {
-        // Store raw data in module cache
+        // Store raw data in module cache and localStorage
         _cachedCallTrackerData = { raw: json.data, nextTaskId: json.nextTaskId };
+        try {
+          localStorage.setItem('call_tracker_cache', JSON.stringify(_cachedCallTrackerData));
+        } catch (e) {
+          console.error("Cache write error", e);
+        }
+        setCallingTrackingData(json.data);
         applyFiltersAndSet(_cachedCallTrackerData, result);
       } else {
         result = { success: false, error: json.error || 'Failed to fetch data' };
@@ -237,7 +230,7 @@ const CallTracker = () => {
         setDisplayData([]);
       }
     }
-    if (!isBackground) setTableLoading(false);
+    if (!isBg) setTableLoading(false);
   };
 
   const applyFiltersAndSet = (cached, _result) => {
@@ -572,12 +565,12 @@ const CallTracker = () => {
       
       const rowIndex = index + 1;
 
-      // 2. Send Delete Request (Trying deleteRow action)
+      // 2. Send Delete Request (Trying delete action)
       const res = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
         method: "POST",
         body: new URLSearchParams({
           sheetName: "Calling Tracking",
-          action: "deleteRow", 
+          action: "delete", 
           rowIndex: rowIndex
         })
       });
