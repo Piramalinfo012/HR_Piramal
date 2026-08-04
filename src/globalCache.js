@@ -187,9 +187,10 @@ export const initGlobalCache = () => {
           }
         }
 
-        // 3. Fallback: Network Fetch (with retry if Apps Script returns an HTML
-        // error/quota page instead of real data - this happens transiently with
-        // HTTP 200, so !res.ok alone doesn't catch it)
+        // 3. Fallback: Network Fetch (with retry). Apps Script's "echo" redirect
+        // target intermittently 404s (concurrent-execution limit) or returns
+        // HTTP 200 with an HTML error/quota page - both are transient, so retry
+        // a few times with backoff instead of failing/caching the bad response.
         const fetchOnce = () => originalFetch(input, init);
 
         const isInvalidBody = (text) => {
@@ -197,29 +198,27 @@ export const initGlobalCache = () => {
           return !trimmed || trimmed.startsWith('<');
         };
 
+        const MAX_ATTEMPTS = 6;
+        const RETRY_DELAYS_MS = [400, 700, 1100, 1600, 2200];
+
         const promise = (async () => {
-          let res = await fetchOnce();
-          if (!res.ok) {
-            fetchCache.delete(cacheKey);
-            return res;
-          }
+          let res;
+          let text = '';
 
-          let text = await res.clone().text();
-
-          // Apps Script sometimes returns HTTP 200 with an HTML error/quota page.
-          // Retry once after a short delay instead of caching the bad response.
-          if (isInvalidBody(text)) {
-            await new Promise((resolve) => setTimeout(resolve, 800));
-            res = await fetchOnce();
-            if (!res.ok) {
-              fetchCache.delete(cacheKey);
-              return res;
+          for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            if (attempt > 0) {
+              await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1]));
             }
+
+            res = await fetchOnce();
+            if (!res.ok) continue;
+
             text = await res.clone().text();
+            if (!isInvalidBody(text)) break;
           }
 
-          if (isInvalidBody(text)) {
-            // Still bad after retry - do not poison the shared cache for other pages
+          if (!res.ok || isInvalidBody(text)) {
+            // Still bad after retries - do not poison the shared cache for other pages
             fetchCache.delete(cacheKey);
             return res;
           }
