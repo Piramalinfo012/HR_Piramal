@@ -254,12 +254,6 @@ const TaDa = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData&sheet=FMS`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-      const result = await response.json();
-      if (result.status !== 'success') throw new Error(result.message || 'Failed to fetch TA/DA data');
-
       let fmsSheetRows = [];
       try {
         fmsSheetRows = await fetchFmsRowsFromSheet();
@@ -267,58 +261,44 @@ const TaDa = () => {
         console.error('FMS sheet detail fetch failed:', sheetError);
       }
 
-      const visits = (result.visit || [])
+      const rawFmsRows = await fetchSheetRows('FMS').catch(() => []);
+      const visits = rawFmsRows
         .filter((row) => {
-          const personName = String(row?.personName || '').trim();
+          const personName = String(row[2] || '').trim();
           return personName && personName.toLowerCase() !== 'person name';
         })
         .map((row, index) => {
           const fmsSheetRow = fmsSheetRows[index] || {};
-          const dateSource = pickValue(row, ['date', 'returnDate', 'inTime', 'outTime']);
+          const dateSource = row[0] || row[13] || '';
           const dateMeta = getMonthYear(dateSource);
-          const rawKm = fmsSheetRow.totalRunningKm || parseNumber(pickValue(row, ['totalRunning', 'Total Running Km']));
+          const rawKm = fmsSheetRow.totalRunningKm || parseNumber(row[7]);
           const totalRunningKm = Math.round(rawKm);
-          const vehicleType = pickValue(row, ['vehicleType', 'inVehicleType', 'IN Vehicle Type']) || fmsSheetRow.vehicleType || '';
+          const vehicleType = row[5] || row[16] || fmsSheetRow.vehicleType || '';
           const calculatedAmount = Math.round(rawKm * getVehicleKmRate(vehicleType));
-          const inProofUrl = pickValue(row, [
-            'inVehicleProof',
-            'inVehiclePic',
-            'inVehicleMtrPic',
-            'inVehicleMtrPicTicketPic',
-            'inVehicleMeterPic',
-            'ticketPic',
-            'ticketUrl',
-            'mapLink',
-          ]) || fmsSheetRow.inProofUrl;
-          const outProofUrl = pickValue(row, [
-            'outVehicleProof',
-            'outVehiclePic',
-            'outVehicleMtrPic',
-            'outVehicleMeterPic',
-            'vehicleMtrPic',
-            'vehicleMtrPicTicketPic',
-          ]) || fmsSheetRow.outProofUrl;
+          
+          const inProofUrl = processGoogleDriveLink(row[8]) || fmsSheetRow.inProofUrl;
+          const outProofUrl = processGoogleDriveLink(row[18] || row[15]) || fmsSheetRow.outProofUrl;
 
           return {
             id: `visit-${index}`,
             source: 'FMS',
-            serialNo: pickValue(row, ['serialNo', 'Serial No']) || fmsSheetRow.serialNo || `VIS-${String(index + 1).padStart(3, '0')}`,
-            employeeName: String(row.personName || '').trim(),
+            serialNo: row[1] || fmsSheetRow.serialNo || `VIS-${String(index + 1).padStart(3, '0')}`,
+            employeeName: String(row[2] || '').trim(),
             date: formatDateValue(dateSource),
             dateObj: dateMeta.dateObj,
             month: dateMeta.month,
             year: dateMeta.year,
-            from: pickValue(row, ['from', 'From']),
-            to: pickValue(row, ['to', 'To']),
-            inTime: formatTimeValue(pickValue(row, ['inTime', 'Timestamp'])),
-            outTime: formatTimeValue(pickValue(row, ['outTime', 'Actual'])),
+            from: row[3] || '',
+            to: row[4] || '',
+            inTime: formatTimeValue(row[0]),
+            outTime: formatTimeValue(row[13]),
             vehicleType,
             totalRunningKm,
             kmRate: getVehicleKmRate(vehicleType),
             inVehicleAmount: calculatedAmount,
             outVehicleAmount: '',
             totalAmount: calculatedAmount,
-            remarks: pickValue(row, ['remarks', 'Remarks']),
+            remarks: row[10] || '',
             proofLinks: buildUrlLinks([
               { label: 'IN Proof', url: inProofUrl },
               { label: 'OUT Proof', url: outProofUrl },
@@ -326,42 +306,49 @@ const TaDa = () => {
           };
         });
 
-      const travelling = (result.travelling || [])
-        .filter((row) => String(row?.personName || '').trim())
+      const rawTravellingRows = await fetchSheetRows('Travelling').catch(() => []);
+      const travelling = rawTravellingRows
+        .filter((row) => {
+          const personName = String(row[1] || '').trim();
+          return personName && personName.toLowerCase() !== 'person name';
+        })
         .map((row, index) => {
-          const dateMeta = getMonthYear(row.dateTime);
-          const advanceAmount = parseNumber(row.advanceAmount);
+          const personName = row[1] || '';
+          const dateTime = row[0] || '';
+          const fromLocation = row[2] || '';
+          const toLocation = row[3] || '';
+          const vehicleType = row[4] || '';
+          const stayDay = row[5] || '';
+          
+          const dateMeta = getMonthYear(dateTime);
+          const advanceAmount = parseNumber(row[16]);
 
           return {
             id: `travel-${index}`,
             source: 'Travelling',
             serialNo: `TA-${String(index + 1).padStart(3, '0')}`,
-            employeeName: String(row.personName || '').trim(),
-            date: formatDateValue(row.dateTime),
+            employeeName: String(personName).trim(),
+            date: formatDateValue(dateTime),
             dateObj: dateMeta.dateObj,
             month: dateMeta.month,
             year: dateMeta.year,
-            from: row.fromLocation || '',
-            to: row.toLocation || '',
-            inTime: formatTimeValue(row.dateTime),
+            from: fromLocation,
+            to: toLocation,
+            inTime: formatTimeValue(dateTime),
             outTime: '-',
-            vehicleType: row.vehicleType || '',
-            stayDay: parseNumber(row.stayDay),
+            vehicleType: vehicleType,
+            stayDay: parseNumber(stayDay),
             advanceAmount,
             totalAmount: advanceAmount,
             proofLinks: buildUrlLinks([
-              { label: 'Stay Bill', url: row.stayBillImage },
-              { label: 'Food Bill', url: row.foodingBillImage },
-              { label: 'Receipt', url: row.travelReceipt },
+              { label: 'Stay Bill', url: processGoogleDriveLink(row[8]) },
+              { label: 'Food Bill', url: processGoogleDriveLink(row[10]) },
+              { label: 'Receipt', url: processGoogleDriveLink(row[11]) },
             ]),
           };
         });
 
-      const rawAdvanceRowsValue = result.advance || result.Advance || result.advances || result.advanceData || result.advanceRows || [];
-      let rawAdvanceRows = Array.isArray(rawAdvanceRowsValue) ? rawAdvanceRowsValue : [];
-      if (rawAdvanceRows.length === 0) {
-        rawAdvanceRows = await fetchAdvanceRowsFromSheet();
-      }
+      let rawAdvanceRows = await fetchAdvanceRowsFromSheet().catch(() => []);
 
       const advances = rawAdvanceRows
         .map(normalizeAdvanceRow)
