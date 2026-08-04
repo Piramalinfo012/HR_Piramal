@@ -276,8 +276,8 @@ const TaDa = () => {
           const vehicleType = row[5] || row[16] || fmsSheetRow.vehicleType || '';
           const calculatedAmount = Math.round(rawKm * getVehicleKmRate(vehicleType));
           
-          const inProofUrl = processGoogleDriveLink(row[8]) || fmsSheetRow.inProofUrl;
-          const outProofUrl = processGoogleDriveLink(row[18] || row[15]) || fmsSheetRow.outProofUrl;
+          const inProofUrl = row[8] || fmsSheetRow.inProofUrl;
+          const outProofUrl = (row[18] || row[15]) || fmsSheetRow.outProofUrl;
 
           return {
             id: `visit-${index}`,
@@ -341,9 +341,9 @@ const TaDa = () => {
             advanceAmount,
             totalAmount: advanceAmount,
             proofLinks: buildUrlLinks([
-              { label: 'Stay Bill', url: processGoogleDriveLink(row[8]) },
-              { label: 'Food Bill', url: processGoogleDriveLink(row[10]) },
-              { label: 'Receipt', url: processGoogleDriveLink(row[11]) },
+              { label: 'Stay Bill', url: row[8] },
+              { label: 'Food Bill', url: row[10] },
+              { label: 'Receipt', url: row[11] },
             ]),
           };
         });
