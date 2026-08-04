@@ -188,8 +188,52 @@ const OutstationAttendance = () => {
     setLoading(true);
     setError(null);
     try {
-      const [response, rawLeaves, joiningResponse, masterResponse] = await Promise.all([
-        fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData`),
+      const fetchRawAttendance = async () => {
+        if (OUTSTATION_SCRIPT_URL) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6000);
+            const res = await fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+              const text = await res.text();
+              const jsonStart = text.indexOf('{');
+              const jsonEnd = text.lastIndexOf('}');
+              if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                const data = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+                if (data.status === 'success' && Array.isArray(data.attendance)) {
+                  return data.attendance;
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('OUTSTATION_SCRIPT_URL fetch skipped, using gviz fallback:', e);
+          }
+        }
+
+        // Direct gviz fallback for Attendance sheet
+        const gvizUrl = `https://docs.google.com/spreadsheets/d/${OUTSTATION_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=Attendance&cb=${Date.now()}`;
+        const gvizRes = await fetch(gvizUrl);
+        if (!gvizRes.ok) throw new Error(`HTTP error! status: ${gvizRes.status}`);
+        const gvizText = await gvizRes.text();
+        const rows = parseGoogleSheetTable(gvizText, "Attendance");
+
+        return rows.map((row) => {
+          const statusStr = (row[3] || '').toString().trim().toUpperCase();
+          const dt = row[1] || row[0] || '';
+          return {
+            personName: row[9] || '',
+            dateTime: dt,
+            inDate: statusStr === 'IN' ? dt : '',
+            outDate: statusStr === 'OUT' ? dt : '',
+            mapLink: row[7] || '',
+            address: row[8] || '',
+          };
+        });
+      };
+
+      const [rawAttendance, rawLeaves, joiningResponse, masterResponse] = await Promise.all([
+        fetchRawAttendance(),
         LEAVE_API_URL
           ? fetch(`${LEAVE_API_URL}?sheet=${encodeURIComponent(LEAVE_SHEET_NAME)}&action=fetch`)
             .then(async (leaveResponse) => {
@@ -221,11 +265,6 @@ const OutstationAttendance = () => {
           })
       ]);
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const result = await response.json();
-      if (result.status !== 'success') throw new Error(result.message || 'Failed to fetch data');
-
-      const rawAttendance = result.attendance || [];
       setMasterData(masterResponse || []);
 
       // Build Employee Code Map from Joining Sheet
