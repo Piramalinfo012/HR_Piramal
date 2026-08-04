@@ -169,7 +169,13 @@ export const initGlobalCache = () => {
         // 2. Check Persistent IndexedDB Cache
         if (!isBypassCache) {
           const idbData = await getCacheIDB(cacheKey);
-          if (idbData && (Date.now() - idbData.timestamp < CACHE_TTL)) {
+          const cachedBody = idbData && typeof idbData.body === 'string' ? idbData.body.trim() : '';
+          const isPoisoned = !cachedBody || cachedBody.startsWith('<');
+          if (isPoisoned && idbData) {
+            // Self-heal: discard any pre-existing bad (HTML error page) cache entry
+            // instead of trusting it for up to CACHE_TTL.
+            deleteCacheIDB(cacheKey);
+          } else if (idbData && (Date.now() - idbData.timestamp < CACHE_TTL)) {
             // We have valid persistent cache! Return synthetic response immediately
             const synthRes = new Response(idbData.body, {
               status: 200,
@@ -181,18 +187,45 @@ export const initGlobalCache = () => {
           }
         }
 
-        // 3. Fallback: Network Fetch
-        // Create the promise and store it immediately to prevent race conditions (duplicate fetches)
-        const promise = originalFetch(input, init).then(async res => {
+        // 3. Fallback: Network Fetch (with retry if Apps Script returns an HTML
+        // error/quota page instead of real data - this happens transiently with
+        // HTTP 200, so !res.ok alone doesn't catch it)
+        const fetchOnce = () => originalFetch(input, init);
+
+        const isInvalidBody = (text) => {
+          const trimmed = text.trim();
+          return !trimmed || trimmed.startsWith('<');
+        };
+
+        const promise = (async () => {
+          let res = await fetchOnce();
           if (!res.ok) {
             fetchCache.delete(cacheKey);
             return res;
           }
-          
-          // Clone and save to persistent cache
-          const resCloneForIDB = res.clone();
+
+          let text = await res.clone().text();
+
+          // Apps Script sometimes returns HTTP 200 with an HTML error/quota page.
+          // Retry once after a short delay instead of caching the bad response.
+          if (isInvalidBody(text)) {
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            res = await fetchOnce();
+            if (!res.ok) {
+              fetchCache.delete(cacheKey);
+              return res;
+            }
+            text = await res.clone().text();
+          }
+
+          if (isInvalidBody(text)) {
+            // Still bad after retry - do not poison the shared cache for other pages
+            fetchCache.delete(cacheKey);
+            return res;
+          }
+
+          // Save to persistent cache only once we know the body is real data
           try {
-            const text = await resCloneForIDB.text();
             await setCacheIDB(cacheKey, {
               body: text,
               timestamp: Date.now()
@@ -202,7 +235,7 @@ export const initGlobalCache = () => {
           }
 
           return res;
-        }).catch(err => {
+        })().catch(err => {
           fetchCache.delete(cacheKey);
           throw err;
         });
