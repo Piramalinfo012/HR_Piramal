@@ -20,9 +20,9 @@ import { getUserRole, isMobileViewport } from "../utils/authRole";
 const SHEET_API_URL = `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`;
 const LEAVING_API_URL = `${import.meta.env.VITE_LEAVING_SHEET_URL}?sheet=LEAVING&action=fetch`;
 const USER_CACHE_KEY = "hr-fms-user-cache-v3";
-const USER_CACHE_TTL = 5 * 60 * 1000;
-const USER_FETCH_TIMEOUT = 8000;
-const LEAVING_FETCH_TIMEOUT = 2500;
+const USER_CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days cache for instant login
+const USER_FETCH_TIMEOUT = 20000;
+const LEAVING_FETCH_TIMEOUT = 1500; // Fast timeout for leaving check so it doesn't block
 
 localStorage.removeItem("hasSeenLanguageHint");
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, X, Calendar, Clock, CheckCircle, AlertCircle, Filter, Sparkles, ChevronRight } from 'lucide-react';
+import { Plus, X, Calendar, Clock, CheckCircle, AlertCircle, Filter, Sparkles, ChevronRight, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 import toast from 'react-hot-toast';
 
@@ -713,6 +714,36 @@ const LeaveRequest = () => {
   const selectedLeaveStatusMeta = selectedLeaveRequest ? getStatusMeta(selectedLeaveRequest.status) : null;
   const SelectedLeaveStatusIcon = selectedLeaveStatusMeta?.icon;
 
+  const handleDownloadExcel = () => {
+    if (!filteredLeaveRequests || filteredLeaveRequests.length === 0) {
+      toast.error("No data available to download");
+      return;
+    }
+
+    const exportData = filteredLeaveRequests.map((leave, index) => ({
+      "S.No": index + 1,
+      "Leave Request ID": leave.leaveRequestId || leave.id,
+      "Requested By": leave.requestedBy || leave.employeeName,
+      "Department": leave.department,
+      "Job Location": leave.jobLocation,
+      "Total Leaves (Days)": leave.days,
+      "Leave From Date": formatDOB(leave.startDate),
+      "Leave To Date": formatDOB(leave.endDate),
+      "Leave Reason": leave.reason,
+      "Remark": leave.remark,
+      "Applied Date": formatDOB(leave.appliedDate),
+      "Approval Status": leave.status,
+      "Approved By": leave.approvedBy,
+      "Approval Remarks": leave.approvalRemarks,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Leave Requests");
+    
+    XLSX.writeFile(workbook, `Leave_Requests_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
   return (
     <div className="page-content min-h-screen bg-[#f4f7fb] px-4 pb-24 pt-5 text-slate-950 sm:p-6">
       <div className="w-full space-y-5 lg:max-w-6xl">
@@ -721,13 +752,24 @@ const LeaveRequest = () => {
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Employee Leave</p>
           <h1 className="text-2xl font-black text-slate-950">Leave Request</h1>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-transparent bg-slate-950 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] hover:bg-slate-800 sm:w-auto"
-        >
-          <Plus size={16} className="mr-2" />
-          New Leave Request
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row w-full sm:w-auto">
+          {isAdmin && (
+            <button
+              onClick={handleDownloadExcel}
+              className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-950 shadow-[0_14px_30px_rgba(15,23,42,0.05)] hover:bg-slate-50 sm:w-auto"
+            >
+              <Download size={16} className="mr-2" />
+              Download Excel
+            </button>
+          )}
+          <button
+            onClick={() => setShowModal(true)}
+            className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-transparent bg-slate-950 px-4 text-sm font-black text-white shadow-[0_14px_30px_rgba(15,23,42,0.16)] hover:bg-slate-800 sm:w-auto"
+          >
+            <Plus size={16} className="mr-2" />
+            New Leave Request
+          </button>
+        </div>
       </div>
 
       <section className="relative overflow-hidden rounded-[28px] bg-slate-950 p-4 text-white shadow-[0_24px_48px_rgba(15,23,42,0.24)]">
