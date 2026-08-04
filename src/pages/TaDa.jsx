@@ -21,8 +21,8 @@ const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
 const OUTSTATION_SPREADSHEET_ID = '1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw';
 const ADVANCE_SHEET_NAME = 'Advance';
 const FMS_SHEET_NAME = 'FMS';
-const BIKE_KM_RATE = 2;
-const CAR_KM_RATE = 4;
+const BIKE_KM_RATE = 2.5;
+const CAR_KM_RATE = 4.5;
 const MONTHS = [
   'January',
   'February',
