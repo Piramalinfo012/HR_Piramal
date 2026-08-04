@@ -565,25 +565,25 @@ const CallTracker = () => {
       
       const rowIndex = index + 1;
 
-      // 2. Send Delete Request (Trying delete action)
+      // 2. Clear the row's data in place instead of removing the row itself,
+      // so the sheet keeps its row/task-id structure and other rows don't shift.
+      const blankRowData = new Array(jsonAll.data[index].length).fill("");
+
       const res = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
         method: "POST",
         body: new URLSearchParams({
           sheetName: "Calling Tracking",
-          action: "delete", 
-          rowIndex: rowIndex
+          action: "update",
+          rowIndex: rowIndex,
+          rowData: JSON.stringify(blankRowData)
         })
       });
-      
+
       const json = await res.json();
       if (json.success) {
-        toast.success("Task deleted successfully");
+        toast.success("Task data cleared successfully");
         loadData();
       } else {
-        // Fallback: Try updateCell to "Deleted" if deleteRow fails? 
-        // Or just show error. User asked to "fix it", implies "make it work".
-        // If deleteRow isn't supported, we might need a backup.
-        // But usually standard script supports it.
         toast.error("Delete failed: " + (json.error || "Unknown error"));
       }
     } catch (err) {
@@ -750,6 +750,9 @@ const CallTracker = () => {
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr className="bg-gray-50">
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
+                  Actions
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                   Interview Details
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
@@ -791,9 +794,6 @@ const CallTracker = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
                   Attachment
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200 relative">
@@ -820,6 +820,24 @@ const CallTracker = () => {
               ) : (
                 displayData.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.taskId)}
+                          className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       <button
                         onClick={() => {
@@ -910,24 +928,6 @@ const CallTracker = () => {
                       ) : (
                         <span className="text-gray-400">No file</span>
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => handleEdit(item)}
-                          className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50 transition-colors"
-                          title="Edit"
-                        >
-                          <Edit size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(item.taskId)}
-                          className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50 transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))
