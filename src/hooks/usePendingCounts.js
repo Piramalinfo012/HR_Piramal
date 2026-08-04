@@ -1,7 +1,42 @@
 import { useState, useEffect } from 'react';
 
+const PENDING_COUNTS_CACHE_KEY = "hrms_pending_counts_cache_v1";
+
+const getCachedCounts = () => {
+    try {
+        const cached = localStorage.getItem(PENDING_COUNTS_CACHE_KEY);
+        return cached ? JSON.parse(cached) : null;
+    } catch {
+        return null;
+    }
+};
+
+const safeFetchJson = async (url) => {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) return null;
+        const text = await res.text();
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+            return JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+        }
+        const arrStart = text.indexOf('[');
+        const arrEnd = text.lastIndexOf(']');
+        if (arrStart !== -1 && arrEnd !== -1 && arrEnd > arrStart) {
+            return JSON.parse(text.slice(arrStart, arrEnd + 1));
+        }
+        return JSON.parse(text);
+    } catch {
+        return null;
+    }
+};
+
 export const usePendingCounts = () => {
-    const [counts, setCounts] = useState({
+    const [counts, setCounts] = useState(() => getCachedCounts() || {
         onlinePostingCount: 0,
         jobConsultancyCount: 0,
         whatsappCount: 0,
@@ -42,9 +77,9 @@ export const usePendingCounts = () => {
                 const cb = `&_=${Date.now()}`;
                 
                 const [fmsRes, candidateRes, joiningRes] = await Promise.all([
-                    fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json()),
-                    fetch(`${FETCH_URL}?sheet=Canidate_Selection&action=fetch${cb}`).then(res => res.json()),
-                    fetch(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS${cb}`).then(res => res.json())
+                    safeFetchJson(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`),
+                    safeFetchJson(`${FETCH_URL}?sheet=Canidate_Selection&action=fetch${cb}`),
+                    safeFetchJson(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING_FMS${cb}`)
                 ]);
 
                 let onlinePosting = 0, jobConsultancy = 0, whatsapp = 0;
@@ -153,7 +188,7 @@ export const usePendingCounts = () => {
                     });
                 }
 
-                setCounts({
+                const newCounts = {
                     onlinePostingCount: onlinePosting,
                     jobConsultancyCount: jobConsultancy,
                     whatsappCount: whatsapp,
@@ -164,12 +199,21 @@ export const usePendingCounts = () => {
                     joiningLetterCount: joiningLetter,
                     inductionTrainingCount: inductionTraining,
                     assetAssignmentCount: assetAssignment
-                });
+                };
+
+                setCounts(newCounts);
+                try {
+                    localStorage.setItem(PENDING_COUNTS_CACHE_KEY, JSON.stringify(newCounts));
+                } catch {
+                    // Ignore quota
+                }
 
             } catch (error) {
-                console.error("Error fetching pending counts:", error);
+                // Silently ignore network/parse errors without crashing UI
             }
         };
+
+        fetchAllData();
 
         fetchAllData();
         
