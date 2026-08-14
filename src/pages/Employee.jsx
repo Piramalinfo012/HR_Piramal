@@ -148,8 +148,19 @@ const Employee = () => {
       const rawJoining = joiningJson.data || [];
       const rawLeaving = leavingJson.data || [];
 
-      if (rawJoining.length > 6) {
-        setSheetHeaders(rawJoining[6] || []);
+      // Find the header row dynamically
+      let headerRowIndex = 6; // fallback
+      if (rawJoining.length > 0) {
+        const foundIndex = rawJoining.findIndex(row => 
+          row && row.some(cell => cell && cell.toString().trim().toLowerCase() === "employee code")
+        );
+        if (foundIndex !== -1) {
+          headerRowIndex = foundIndex;
+        }
+      }
+
+      if (rawJoining.length > headerRowIndex) {
+        setSheetHeaders(rawJoining[headerRowIndex] || []);
       }
 
       // --- Process FMS / Leaving Data ---
@@ -739,18 +750,37 @@ const Employee = () => {
     try {
       const wb = XLSX.utils.book_new();
 
-      const formattedJoining = filteredJoiningData.map(item => ({
-        "Employee ID": item.employeeId,
-        "Name": item.candidateName,
-        "Father's Name": item.fatherName,
-        "Designation": item.designation,
-        "Department": item.department,
-        "Joining Date": item.dateOfJoining,
-        "Joining Place": item.joiningPlace,
-        "Mobile Number": item.mobileNo,
-        "Email": item.emailId,
-        "Status": item.status
-      }));
+      const formattedJoining = filteredJoiningData.map(item => {
+        const rowData = {};
+        if (sheetHeaders && sheetHeaders.length > 0) {
+          sheetHeaders.forEach((header, index) => {
+            if (header && typeof header === 'string' && header.trim() !== "") {
+              rowData[header.trim()] = (item.originalRow && item.originalRow[index] !== undefined && item.originalRow[index] !== null) 
+                                       ? item.originalRow[index].toString() 
+                                       : "";
+            } else if (header !== null && header !== undefined && header.toString().trim() !== "") {
+              rowData[header.toString().trim()] = (item.originalRow && item.originalRow[index] !== undefined && item.originalRow[index] !== null) 
+                                       ? item.originalRow[index].toString() 
+                                       : "";
+            }
+          });
+        }
+        
+        // If rowData is empty (e.g. headers were empty strings), use fallback
+        if (Object.keys(rowData).length === 0) {
+          rowData["Employee ID"] = item.employeeId;
+          rowData["Name"] = item.candidateName;
+          rowData["Father's Name"] = item.fatherName;
+          rowData["Designation"] = item.designation;
+          rowData["Department"] = item.department;
+          rowData["Joining Date"] = item.dateOfJoining;
+          rowData["Joining Place"] = item.joiningPlace;
+          rowData["Mobile Number"] = item.mobileNo;
+          rowData["Email"] = item.emailId;
+          rowData["Status"] = item.status;
+        }
+        return rowData;
+      });
 
       const formattedLeaving = filteredLeavingData.map(item => ({
         "Employee ID": item.employeeId,
