@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Filter, Search, Clock, CheckCircle, ImageIcon, X, User, Briefcase, MapPin, Calendar, FileText, Phone, Mail } from "lucide-react";
+import { Filter, Search, Clock, CheckCircle, ImageIcon, X, User, Briefcase, MapPin, Calendar, FileText, Phone, Mail, Download } from "lucide-react";
 
 import toast from "react-hot-toast";
+import * as XLSX from "xlsx";
 
 const Employee = () => {
   const [activeTab, setActiveTab] = useState("joining");
@@ -12,6 +13,8 @@ const Employee = () => {
     reasonOfLeaving: "",
     salary: ""
   });
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [exportPassword, setExportPassword] = useState("");
   const [joiningData, setJoiningData] = useState([]);
   const [sheetHeaders, setSheetHeaders] = useState([]);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -194,9 +197,14 @@ const Employee = () => {
         // 2. Process for Leaving Tab Display (Column AS / Index 44 == 'Yes')
         processedLeaving = leavingRows.map(row => {
           const isArchivedManual = row[44] && row[44].toString().trim().toLowerCase() === 'yes';
-          const isChecklistFilled = (row[29] && row[29].toString().trim() === 'Done') && 
-                                    (row[33] && row[33].toString().trim() === 'Done') && 
-                                    (row[42] && row[42].toString().trim() === 'Done');
+          const isChecklistFilled = (row[28] && row[28].toString().trim() !== '') || 
+                                    (row[29] && row[29].toString().trim() !== '') || 
+                                    (row[32] && row[32].toString().trim() !== '') || 
+                                    (row[33] && row[33].toString().trim() !== '') || 
+                                    (row[36] && row[36].toString().trim() !== '') || 
+                                    (row[38] && row[38].toString().trim() !== '') || 
+                                    (row[41] && row[41].toString().trim() !== '') || 
+                                    (row[42] && row[42].toString().trim() !== '');
 
           const idStr = normalizeId(row[5]);
           const jRow = joiningMap.get(idStr) || [];
@@ -716,6 +724,66 @@ const Employee = () => {
     }
   };
 
+  const handleExportExcelClick = () => {
+    setExportPassword("");
+    setShowPasswordModal(true);
+  };
+
+  const executeExportExcel = () => {
+    if (exportPassword !== "9184") {
+      toast.error("Incorrect password!");
+      return;
+    }
+    setShowPasswordModal(false);
+
+    try {
+      const wb = XLSX.utils.book_new();
+
+      const formattedJoining = filteredJoiningData.map(item => ({
+        "Employee ID": item.employeeId,
+        "Name": item.candidateName,
+        "Father's Name": item.fatherName,
+        "Designation": item.designation,
+        "Department": item.department,
+        "Joining Date": item.dateOfJoining,
+        "Joining Place": item.joiningPlace,
+        "Mobile Number": item.mobileNo,
+        "Email": item.emailId,
+        "Status": item.status
+      }));
+
+      const formattedLeaving = filteredLeavingData.map(item => ({
+        "Employee ID": item.employeeId,
+        "Name": item.name,
+        "Father's Name": item.fatherName,
+        "Designation": item.designation,
+        "Department": item.department,
+        "Joining Date": item.dateOfJoining,
+        "Joining Place": item.joiningPlace,
+        "Leaving Date": item.dateOfLeaving,
+        "Reason for Leaving": item.reasonOfLeaving,
+        "Salary": item.salary,
+        "Mobile Number": item.mobileNo
+      }));
+
+      const wsJoining = formattedJoining.length > 0 
+        ? XLSX.utils.json_to_sheet(formattedJoining) 
+        : XLSX.utils.json_to_sheet([{"Message": "No data"}]);
+      XLSX.utils.book_append_sheet(wb, wsJoining, "Active_Joining");
+
+      const wsLeaving = formattedLeaving.length > 0 
+        ? XLSX.utils.json_to_sheet(formattedLeaving) 
+        : XLSX.utils.json_to_sheet([{"Message": "No data"}]);
+      XLSX.utils.book_append_sheet(wb, wsLeaving, "Archived_Leaving");
+
+      XLSX.writeFile(wb, "Employee_Master.xlsx");
+      toast.success("Excel downloaded successfully!");
+    } catch (err) {
+      console.error("Export Error:", err);
+      toast.error("Failed to export Excel file");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between pb-4 border-b border-gray-100">
@@ -723,6 +791,13 @@ const Employee = () => {
           <h1 className="text-3xl font-black text-gray-800 tracking-tight">Employee Master</h1>
           <p className="text-sm text-gray-500 font-medium mt-1">Manage all joining and leaving personnel</p>
         </div>
+        <button
+          onClick={handleExportExcelClick}
+          className="flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200"
+        >
+          <Download size={18} className="mr-2" />
+          Export Excel
+        </button>
       </div>
 
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
@@ -1691,6 +1766,41 @@ const Employee = () => {
             className="max-w-full max-h-[92vh] rounded-2xl object-contain shadow-2xl bg-white"
             onClick={(e) => e.stopPropagation()}
           />
+        </div>
+      )}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold text-gray-800">Authentication Required</h3>
+              <button onClick={() => setShowPasswordModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Please enter the password to download the Excel file.</p>
+            <input
+              type="password"
+              placeholder="Enter password..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+              value={exportPassword}
+              onChange={(e) => setExportPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && executeExportExcel()}
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeExportExcel}
+                className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg font-medium"
+              >
+                Download
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -79,9 +79,14 @@ const Leaving = () => {
         // If "Yes", hide from this page (Leaving Page)
         const row = item.originalRow;
         const isArchivedManual = row[44] && row[44].toString().trim().toLowerCase() === 'yes';
-        const isChecklistFilled = (row[29] && row[29].toString().trim() === 'Done') && 
-                                  (row[33] && row[33].toString().trim() === 'Done') && 
-                                  (row[42] && row[42].toString().trim() === 'Done');
+        const isChecklistFilled = (row[28] && row[28].toString().trim() !== '') || 
+                                  (row[29] && row[29].toString().trim() !== '') || 
+                                  (row[32] && row[32].toString().trim() !== '') || 
+                                  (row[33] && row[33].toString().trim() !== '') || 
+                                  (row[36] && row[36].toString().trim() !== '') || 
+                                  (row[38] && row[38].toString().trim() !== '') || 
+                                  (row[41] && row[41].toString().trim() !== '') || 
+                                  (row[42] && row[42].toString().trim() !== '');
 
         return !isArchivedManual && !isChecklistFilled;
       });
