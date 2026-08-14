@@ -384,7 +384,7 @@ const InterviewSelection = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Finalized Salary (LPA)</label>
+                                        <label className="block text-sm font-medium text-gray-700">Finalized Salary (LPA) (Optional)</label>
                                         <input
                                             type="text"
                                             placeholder="Enter finalized salary..."
