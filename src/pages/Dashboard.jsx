@@ -103,17 +103,15 @@ const Dashboard = () => {
         const cb = `&_=${Date.now()}`;
 
         // Parallel Fetch
-        const [fmsRes, joiningEntryRes, leaveManageRes] = await Promise.all([
+        const [fmsRes, joiningEntryRes, leavingRes] = await Promise.all([
           fetch(`${FETCH_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json()),
           fetch(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING ENTRY FORM${cb}`).then(res => res.json()),
-          // Attempt to fetch Leave Management if it exists
-          // Using a generic fetch for potential Leave data if needed, but for now focusing on what was in store
-          Promise.resolve({ data: [] })
+          fetch(`${import.meta.env.VITE_LEAVING_SHEET_URL}?sheet=FMS&action=fetch${cb}`).then(res => res.json().catch(() => ({ success: false })))
         ]);
 
         if (fmsRes.success) setGlobalFmsData(fmsRes.data);
         if (joiningEntryRes.success) setJoiningEntryData(joiningEntryRes.data);
-        // setLeaveManagementData(leaveManageRes.data || []);
+        if (leavingRes && leavingRes.success) setGlobalLeavingData(leavingRes.data || leavingRes);
 
       } catch (error) {
         console.error("Dashboard Data Fetch Error:", error);
@@ -162,7 +160,7 @@ const Dashboard = () => {
     }
 
     // 1. Total Indents
-    const validRows = globalFmsData.slice(1).filter(row => row[1] && row[1].toString().trim() !== "");
+    const validRows = globalFmsData.slice(9).filter(row => row[1] && row[1].toString().trim() !== "");
     setTotalEmployee(validRows.length);
 
     const open = validRows.filter(row => (row[1] || "").toString().trim().toLowerCase() === "open").length;
@@ -297,12 +295,7 @@ const Dashboard = () => {
     if (statusIndex !== -1) {
       activeCount = dataRows.filter(row => row[statusIndex]?.toString().trim().toLowerCase() === "active").length;
     }
-    setActiveEmployee(activeCount); // Wait, original code set activeEmployee to dataRows.length but returned activeCount separately? 
-    // Original: setActiveEmployee(dataRows.length); 
-    // Wait, let me check original code fetchJoiningCount:
-    // "let activeCount = 0 ... if (statusIndex !== -1) activeCount = ..."
-    // "setActiveEmployee(dataRows.length);"  <-- It sets activeEmployee to TOTAL. 
-    setActiveEmployee(dataRows.length); // Replicating logic.
+    // Logic for setActiveEmployee is now handled in fetchExactEmployeeCounts
 
     // Monthly Hiring
     const monthlyHiring = {};
@@ -391,15 +384,18 @@ const Dashboard = () => {
       return;
     }
     const rawData = globalLeavingData;
-    const dataRows = rawData.slice(6); // Row 7 onwards
+    const dataRows = rawData.slice(7).filter(row => {
+      // Filter out empty rows checking Employee ID (Column F / Index 5) or Name (Column K / Index 10)
+      return (row[5] && row[5].toString().trim() !== '') || (row[10] && row[10].toString().trim() !== '');
+    });
 
-    // Left This Month (Column D / Index 3)
+    // Left This Month (Column H / Index 7)
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
     const thisMonthCount = dataRows.filter(row => {
-      const dateStr = row[3];
+      const dateStr = row[7];
       if (dateStr) {
         const d = parseSheetDate(dateStr);
         return d && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
@@ -407,7 +403,7 @@ const Dashboard = () => {
       return false;
     }).length;
 
-    setLeftEmployee(dataRows.length);
+    // Logic for setLeftEmployee is now handled in fetchExactEmployeeCounts
     setLeaveThisMonth(thisMonthCount);
 
     // Monthly Leaving
@@ -420,7 +416,7 @@ const Dashboard = () => {
     }
 
     dataRows.forEach(row => {
-      const dateStr = row[3];
+      const dateStr = row[7];
       if (dateStr) {
         const d = parseSheetDate(dateStr);
         if (d) {
@@ -434,6 +430,127 @@ const Dashboard = () => {
     setMonthlyLeavingState(monthlyLeaving);
 
   }, [globalLeavingData]);
+
+  // --- New Logic for Exact Active/Left Employee Count (Matching Employee Master Page) ---
+  useEffect(() => {
+    const fetchExactEmployeeCounts = async () => {
+      try {
+        const [joiningResponse, leavingResponse] = await Promise.all([
+          fetch(`${import.meta.env.VITE_JOINING_SHEET_URL}?action=read&sheet=JOINING_FMS`),
+          fetch(`${import.meta.env.VITE_LEAVING_SHEET_URL}?action=read&sheet=FMS`)
+        ]);
+
+        const [joiningText, leavingText] = await Promise.all([
+          joiningResponse.text(),
+          leavingResponse.text()
+        ]);
+
+        const parseJsonSafely = (text, fallback = { data: [] }) => {
+          if (!text || typeof text !== "string") return fallback;
+          try {
+            const jsonStart = text.indexOf("{");
+            const jsonEnd = text.lastIndexOf("}");
+            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+              return JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+            }
+            const arrStart = text.indexOf("[");
+            const arrEnd = text.lastIndexOf("]");
+            if (arrStart !== -1 && arrEnd !== -1 && arrEnd > arrStart) {
+              return JSON.parse(text.slice(arrStart, arrEnd + 1));
+            }
+            return JSON.parse(text);
+          } catch (e) {
+            return fallback;
+          }
+        };
+
+        const joiningJson = parseJsonSafely(joiningText, { data: [] });
+        const leavingJson = parseJsonSafely(leavingText, { data: [] });
+
+        const rawJoining = joiningJson.data || [];
+        const rawLeaving = leavingJson.data || [];
+
+        const normalizeId = (id) => id ? id.toString().toLowerCase().replace(/[^a-z0-9]/g, "") : "";
+        const fmsIds = new Set();
+        
+        let processedLeaving = [];
+        if (rawLeaving.length > 7) {
+          const leavingRows = rawLeaving.slice(7);
+          leavingRows.forEach(row => {
+            const id = normalizeId(row[5]);
+            if (id) fmsIds.add(id);
+          });
+
+          const seenLeavingKeys = new Set();
+          processedLeaving = leavingRows.map(row => {
+            const isArchivedManual = row[44] && row[44].toString().trim().toLowerCase() === 'yes';
+            const isChecklistFilled = (row[28] && row[28].toString().trim() !== '') || 
+                                      (row[29] && row[29].toString().trim() !== '') || 
+                                      (row[32] && row[32].toString().trim() !== '') || 
+                                      (row[33] && row[33].toString().trim() !== '') || 
+                                      (row[36] && row[36].toString().trim() !== '') || 
+                                      (row[38] && row[38].toString().trim() !== '') || 
+                                      (row[41] && row[41].toString().trim() !== '') || 
+                                      (row[42] && row[42].toString().trim() !== '');
+            return {
+              employeeId: row[5] || "",
+              name: row[10] || "",
+              mobileNo: row[12] || "",
+              isArchived: isArchivedManual || isChecklistFilled
+            };
+          }).filter(item => {
+            if (!item.isArchived) return false;
+            const id = normalizeId(item.employeeId);
+            const uniqueKey = id || (item.name + "-" + item.mobileNo).toLowerCase().replace(/[^a-z0-9]/g, "");
+            if (uniqueKey) {
+              if (seenLeavingKeys.has(uniqueKey)) return false;
+              seenLeavingKeys.add(uniqueKey);
+            }
+            return true;
+          });
+        }
+        
+        let processedJoining = [];
+        if (rawJoining.length > 7) {
+          const headers = rawJoining[6] || [];
+          const getIndex = (name) => headers.findIndex(h => h && h.toString().trim().toLowerCase() === name.trim().toLowerCase());
+          const idxIndent = getIndex("Indent Number") !== -1 ? getIndex("Indent Number") : 5;
+          const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
+          const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
+          const idxStatus = getIndex("Status") !== -1 ? getIndex("Status") : 8;
+
+          const seenJoiningKeys = new Set();
+          processedJoining = rawJoining.slice(7).map((row) => ({
+            employeeId: row[idxIndent] || "",
+            candidateName: row[idxName] || "",
+            mobileNo: row[idxMobile] || "",
+            status: row[idxStatus] || "",
+            colBM: row[64] || "",
+          })).filter(item => {
+            const isDone = item.status && item.status.toString().trim().toUpperCase() === "DONE";
+            const id = normalizeId(item.employeeId);
+            const inFms = fmsIds.has(id);
+            const isBMEmpty = !item.colBM || item.colBM.toString().trim() === "";
+
+            if (!(isDone && !inFms && isBMEmpty)) return false;
+            
+            const uniqueKey = id || (item.candidateName + "-" + item.mobileNo).toLowerCase().replace(/[^a-z0-9]/g, "");
+            if (uniqueKey) {
+              if (seenJoiningKeys.has(uniqueKey)) return false;
+              seenJoiningKeys.add(uniqueKey);
+            }
+            return true;
+          });
+        }
+        
+        setActiveEmployee(processedJoining.length);
+        setLeftEmployee(processedLeaving.length);
+      } catch (err) {
+        console.error("Fetch Employee Counts Error:", err);
+      }
+    };
+    fetchExactEmployeeCounts();
+  }, []);
 
   const [monthlyHiringState, setMonthlyHiringState] = useState({});
   const [monthlyLeavingState, setMonthlyLeavingState] = useState({});

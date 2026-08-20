@@ -669,14 +669,13 @@ const Joining = () => {
                 {/* Salary */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Salary <span className="text-red-500">*</span>
+                    Salary
                   </label>
                   <input
                     type="text"
                     name="salary"
                     value={formData.salary}
                     onChange={handleInputChange}
-                    required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
                   />
                 </div>
