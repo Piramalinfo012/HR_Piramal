@@ -49,6 +49,12 @@ const Dashboard = () => {
   const [filterStatus, setFilterStatus] = useState("All");
   const [selectedIndent, setSelectedIndent] = useState(null);
   
+  const [leftThisMonthData, setLeftThisMonthData] = useState([]);
+  const [showLeftModal, setShowLeftModal] = useState(false);
+  
+  const [joinedThisMonthData, setJoinedThisMonthData] = useState([]);
+  const [showJoinedModal, setShowJoinedModal] = useState(false);
+  
   const pendingCounts = usePendingCounts();
 
   const pendingTasks = [
@@ -73,16 +79,23 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Parse DD/MM/YYYY format date
   const parseSheetDate = (dateStr) => {
     if (!dateStr) return null;
-    const parts = dateStr.split('/');
-    if (parts.length !== 3) return null;
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const year = parseInt(parts[2], 10);
-    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-    return new Date(year, month, day);
+    const str = String(dateStr).trim();
+    const fallback = new Date(str);
+    if (!isNaN(fallback.getTime())) return fallback;
+
+    const parts = str.split(/[-/]/);
+    if (parts.length === 3) {
+      const p1 = parseInt(parts[0], 10);
+      const p2 = parseInt(parts[1], 10);
+      const p3 = parseInt(parts[2], 10);
+      if (p3 > 1000) {
+        // Assume DD/MM/YYYY
+        return new Date(p3, p2 - 1, p1);
+      }
+    }
+    return null;
   };
 
   const [globalFmsData, setGlobalFmsData] = useState([]);
@@ -290,6 +303,11 @@ const Dashboard = () => {
     // Department is column U (index 20) hardcoded in original
     const departmentIndex = 20;
 
+    // Additional Indices for Joined This Month
+    const idxIndent = headers.findIndex(h => h && h.toString().trim().toLowerCase() === "indent number");
+    const idxName = headers.findIndex(h => h && h.toString().trim().toLowerCase() === "candidate name");
+    const idxMobile = headers.findIndex(h => h && h.toString().trim().toLowerCase() === "contact no");
+
     // Active Employees
     let activeCount = 0;
     if (statusIndex !== -1) {
@@ -307,6 +325,8 @@ const Dashboard = () => {
       const monthYear = `${months[monthIndex]} ${currentDate.getFullYear()}`;
       monthlyHiring[monthYear] = { hired: 0 };
     }
+
+    let thisMonthJoined = [];
 
     if (dateOfJoiningIndex !== -1) {
       dataRows.forEach(row => {
@@ -394,17 +414,22 @@ const Dashboard = () => {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    const thisMonthCount = dataRows.filter(row => {
+    const thisMonthEmployees = dataRows.filter(row => {
       const dateStr = row[7];
       if (dateStr) {
         const d = parseSheetDate(dateStr);
         return d && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
       }
       return false;
-    }).length;
+    });
 
-    // Logic for setLeftEmployee is now handled in fetchExactEmployeeCounts
-    setLeaveThisMonth(thisMonthCount);
+    setLeaveThisMonth(thisMonthEmployees.length);
+    setLeftThisMonthData(thisMonthEmployees.map(row => ({
+      employeeId: row[5] || "-",
+      name: row[10] || "-",
+      mobileNo: row[12] || "-",
+      leavingDate: row[7] || "-",
+    })));
 
     // Monthly Leaving
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -511,6 +536,7 @@ const Dashboard = () => {
         }
         
         let processedJoining = [];
+        let thisMonthJoinedFMS = [];
         if (rawJoining.length > 7) {
           const headers = rawJoining[6] || [];
           const getIndex = (name) => headers.findIndex(h => h && h.toString().trim().toLowerCase() === name.trim().toLowerCase());
@@ -518,32 +544,50 @@ const Dashboard = () => {
           const idxName = getIndex("Candidate Name") !== -1 ? getIndex("Candidate Name") : 10;
           const idxMobile = getIndex("Contact No") !== -1 ? getIndex("Contact No") : 23;
           const idxStatus = getIndex("Status") !== -1 ? getIndex("Status") : 8;
+          const idxDateOfJoining = getIndex("Date of Joining") !== -1 ? getIndex("Date of Joining") : 12;
 
           const seenJoiningKeys = new Set();
+          const currentMonth = new Date().getMonth();
+          const currentYear = new Date().getFullYear();
+
           processedJoining = rawJoining.slice(7).map((row) => ({
             employeeId: row[idxIndent] || "",
             candidateName: row[idxName] || "",
             mobileNo: row[idxMobile] || "",
             status: row[idxStatus] || "",
+            joiningDate: row[idxDateOfJoining] || "",
             colBM: row[64] || "",
           })).filter(item => {
             const isDone = item.status && item.status.toString().trim().toUpperCase() === "DONE";
             const id = normalizeId(item.employeeId);
             const inFms = fmsIds.has(id);
             const isBMEmpty = !item.colBM || item.colBM.toString().trim() === "";
+            const hasDateOfJoining = !!item.joiningDate && item.joiningDate.toString().trim() !== "";
 
-            if (!(isDone && !inFms && isBMEmpty)) return false;
+            if (!(isDone && !inFms && isBMEmpty && hasDateOfJoining)) return false;
             
             const uniqueKey = id || (item.candidateName + "-" + item.mobileNo).toLowerCase().replace(/[^a-z0-9]/g, "");
             if (uniqueKey) {
               if (seenJoiningKeys.has(uniqueKey)) return false;
               seenJoiningKeys.add(uniqueKey);
             }
+
+            const d = parseSheetDate(item.joiningDate);
+            if (d && d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+               thisMonthJoinedFMS.push({
+                 employeeId: item.employeeId || "-",
+                 name: item.candidateName || "-",
+                 mobileNo: item.mobileNo || "-",
+                 joiningDate: item.joiningDate,
+               });
+            }
+
             return true;
           });
         }
         
         setActiveEmployee(processedJoining.length);
+        setJoinedThisMonthData(thisMonthJoinedFMS);
         setLeftEmployee(processedLeaving.length);
       } catch (err) {
         console.error("Fetch Employee Counts Error:", err);
@@ -642,8 +686,9 @@ const Dashboard = () => {
 
   const dashboardSignals = [
     { label: "Active Employees", value: activeEmployee, icon: UserCheck, tone: "text-emerald-700 bg-emerald-50 border-emerald-100" },
+    { label: "Joined This Month", value: joinedThisMonthData.length, icon: UserPlus, tone: "text-cyan-700 bg-cyan-50 border-cyan-100", onClick: () => setShowJoinedModal(true), clickable: true },
     { label: "Left Employees", value: leftEmployee, icon: UserX, tone: "text-rose-700 bg-rose-50 border-rose-100" },
-    { label: "Left This Month", value: leaveThisMonth, icon: TrendingUp, tone: "text-amber-700 bg-amber-50 border-amber-100" },
+    { label: "Left This Month", value: leaveThisMonth, icon: TrendingUp, tone: "text-amber-700 bg-amber-50 border-amber-100", onClick: () => setShowLeftModal(true), clickable: true },
     { label: "Pending Tasks", value: totalPendingActions, icon: AlertCircle, tone: "text-indigo-700 bg-indigo-50 border-indigo-100" }
   ];
 
@@ -696,13 +741,14 @@ const Dashboard = () => {
                 Recruitment, joining, employee signals, and pending workflow overview in one compact ERP console.
               </p>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 {dashboardSignals.map((signal, index) => {
                   const Icon = signal.icon;
                   return (
                     <div
                       key={signal.label}
-                      className="erp-fade-up rounded-xl border border-white/80 bg-white p-4 text-slate-950 shadow-lg shadow-teal-950/10"
+                      onClick={signal.onClick}
+                      className={`erp-fade-up rounded-xl border border-white/80 bg-white p-4 text-slate-950 shadow-lg shadow-teal-950/10 ${signal.clickable ? 'cursor-pointer hover:bg-slate-50 transition' : ''}`}
                       style={{ animationDelay: `${120 + index * 70}ms` }}
                     >
                       <div className="mb-2 flex items-center justify-between">
@@ -1149,6 +1195,142 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLeftModal && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+          onClick={() => setShowLeftModal(false)}
+        >
+          <div
+            className="erp-fade-up max-h-[86vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4 shrink-0">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">Left This Month</h3>
+                <p className="text-xs font-semibold text-slate-500">{leftThisMonthData.length} employees</p>
+              </div>
+              <button
+                onClick={() => setShowLeftModal(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-0 max-h-[60vh]">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-100/80 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-slate-500">Employee ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-slate-500">Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-slate-500">Mobile No</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-slate-500">Leaving Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {leftThisMonthData.length > 0 ? (
+                    leftThisMonthData.map((emp, i) => (
+                      <tr key={i} className="hover:bg-slate-50">
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-bold text-slate-900">{emp.employeeId}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-slate-700">{emp.name}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">{emp.mobileNo}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">
+                          {emp.leavingDate ? (
+                             <div className="flex items-center">
+                               <Calendar size={14} className="mr-2 text-rose-400" />
+                               <span className="font-bold text-slate-600">
+                                 {(() => {
+                                   const date = parseSheetDate(emp.leavingDate);
+                                   if (!date) return emp.leavingDate;
+                                   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                                 })()}
+                               </span>
+                             </div>
+                           ) : "-"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
+                        No employees left this month.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showJoinedModal && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+          onClick={() => setShowJoinedModal(false)}
+        >
+          <div
+            className="erp-fade-up max-h-[86vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4 shrink-0">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">Joined This Month</h3>
+                <p className="text-xs font-semibold text-slate-500">{joinedThisMonthData.length} employees</p>
+              </div>
+              <button
+                onClick={() => setShowJoinedModal(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-0 max-h-[60vh]">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-100/80 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-slate-500">Employee ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-slate-500">Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-slate-500">Mobile No</th>
+                    <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wider text-slate-500">Joining Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {joinedThisMonthData.length > 0 ? (
+                    joinedThisMonthData.map((emp, i) => (
+                      <tr key={i} className="hover:bg-slate-50">
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-bold text-slate-900">{emp.employeeId}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-slate-700">{emp.name}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">{emp.mobileNo}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-600">
+                          {emp.joiningDate ? (
+                             <div className="flex items-center">
+                               <Calendar size={14} className="mr-2 text-cyan-500" />
+                               <span className="font-bold text-slate-600">
+                                 {(() => {
+                                   const date = parseSheetDate(emp.joiningDate);
+                                   if (!date) return emp.joiningDate;
+                                   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                                 })()}
+                               </span>
+                             </div>
+                           ) : "-"}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
+                        No employees joined this month.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

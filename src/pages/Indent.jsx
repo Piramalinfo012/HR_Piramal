@@ -221,7 +221,10 @@ const Indent = () => {
     const noOfPostIdx = getIndex("Number Of Post");
     const dateIdx = getIndex("Completion Date");
     const qualIdx = getIndex("Qualifications");
-    const locationIdx = getIndex("For Which Location");
+    
+    let locationIdx = getIndex("Location");
+    if (locationIdx === -1) locationIdx = getIndex("For Which Location");
+    if (locationIdx === -1) locationIdx = 14; // Column O
 
     const processedData = dataRows
       .map((row, index) => ({ row, rowIndex: index + 10 }))
@@ -616,8 +619,8 @@ const Indent = () => {
   };
 
   return (
-    <div className="space-y-6 page-content p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 page-content p-4 sm:p-6 overflow-x-hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           Indent
           <span className="text-sm font-medium text-white bg-navy px-2.5 py-0.5 rounded-full">
@@ -632,21 +635,21 @@ const Indent = () => {
             }).length}
           </span>
         </h1>
-        <div className="flex items-center gap-4">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch md:items-center gap-3 w-full md:w-auto">
+          <div className="relative w-full sm:w-auto flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
               placeholder="Search indents..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm w-64"
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm w-full md:w-64"
             />
           </div>
           <select
             value={deptFilter}
             onChange={(e) => setDeptFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm"
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm w-full sm:w-auto"
           >
             <option value="">All Departments</option>
             {[...new Set(indentData.map(item => item.department))].filter(Boolean).sort().map(dept => (
@@ -656,7 +659,7 @@ const Indent = () => {
           <select
             value={desigFilter}
             onChange={(e) => setDesigFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm"
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm w-full sm:w-auto"
           >
             <option value="">All Posts</option>
             {[...new Set(indentData.map(item => item.post))].filter(Boolean).sort().map(post => (
@@ -666,7 +669,7 @@ const Indent = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm"
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-navy focus:border-navy text-sm w-full sm:w-auto"
           >
             <option value="">All Statuses</option>
             {[...new Set(indentData.map(item => item.status))].filter(Boolean).sort().map(status => (
@@ -675,7 +678,7 @@ const Indent = () => {
           </select>
           <button
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-navy hover:bg-navy-dark transition-all duration-200"
+            className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-navy hover:bg-navy-dark transition-all duration-200 w-full sm:w-auto"
             disabled={loading}
           >
             {loading ? (
@@ -714,9 +717,9 @@ const Indent = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 modal-backdrop z-50 flex items-start justify-center overflow-y-auto p-4 pb-28 pt-10">
-          <div className="flex w-full max-w-6xl max-h-[82vh] flex-col overflow-hidden rounded-lg bg-white shadow-lg">
-            <div className="flex shrink-0 justify-between items-center p-5 border-b border-gray-200 bg-white z-20">
+        <div className="fixed inset-0 modal-backdrop z-50 flex items-start justify-center overflow-y-auto p-2 sm:p-4 pb-20 sm:pb-28 pt-4 sm:pt-10">
+          <div className="flex w-full max-w-6xl max-h-[95vh] sm:max-h-[82vh] flex-col overflow-hidden rounded-lg bg-white shadow-lg">
+            <div className="flex shrink-0 justify-between items-center p-4 sm:p-5 border-b border-gray-200 bg-white z-20">
               <h3 className="text-lg font-medium text-gray-800">
                 {editingIndent ? 'Edit Indent' : 'Create Multiple Indents'}
               </h3>
@@ -1143,8 +1146,18 @@ const Indent = () => {
                             {item.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.location}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <span className={`px-2.5 py-1 text-xs rounded-full ${
+                            !item.location ? 'text-gray-400' :
+                            item.location.toLowerCase().includes('roma') ? 'bg-purple-100 text-purple-800' :
+                            item.location.toLowerCase().includes('plant') ? 'bg-orange-100 text-orange-800' :
+                            item.location.toLowerCase().includes('shankar') ? 'bg-blue-100 text-blue-800' :
+                            item.location.toLowerCase().includes('shyam') ? 'bg-teal-100 text-teal-800' :
+                            item.location.toLowerCase().includes('vba') ? 'bg-rose-100 text-rose-800' :
+                            'bg-indigo-100 text-indigo-800'
+                          }`}>
+                            {item.location || "-"}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">
                           {item.indentNumber}
