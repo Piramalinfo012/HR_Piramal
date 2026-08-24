@@ -366,19 +366,24 @@ const Indent = () => {
       if (index === -1) throw new Error("Indent not found in database");
       const realRowIndex = index + 1;
       
-      const response = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
-        method: 'POST',
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          sheetName: "Position Opning Form",
-          action: 'delete',
-          rowIndex: realRowIndex,
-        }).toString(),
-      });
+      const columnsToClear = Array.from({ length: 16 }, (_, i) => i + 1); // Columns 1 to 16
+      const results = await Promise.all(columnsToClear.map((colIndex) =>
+        fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
+          method: 'POST',
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            sheetName: "Position Opning Form",
+            action: 'updateCell',
+            rowIndex: realRowIndex,
+            columnIndex: colIndex,
+            value: ""
+          }).toString(),
+        }).then((res) => res.json())
+      ));
       
-      const result = await response.json();
+      const result = { success: results.every((r) => r.success || r.status === 'success' || (r.message && r.message.toLowerCase().includes('success'))) };
       
       if (result.success || result.status === 'success' || (result.message && result.message.toLowerCase().includes('success'))) {
         toast.success('Indent deleted successfully!');
