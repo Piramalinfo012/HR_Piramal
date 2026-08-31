@@ -39,7 +39,7 @@ const Leaving = () => {
     try {
       // Fetch data from FMS sheet
       const response = await fetch(
-        `${import.meta.env.VITE_LEAVING_SHEET_URL}?sheet=FMS&action=fetch`
+        `${import.meta.env.VITE_LEAVING_SHEET_URL}?sheet=FMS&action=fetch&_=${Date.now()}`
       );
 
       if (!response.ok) {
@@ -79,14 +79,7 @@ const Leaving = () => {
         // If "Yes", hide from this page (Leaving Page)
         const row = item.originalRow;
         const isArchivedManual = row[44] && row[44].toString().trim().toLowerCase() === 'yes';
-        const isChecklistFilled = (row[28] && row[28].toString().trim() !== '') || 
-                                  (row[29] && row[29].toString().trim() !== '') || 
-                                  (row[32] && row[32].toString().trim() !== '') || 
-                                  (row[33] && row[33].toString().trim() !== '') || 
-                                  (row[36] && row[36].toString().trim() !== '') || 
-                                  (row[38] && row[38].toString().trim() !== '') || 
-                                  (row[41] && row[41].toString().trim() !== '') || 
-                                  (row[42] && row[42].toString().trim() !== '');
+        const isChecklistFilled = row[42] && row[42].toString().trim().toLowerCase() === 'done';
 
         return !isArchivedManual && !isChecklistFilled;
       });
@@ -583,7 +576,7 @@ const Leaving = () => {
                           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
                         <label htmlFor="finalExitInterview" className="ml-2 text-sm text-gray-700 font-medium">
-                          Final Exit Interview
+                          Feedback Call With Director
                         </label>
                       </div>
                       {actionFormData.finalExitInterview && (
