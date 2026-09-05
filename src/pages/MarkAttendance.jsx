@@ -331,7 +331,7 @@ const getBrowserPosition = () =>
 
 const reverseGeocode = async (latitude, longitude) => {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 3500);
+  const timeoutId = window.setTimeout(() => controller.abort(), 8000);
 
   try {
     const response = await fetch(
@@ -741,16 +741,7 @@ const MarkAttendance = () => {
     }
 
     if (!rawLocation || rawLocation.latitude === undefined) {
-      if (!locationRule.requiresLocationMatch) {
-        setLocationCheck({
-          status: "inside",
-          distance: 0,
-          latitude: 0,
-          longitude: 0,
-          address: "Out of Office (No GPS)",
-          message: "Location ready",
-        });
-      } else if (locationCheck?.status === "error") {
+      if (locationCheck?.status === "error") {
         // Keep the error status if it was set by handleError
       } else {
         setLocationCheck({ status: "checking", message: "Checking location..." });
