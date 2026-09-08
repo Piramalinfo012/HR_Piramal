@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Search, Download, X, Filter, User, ChevronDown, CalendarDays, Table2, ChevronLeft, ChevronRight, MoreVertical, CheckCircle2, XCircle, Clock, Coffee, AlertCircle, TrendingUp, MapPin, ExternalLink } from 'lucide-react';
 import XLSX from 'xlsx-js-style';
 
@@ -32,6 +32,10 @@ const OutstationAttendance = () => {
   const [employeeFilter, setEmployeeFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState(currentMonthName);
   const [yearFilter, setYearFilter] = useState(String(new Date().getFullYear()));
+  const [latLngFilter, setLatLngFilter] = useState([]);
+  const [latLngOpen, setLatLngOpen] = useState(false);
+  const latLngRef = useRef(null);
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [attendanceView, setAttendanceView] = useState('calendar');
   const [logDateFilter, setLogDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
@@ -46,6 +50,14 @@ const OutstationAttendance = () => {
   const [masterData, setMasterData] = useState([]);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (latLngRef.current && !latLngRef.current.contains(e.target)) setLatLngOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const monthOrder = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -340,6 +352,37 @@ const OutstationAttendance = () => {
     .sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
   const yearOptions = [...new Set(attendanceData.map((i) => i.year).filter(Boolean))].sort();
 
+  // Map each employee (by person name / user name) to their Master lat,long pair
+  const masterLatLngByEmployee = {};
+  masterData.forEach((row) => {
+    const lat = (row[6] ?? '').toString().trim();
+    const lng = (row[7] ?? '').toString().trim();
+    if (!lat || !lng) return;
+    const pair = `${lat},${lng}`;
+    const nameKey = normalizeName(row[0]);
+    const userKey = normalizeName(row[1]);
+    if (nameKey) masterLatLngByEmployee[nameKey] = pair;
+    if (userKey) masterLatLngByEmployee[userKey] = pair;
+  });
+  const latLngOptions = [...new Set(Object.values(masterLatLngByEmployee))].sort();
+  const latLngLabels = {
+    '21.2461976,81.6638846': 'Shankar Nagar',
+    '21.2492583,81.6456329': 'Shyam Plaza',
+    '21.43871141,81.71989107': 'Plant',
+  };
+
+  // Map each employee to their Master Category (column L / index 11)
+  const masterCategoryByEmployee = {};
+  masterData.forEach((row) => {
+    const category = (row[11] ?? '').toString().trim();
+    if (!category) return;
+    const nameKey = normalizeName(row[0]);
+    const userKey = normalizeName(row[1]);
+    if (nameKey) masterCategoryByEmployee[nameKey] = category;
+    if (userKey) masterCategoryByEmployee[userKey] = category;
+  });
+  const categoryOptions = [...new Set(Object.values(masterCategoryByEmployee))].sort();
+
   const filteredData = attendanceData.filter((item) => {
     const s = searchTerm.toLowerCase();
     const matchesSearch = !searchTerm ||
@@ -352,7 +395,9 @@ const OutstationAttendance = () => {
     return matchesSearch &&
       (!employeeFilter || item.employeeName === employeeFilter) &&
       (!monthFilter || item.month === monthFilter) &&
-      (!yearFilter || item.year === yearFilter);
+      (!yearFilter || item.year === yearFilter) &&
+      (latLngFilter.length === 0 || latLngFilter.includes(masterLatLngByEmployee[normalizeName(item.employeeName)])) &&
+      (!categoryFilter || masterCategoryByEmployee[normalizeName(item.employeeName)] === categoryFilter);
   });
 
   const downloadExcel = () => {
@@ -365,10 +410,17 @@ const OutstationAttendance = () => {
     const monthIndex = monthOrder.indexOf(reportMonth);
     const daysInMonth = new Date(Number(reportYear), monthIndex + 1, 0).getDate();
 
-    // 3. Get unique employees (either matching filter or all)
-    const employees = employeeFilter
-      ? [employeeFilter]
-      : [...new Set(attendanceData.map((i) => i.employeeName).filter(Boolean))].sort();
+    // 3. Get unique employees matching the active filters (employee / lat-long / category)
+    const employees = [...new Set(
+      attendanceData
+        .filter((i) =>
+          (!employeeFilter || i.employeeName === employeeFilter) &&
+          (latLngFilter.length === 0 || latLngFilter.includes(masterLatLngByEmployee[normalizeName(i.employeeName)])) &&
+          (!categoryFilter || masterCategoryByEmployee[normalizeName(i.employeeName)] === categoryFilter)
+        )
+        .map((i) => i.employeeName)
+        .filter(Boolean)
+    )].sort();
 
     const ws = {};
     const lastColIndex = 2 + daysInMonth + 4 - 1;
@@ -610,7 +662,16 @@ const OutstationAttendance = () => {
       return;
     }
 
-    const employees = [...new Set(attendanceData.map((i) => i.employeeName).filter(Boolean))].sort();
+    const employees = [...new Set(
+      attendanceData
+        .filter((i) =>
+          (!employeeFilter || i.employeeName === employeeFilter) &&
+          (latLngFilter.length === 0 || latLngFilter.includes(masterLatLngByEmployee[normalizeName(i.employeeName)])) &&
+          (!categoryFilter || masterCategoryByEmployee[normalizeName(i.employeeName)] === categoryFilter)
+        )
+        .map((i) => i.employeeName)
+        .filter(Boolean)
+    )].sort();
     const monthIndex = monthOrder.indexOf(reportMonth);
     const daysInMonth = new Date(Number(reportYear), monthIndex + 1, 0).getDate();
     const todayStart = new Date();
@@ -787,7 +848,7 @@ const OutstationAttendance = () => {
     return `${baseClass} ${isToday ? 'ring-2 ring-cyan-500 ring-offset-2' : ''}`;
   };
 
-  const activeFilterCount = [searchTerm, employeeFilter, monthFilter, yearFilter].filter(Boolean).length;
+  const activeFilterCount = [searchTerm, employeeFilter, monthFilter, yearFilter, categoryFilter].filter(Boolean).length + (latLngFilter.length ? 1 : 0);
 
   return (
     <div className="space-y-5 page-content p-4 sm:p-6">
@@ -818,7 +879,7 @@ const OutstationAttendance = () => {
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="relative z-30 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-3 flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
             <Filter size={18} />
@@ -831,7 +892,7 @@ const OutstationAttendance = () => {
             <span className="ml-auto rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">{activeFilterCount} active</span>
           )}
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <div>
             <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">Search</label>
             <div className="relative">
@@ -868,6 +929,64 @@ const OutstationAttendance = () => {
               <select value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100">
                 <option value="">All Years</option>
                 {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">Lat / Long</label>
+            <div className="relative" ref={latLngRef}>
+              <MapPin size={17} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-slate-400" />
+              <button
+                type="button"
+                onClick={() => setLatLngOpen((o) => !o)}
+                className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-left text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100"
+              >
+                <span className="block truncate">{latLngFilter.length === 0 ? 'All Locations' : `${latLngFilter.length} selected`}</span>
+              </button>
+              <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              {latLngOpen && (
+                <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => setLatLngFilter([])}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    <input type="checkbox" readOnly checked={latLngFilter.length === 0} className="h-4 w-4 rounded border-slate-300 text-navy" />
+                    All Locations
+                  </button>
+                  {latLngOptions.map((ll) => {
+                    const checked = latLngFilter.includes(ll);
+                    return (
+                      <label key={ll} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setLatLngFilter((prev) =>
+                              prev.includes(ll) ? prev.filter((x) => x !== ll) : [...prev, ll]
+                            )
+                          }
+                          className="h-4 w-4 rounded border-slate-300 text-navy"
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate">{latLngLabels[ll] || ll}</span>
+                          {latLngLabels[ll] && <span className="block truncate text-[10px] font-medium text-slate-400">{ll}</span>}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">Category</label>
+            <div className="relative">
+              <Table2 size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100">
+                <option value="">All Categories</option>
+                {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
               <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>
