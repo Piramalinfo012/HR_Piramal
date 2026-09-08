@@ -846,24 +846,28 @@ const MarkAttendance = () => {
       return;
     }
  
-    if (!locationCheck || locationCheck.status === "checking") {
-      toast.error("Location is still being checked. Please try again in a moment.");
-      return;
-    }
- 
-    if (locationCheck.status === "outside") {
-      toast.error(`You are outside the allowed range (${locationCheck.distance}m / ${locationRule.rangeMeters}m). Attendance was not marked.`);
-      return;
-    }
- 
-    if (locationCheck.status === "error") {
-      toast.error(locationCheck.message || "Location check failed.");
-      return;
-    }
- 
-    if (locationCheck.latitude === undefined || locationCheck.longitude === undefined) {
-      toast.error("Location is not ready. Please try again.");
-      return;
+    // In Office users are geofenced; Out Off Office users skip these checks and
+    // have their live GPS fetched below so their real location is still stored.
+    if (locationRule.requiresLocationMatch) {
+      if (!locationCheck || locationCheck.status === "checking") {
+        toast.error("Location is still being checked. Please try again in a moment.");
+        return;
+      }
+
+      if (locationCheck.status === "outside") {
+        toast.error(`You are outside the allowed range (${locationCheck.distance}m / ${locationRule.rangeMeters}m). Attendance was not marked.`);
+        return;
+      }
+
+      if (locationCheck.status === "error") {
+        toast.error(locationCheck.message || "Location check failed.");
+        return;
+      }
+
+      if (locationCheck.latitude === undefined || locationCheck.longitude === undefined) {
+        toast.error("Location is not ready. Please try again.");
+        return;
+      }
     }
  
     isSubmittingRef.current = true;
@@ -893,10 +897,42 @@ const MarkAttendance = () => {
           return;
         }
       }
-      const latitude = locationCheck.latitude;
-      const longitude = locationCheck.longitude;
+      let latitude = locationCheck?.latitude;
+      let longitude = locationCheck?.longitude;
+
+      // Out Off Office users have no warm geofence lock, so actively fetch their
+      // live GPS here and store the real coordinates instead of "Out of Office (No GPS)".
+      if (
+        !locationRule.requiresLocationMatch &&
+        (latitude === undefined || longitude === undefined || (latitude === 0 && longitude === 0))
+      ) {
+        try {
+          const position = await getBrowserPosition();
+          latitude = Number(position.coords.latitude.toFixed(7));
+          longitude = Number(position.coords.longitude.toFixed(7));
+        } catch (locationError) {
+          // Force GPS: block punching with GPS off / permission denied.
+          const code = locationError?.code;
+          const message =
+            code === 1
+              ? "Location permission band hai. Mobile settings me GPS/Location allow karein, phir dobara try karein."
+              : code === 2
+                ? "GPS off hai. Location on karke dobara try karein."
+                : code === 3
+                  ? "GPS signal nahi mil raha. Khuli jagah jaakar dobara try karein."
+                  : "Location fetch nahi ho payi. GPS on karke dobara try karein.";
+          toast.error(message);
+          return;
+        }
+      }
+
+      if (latitude === undefined || longitude === undefined) {
+        toast.error("Location is not ready. Please try again.");
+        return;
+      }
+
       const mapLink = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-      const address = locationCheck.address || await reverseGeocode(latitude, longitude);
+      const address = locationCheck?.address || await reverseGeocode(latitude, longitude);
       if (address) {
         writeCache(MARK_ATTENDANCE_LOCATION_CACHE_KEY, { latitude, longitude, address });
         setLocationCheck((current) =>
