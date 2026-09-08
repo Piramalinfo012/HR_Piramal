@@ -35,7 +35,9 @@ const OutstationAttendance = () => {
   const [latLngFilter, setLatLngFilter] = useState([]);
   const [latLngOpen, setLatLngOpen] = useState(false);
   const latLngRef = useRef(null);
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState([]);
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const categoryRef = useRef(null);
   const [attendanceView, setAttendanceView] = useState('calendar');
   const [logDateFilter, setLogDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(null);
@@ -54,6 +56,7 @@ const OutstationAttendance = () => {
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (latLngRef.current && !latLngRef.current.contains(e.target)) setLatLngOpen(false);
+      if (categoryRef.current && !categoryRef.current.contains(e.target)) setCategoryOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -364,12 +367,12 @@ const OutstationAttendance = () => {
     if (nameKey) masterLatLngByEmployee[nameKey] = pair;
     if (userKey) masterLatLngByEmployee[userKey] = pair;
   });
-  const latLngOptions = [...new Set(Object.values(masterLatLngByEmployee))].sort();
   const latLngLabels = {
     '21.2461976,81.6638846': 'Shankar Nagar',
     '21.2492583,81.6456329': 'Shyam Plaza',
     '21.43871141,81.71989107': 'Plant',
   };
+  const latLngOptions = [...new Set([...Object.keys(latLngLabels), ...Object.values(masterLatLngByEmployee)])].sort();
 
   // Map each employee to their Master Category (column L / index 11)
   const masterCategoryByEmployee = {};
@@ -397,7 +400,7 @@ const OutstationAttendance = () => {
       (!monthFilter || item.month === monthFilter) &&
       (!yearFilter || item.year === yearFilter) &&
       (latLngFilter.length === 0 || latLngFilter.includes(masterLatLngByEmployee[normalizeName(item.employeeName)])) &&
-      (!categoryFilter || masterCategoryByEmployee[normalizeName(item.employeeName)] === categoryFilter);
+      (categoryFilter.length === 0 || categoryFilter.includes(masterCategoryByEmployee[normalizeName(item.employeeName)]));
   });
 
   const downloadExcel = () => {
@@ -416,7 +419,7 @@ const OutstationAttendance = () => {
         .filter((i) =>
           (!employeeFilter || i.employeeName === employeeFilter) &&
           (latLngFilter.length === 0 || latLngFilter.includes(masterLatLngByEmployee[normalizeName(i.employeeName)])) &&
-          (!categoryFilter || masterCategoryByEmployee[normalizeName(i.employeeName)] === categoryFilter)
+          (categoryFilter.length === 0 || categoryFilter.includes(masterCategoryByEmployee[normalizeName(i.employeeName)]))
         )
         .map((i) => i.employeeName)
         .filter(Boolean)
@@ -667,7 +670,7 @@ const OutstationAttendance = () => {
         .filter((i) =>
           (!employeeFilter || i.employeeName === employeeFilter) &&
           (latLngFilter.length === 0 || latLngFilter.includes(masterLatLngByEmployee[normalizeName(i.employeeName)])) &&
-          (!categoryFilter || masterCategoryByEmployee[normalizeName(i.employeeName)] === categoryFilter)
+          (categoryFilter.length === 0 || categoryFilter.includes(masterCategoryByEmployee[normalizeName(i.employeeName)]))
         )
         .map((i) => i.employeeName)
         .filter(Boolean)
@@ -848,7 +851,7 @@ const OutstationAttendance = () => {
     return `${baseClass} ${isToday ? 'ring-2 ring-cyan-500 ring-offset-2' : ''}`;
   };
 
-  const activeFilterCount = [searchTerm, employeeFilter, monthFilter, yearFilter, categoryFilter].filter(Boolean).length + (latLngFilter.length ? 1 : 0);
+  const activeFilterCount = [searchTerm, employeeFilter, monthFilter, yearFilter].filter(Boolean).length + (latLngFilter.length ? 1 : 0) + (categoryFilter.length ? 1 : 0);
 
   return (
     <div className="space-y-5 page-content p-4 sm:p-6">
@@ -982,13 +985,46 @@ const OutstationAttendance = () => {
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-500">Category</label>
-            <div className="relative">
-              <Table2 size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100">
-                <option value="">All Categories</option>
-                {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+            <div className="relative" ref={categoryRef}>
+              <Table2 size={17} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-slate-400" />
+              <button
+                type="button"
+                onClick={() => setCategoryOpen((o) => !o)}
+                className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-left text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-navy focus:ring-2 focus:ring-indigo-100"
+              >
+                <span className="block truncate">{categoryFilter.length === 0 ? 'All Categories' : `${categoryFilter.length} selected`}</span>
+              </button>
               <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              {categoryOpen && (
+                <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter([])}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    <input type="checkbox" readOnly checked={categoryFilter.length === 0} className="h-4 w-4 rounded border-slate-300 text-navy" />
+                    All Categories
+                  </button>
+                  {categoryOptions.map((c) => {
+                    const checked = categoryFilter.includes(c);
+                    return (
+                      <label key={c} className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setCategoryFilter((prev) =>
+                              prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
+                            )
+                          }
+                          className="h-4 w-4 rounded border-slate-300 text-navy"
+                        />
+                        {c}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
