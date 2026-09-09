@@ -83,14 +83,6 @@ export const adminNavigationItems = [
   },
   {
     type: "dropdown",
-    icon: "BadgeDollarSign",
-    label: "Payroll Management",
-    items: [
-      { path: "/payroll", label: "Salary Processing", aliases: ["Payroll"] },
-    ],
-  },
-  {
-    type: "dropdown",
     icon: "UserX",
     label: "Exit Management",
     items: [
