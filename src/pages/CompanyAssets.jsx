@@ -16,8 +16,7 @@ import {
 import toast from "react-hot-toast";
 import { getUserRole } from "../utils/authRole";
 
-const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
-const OUTSTATION_SPREADSHEET_ID = "1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw";
+const GOOGLE_SHEET_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 const COMPANY_ASSETS_SHEET_NAME = "Company Assests";
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
@@ -53,21 +52,6 @@ const formatDateTime = (date) => {
   const minute = String(date.getMinutes()).padStart(2, "0");
   const second = String(date.getSeconds()).padStart(2, "0");
   return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
-};
-
-const parseGoogleSheetTable = (text) => {
-  const jsonStart = text.indexOf("{");
-  const jsonEnd = text.lastIndexOf("}");
-  if (jsonStart === -1 || jsonEnd === -1 || jsonEnd <= jsonStart) {
-    throw new Error("Invalid Company Assets response");
-  }
-  const payload = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
-  return (payload.table?.rows || []).map((row) =>
-    (row.c || []).map((cell) => {
-      if (!cell) return "";
-      return cell.f ?? cell.v ?? "";
-    })
-  );
 };
 
 // Split a stored image cell (comma / newline separated URLs) into an array.
@@ -142,15 +126,19 @@ const CompanyAssets = () => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const url = `https://docs.google.com/spreadsheets/d/${OUTSTATION_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(
+      const url = `${GOOGLE_SHEET_URL}?sheet=${encodeURIComponent(
         COMPANY_ASSETS_SHEET_NAME
-      )}&headers=0&cb=${Date.now()}`;
+      )}&action=fetch&_=${Date.now()}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const rows = parseGoogleSheetTable(await response.text());
+      const result = await response.json();
+      if (!result.success || !Array.isArray(result.data)) {
+        throw new Error(result.message || result.error || "Failed to load company assets");
+      }
+      const rows = result.data;
 
-      // headers=0 keeps the header as row[0] (sheet row 1); data starts at row[1].
-      // So sheet rowIndex for slice(1) item = arrayIndex + 2 (matches Apps Script update contract).
+      // The API returns the header as data[0] (sheet row 1); data starts at index 1.
+      // So sheet rowIndex for slice(1) item = arrayIndex + 2 (matches the update contract).
       const parsed = rows
         .slice(1)
         .map((row, idx) => ({
@@ -197,20 +185,18 @@ const CompanyAssets = () => {
   }, [entries, searchTerm, isAdmin, currentEmployeeName]);
 
   const postToSheet = async (payload) => {
-    if (!OUTSTATION_SCRIPT_URL) throw new Error("VITE_OUTSTATION_SHEET_URL missing hai");
-    try {
-      await fetch(OUTSTATION_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        body: new URLSearchParams({
-          sheetName: COMPANY_ASSETS_SHEET_NAME,
-          ...payload,
-        }),
-      });
-    } catch (err) {
-      // no-cors gives an opaque response; network errors are logged and UI is updated optimistically.
-      console.warn("Company Assets post (no-cors) network note:", err);
-    }
+    if (!GOOGLE_SHEET_URL) throw new Error("VITE_GOOGLE_SHEET_URL missing hai");
+    const response = await fetch(GOOGLE_SHEET_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        sheetName: COMPANY_ASSETS_SHEET_NAME,
+        ...payload,
+      }).toString(),
+    });
+    const result = await response.json();
+    if (!result.success) throw new Error(result.error || result.message || "Save failed");
+    return result;
   };
 
   const resetAddForm = () => {
