@@ -13,7 +13,6 @@ const AssetAssignment = () => {
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
-    const [deptFilter, setDeptFilter] = useState("");
     const [desigFilter, setDesigFilter] = useState("");
     const [tableLoading, setTableLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("history");
@@ -167,10 +166,6 @@ const AssetAssignment = () => {
         if (activeTab === "pending") filtered = filtered.filter(i => i.isPending);
         else if (activeTab === "history") filtered = filtered.filter(i => i.isHistory);
 
-        if (deptFilter) {
-            filtered = filtered.filter(item => item.department === deptFilter);
-        }
-
         if (desigFilter) {
             filtered = filtered.filter(item => item.designation === desigFilter);
         }
@@ -178,16 +173,23 @@ const AssetAssignment = () => {
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(item =>
-                (item.candidateName || "").toLowerCase().includes(term) ||
-                (item.indentNumber || "").toLowerCase().includes(term) ||
-                (item.designation || "").toLowerCase().includes(term) ||
-                (item.department || "").toLowerCase().includes(term)
+                [
+                    item.candidateName,
+                    item.indentNumber,
+                    item.designation,
+                    item.department,
+                    item.laptopDetails,
+                    item.mobileDetails,
+                    item.gmailId,
+                    item.assetsAssigned,
+                ]
+                    .map(v => (v || "").toString().toLowerCase())
+                    .some(v => v.includes(term))
             );
         }
         return filtered;
     };
 
-    const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
     const designations = [...new Set(candidateData.map(item => item.designation))].filter(Boolean).sort();
 
     const filteredData = getFilteredData();
@@ -323,20 +325,7 @@ const AssetAssignment = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t pt-4">
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Department</label>
-                        <select
-                            value={deptFilter}
-                            onChange={(e) => setDeptFilter(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-                        >
-                            <option value="">All Departments</option>
-                            {departments.map(dept => (
-                                <option key={dept} value={dept}>{dept}</option>
-                            ))}
-                        </select>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
                     <div className="space-y-1">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Designation</label>
                         <select
@@ -354,7 +343,6 @@ const AssetAssignment = () => {
                         <button
                             onClick={() => {
                                 setSearchTerm("");
-                                setDeptFilter("");
                                 setDesigFilter("");
                             }}
                             className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
