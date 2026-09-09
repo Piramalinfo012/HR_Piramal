@@ -87,7 +87,6 @@ export const adminNavigationItems = [
     label: "Payroll Management",
     items: [
       { path: "/payroll", label: "Salary Processing", aliases: ["Payroll"] },
-      { path: "/salary-slip-generation", label: "Salary Slip Generation", placeholder: true },
     ],
   },
   {
