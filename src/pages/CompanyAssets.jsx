@@ -103,6 +103,7 @@ const CompanyAssets = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [tab, setTab] = useState("active"); // "active" (issued) | "history" (returned)
 
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState(emptyEntryForm);
@@ -183,6 +184,12 @@ const CompanyAssets = () => {
         .includes(search)
     );
   }, [entries, searchTerm, isAdmin, currentEmployeeName]);
+
+  // Active tab = issued (not returned); History tab = returned items.
+  const visibleEntries = useMemo(() => {
+    const isReturned = (item) => Boolean(String(item.returnDate || "").trim());
+    return filteredEntries.filter((e) => (tab === "history" ? isReturned(e) : !isReturned(e)));
+  }, [filteredEntries, tab]);
 
   const postToSheet = async (payload) => {
     if (!GOOGLE_SHEET_URL) throw new Error("VITE_GOOGLE_SHEET_URL missing hai");
@@ -387,13 +394,31 @@ const CompanyAssets = () => {
             <p className="text-sm font-bold text-rose-600">Error: {error}</p>
             <button onClick={() => fetchEntries()} className="mt-3 rounded-xl bg-teal-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-teal-700">Retry</button>
           </div>
-        ) : filteredEntries.length === 0 ? (
-          <div className="py-16 text-center text-sm font-semibold text-slate-500">No company asset entries found.</div>
         ) : (
+          <>
+          {/* Tabs */}
+          <div className="mb-4 inline-flex rounded-xl bg-slate-100 p-1">
+            {[["active", "Active"], ["history", "History"]].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className={`rounded-lg px-4 py-1.5 text-sm font-bold transition ${tab === key ? "bg-teal-600 text-white shadow-sm" : "text-slate-600 hover:bg-white"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {visibleEntries.length === 0 ? (
+            <div className="py-16 text-center text-sm font-semibold text-slate-500">
+              {tab === "history" ? "No returned items yet." : "No active (issued) items."}
+            </div>
+          ) : (
           <>
           {/* Mobile card view */}
           <div className="space-y-3 md:hidden">
-            {filteredEntries.map((entry) => {
+            {visibleEntries.map((entry) => {
               const isReturned = Boolean(String(entry.returnDate || "").trim());
               return (
                 <div key={`m-${entry.rowIndex}-${entry.timestamp}`} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -456,7 +481,7 @@ const CompanyAssets = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {filteredEntries.map((entry) => {
+                {visibleEntries.map((entry) => {
                   const isReturned = Boolean(String(entry.returnDate || "").trim());
                   return (
                     <tr key={`${entry.rowIndex}-${entry.timestamp}`} className="align-top transition hover:bg-slate-50">
@@ -495,6 +520,8 @@ const CompanyAssets = () => {
               </tbody>
             </table>
           </div>
+          </>
+          )}
           </>
         )}
       </div>
