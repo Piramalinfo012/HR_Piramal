@@ -101,7 +101,7 @@ const Layout = () => {
   const currentRole = getUserRole(currentUser || {});
   const isEmployee = currentRole === 'employee';
   const isEmployeeMobile = isEmployee && isMobile;
-  const employeeAllowedPaths = ['/employee-mobile', '/my-attendance', '/mark-attendance', '/leave-request', '/leave-management', '/employee-profile'];
+  const employeeAllowedPaths = ['/employee-mobile', '/my-attendance', '/mark-attendance', '/leave-request', '/leave-management', '/employee-profile', '/company-assets'];
 
   useEffect(() => {
     if (!isEmployee) return;
