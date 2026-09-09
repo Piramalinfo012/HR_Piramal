@@ -57,7 +57,7 @@ export const adminNavigationItems = [
     label: "Assets Management",
     items: [
       { path: "/asset-assignment", label: "Assigned Assets", aliases: ["Asset Assignment (IT Team)", "Asset Assignment"] },
-      { path: "/after-leaving-work", label: "Exit Checklist", aliases: ["After Leaving Work"] },
+      { path: "/exit-checklist", label: "Exit Checklist" },
       { path: "/company-assets", label: "Company Assets" },
     ],
   },

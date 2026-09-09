@@ -59,6 +59,7 @@ import InterviewScheduled from "./pages/InterviewScheduled";
 import UserManagement from "./pages/UserManagement";
 import OutstationMaster from "./pages/OutstationMaster";
 import CompanyAssets from "./pages/CompanyAssets";
+import ExitChecklist from "./pages/ExitChecklist";
 import FeedManagement from "./pages/FeedManagement";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
 import { placeholderRoutes } from "./config/hrModules";
@@ -139,6 +140,7 @@ function App() {
             <Route path="user-management" element={<UserManagement />} />
             <Route path="outstation-master" element={<OutstationMaster />} />
             <Route path="company-assets" element={<CompanyAssets />} />
+            <Route path="exit-checklist" element={<ExitChecklist />} />
             <Route path="feed-management" element={<FeedManagement />} />
             {placeholderRoutes.map((route) => (
               <Route
