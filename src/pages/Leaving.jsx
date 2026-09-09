@@ -28,8 +28,10 @@ const Leaving = () => {
       whatsappGroup: false,
       documentsData: false,
       businessWhatsapp: false,
-      officialEmail: false
-    },
+      officialEmail: false,
+      callForwarding: false
+},
+    callForwardNumber: '',
     finalExitInterview: false,
     finalExitStatus: ''
   });
@@ -145,8 +147,9 @@ const Leaving = () => {
       whatsappGroup: false,
       documentsData: false,
       businessWhatsapp: false,
-      officialEmail: false
-    };
+      officialEmail: false,
+      callForwarding: false
+};
 
     // Mapping Labels back to Keys
     const assetLabelsToKeys = {
@@ -163,9 +166,15 @@ const Leaving = () => {
       'Official email logged out from device': 'officialEmail'
     };
 
+    let callForwardNumber = '';
     if (assetString) {
       assetString.split(',').forEach(label => {
         const trimmedLabel = label.trim();
+        if (/^call forward-/i.test(trimmedLabel)) {
+          currentAssets.callForwarding = true;
+          callForwardNumber = trimmedLabel.replace(/^call forward-/i, '').trim();
+          return;
+        }
         const key = assetLabelsToKeys[trimmedLabel];
         if (key) {
           currentAssets[key] = true;
@@ -183,6 +192,7 @@ const Leaving = () => {
       handoverOfAssets: !!row[36] || !!assetString,
 
       assetChecklist: currentAssets,
+      callForwardNumber,
 
       finalExitInterview: !!row[41] || !!row[42],
       finalExitStatus: row[42] || ''
@@ -248,7 +258,11 @@ const Leaving = () => {
 
       const selectedAssetsList = Object.entries(actionFormData.assetChecklist)
         .filter(([key, val]) => val)
-        .map(([key]) => assetLabels[key]);
+        .map(([key]) =>
+          key === 'callForwarding'
+            ? `call forward-${(actionFormData.callForwardNumber || '').trim()}`
+            : assetLabels[key]
+        );
 
       const selectedAssetsString = selectedAssetsList.join(',');
 
@@ -555,19 +569,32 @@ const Leaving = () => {
                             { key: 'whatsappGroup', label: 'Remove from whatapp group' },
                             { key: 'documentsData', label: 'Documents and data handover' },
                             { key: 'businessWhatsapp', label: 'Business WhatsApp logged out/removed from phone' },
-                            { key: 'officialEmail', label: 'Official email logged out from device' }
+                            { key: 'officialEmail', label: 'Official email logged out from device' },
+                            { key: 'callForwarding', label: 'Call Forwarding' }
                           ].map((asset) => (
-                            <div key={asset.key} className="flex items-center">
-                              <input
-                                type="checkbox"
-                                id={asset.key}
-                                checked={actionFormData.assetChecklist[asset.key]}
-                                onChange={() => handleAssetCheckboxChange(asset.key)}
-                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                              />
-                              <label htmlFor={asset.key} className="ml-2 text-sm text-gray-600">
-                                {asset.label}
-                              </label>
+                            <div key={asset.key}>
+                              <div className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  id={asset.key}
+                                  checked={actionFormData.assetChecklist[asset.key]}
+                                  onChange={() => handleAssetCheckboxChange(asset.key)}
+                                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor={asset.key} className="ml-2 text-sm text-gray-600">
+                                  {asset.label}
+                                </label>
+                              </div>
+                              {asset.key === 'callForwarding' && actionFormData.assetChecklist.callForwarding && (
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={actionFormData.callForwardNumber}
+                                  onChange={(e) => setActionFormData(prev => ({ ...prev, callForwardNumber: e.target.value }))}
+                                  placeholder="Enter forwarding number"
+                                  className="ml-6 mt-1 w-56 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                />
+                              )}
                             </div>
                           ))}
                         </div>
