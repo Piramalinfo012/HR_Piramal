@@ -16,7 +16,7 @@ const AssetAssignment = () => {
     const [deptFilter, setDeptFilter] = useState("");
     const [desigFilter, setDesigFilter] = useState("");
     const [tableLoading, setTableLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState("pending");
+    const [activeTab, setActiveTab] = useState("history");
     const [showModal, setShowModal] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const [formData, setFormData] = useState({
@@ -316,10 +316,6 @@ const AssetAssignment = () => {
                         </div>
                     </div>
                     <div className="flex space-x-2">
-                        <button
-                            onClick={() => setActiveTab('pending')}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'pending' ? 'bg-navy text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                        >Pending</button>
                         <button
                             onClick={() => setActiveTab('history')}
                             className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'history' ? 'bg-navy text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
