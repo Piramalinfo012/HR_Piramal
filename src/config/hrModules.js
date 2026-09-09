@@ -49,6 +49,15 @@ export const adminNavigationItems = [
       { path: "/employee", label: "Employee Master", aliases: ["Employee"] },
       { path: "/employee-profile", label: "Employee Profile", placeholder: true },
       { path: "/documents", label: "Employee Documents", aliases: ["Documents"] },
+    ],
+  },
+  {
+    type: "dropdown",
+    icon: "Inbox",
+    label: "Assets Management",
+    items: [
+      { path: "/asset-assignment", label: "Assigned Assets", aliases: ["Asset Assignment (IT Team)", "Asset Assignment"] },
+      { path: "/after-leaving-work", label: "Exit Checklist", aliases: ["After Leaving Work"] },
       { path: "/company-assets", label: "Company Assets" },
     ],
   },
