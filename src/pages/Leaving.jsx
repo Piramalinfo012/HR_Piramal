@@ -26,7 +26,9 @@ const Leaving = () => {
       benefitEnrollment: false,
       dataSecurity: false,
       whatsappGroup: false,
-      documentsData: false
+      documentsData: false,
+      businessWhatsapp: false,
+      officialEmail: false
     },
     finalExitInterview: false,
     finalExitStatus: ''
@@ -141,7 +143,9 @@ const Leaving = () => {
       benefitEnrollment: false,
       dataSecurity: false,
       whatsappGroup: false,
-      documentsData: false
+      documentsData: false,
+      businessWhatsapp: false,
+      officialEmail: false
     };
 
     // Mapping Labels back to Keys
@@ -154,7 +158,9 @@ const Leaving = () => {
       'Remove Benefit Enrollment': 'benefitEnrollment',
       'Data security document sign': 'dataSecurity',
       'Remove from whatapp group': 'whatsappGroup',
-      'Documents and data handover': 'documentsData'
+      'Documents and data handover': 'documentsData',
+      'Business WhatsApp logged out/removed from phone': 'businessWhatsapp',
+      'Official email logged out from device': 'officialEmail'
     };
 
     if (assetString) {
@@ -235,7 +241,9 @@ const Leaving = () => {
         benefitEnrollment: 'Remove Benefit Enrollment',
         dataSecurity: 'Data security document sign',
         whatsappGroup: 'Remove from whatapp group',
-        documentsData: 'Documents and data handover'
+        documentsData: 'Documents and data handover',
+        businessWhatsapp: 'Business WhatsApp logged out/removed from phone',
+        officialEmail: 'Official email logged out from device'
       };
 
       const selectedAssetsList = Object.entries(actionFormData.assetChecklist)
@@ -245,8 +253,7 @@ const Leaving = () => {
       const selectedAssetsString = selectedAssetsList.join(',');
 
       // Check if ALL assets are checked
-      // Total assets = 9
-      const allAssetsChecked = selectedAssetsList.length === 9;
+      const allAssetsChecked = selectedAssetsList.length === Object.keys(actionFormData.assetChecklist).length;
 
       // Conditional Date Logic
       // 1. Resignation Letter Received: Insert Date ONLY if Status == 'Done'
@@ -546,7 +553,9 @@ const Leaving = () => {
                             { key: 'benefitEnrollment', label: 'Remove Benefit Enrollment' },
                             { key: 'dataSecurity', label: 'Data security document sign' },
                             { key: 'whatsappGroup', label: 'Remove from whatapp group' },
-                            { key: 'documentsData', label: 'Documents and data handover' }
+                            { key: 'documentsData', label: 'Documents and data handover' },
+                            { key: 'businessWhatsapp', label: 'Business WhatsApp logged out/removed from phone' },
+                            { key: 'officialEmail', label: 'Official email logged out from device' }
                           ].map((asset) => (
                             <div key={asset.key} className="flex items-center">
                               <input
