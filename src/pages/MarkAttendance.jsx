@@ -512,12 +512,16 @@ const MarkAttendance = () => {
     try {
       if (!OUTSTATION_SCRIPT_URL) throw new Error("VITE_OUTSTATION_SHEET_URL missing hai");
 
-      const attendancePromise = fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData`).then(async (response) => {
-        if (!response.ok) throw new Error(`Attendance HTTP error! status: ${response.status}`);
-        const result = await response.json();
-        if (result.status !== "success") throw new Error(result.message || "Attendance data fetch failed");
-        return result.attendance || [];
-      });
+      const attendanceController = new AbortController();
+      const attendanceTimeout = window.setTimeout(() => attendanceController.abort(), 8000);
+      const attendancePromise = fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData`, { signal: attendanceController.signal })
+        .then(async (response) => {
+          if (!response.ok) throw new Error(`Attendance HTTP error! status: ${response.status}`);
+          const result = await response.json();
+          if (result.status !== "success") throw new Error(result.message || "Attendance data fetch failed");
+          return result.attendance || [];
+        })
+        .finally(() => window.clearTimeout(attendanceTimeout));
 
       const masterPromise = fetchSheetRows(MASTER_SHEET_NAME)
         .then(normalizeMasterRows)
@@ -525,6 +529,17 @@ const MarkAttendance = () => {
           console.warn("Master sheet location rules skipped:", masterError);
           return [];
         });
+
+      // Location settings (Master) load independently so Check IN is ready in ~1s
+      // instead of waiting for the slow attendance download. This removes the
+      // "Fetching user settings..." block that was delaying punches into half-day.
+      masterPromise.then((rows) => {
+        if (Array.isArray(rows) && rows.length) {
+          writeCache(MARK_ATTENDANCE_MASTER_CACHE_KEY, rows);
+          setMasterUsers(rows);
+          setInitialFetchDone(true);
+        }
+      });
 
       const [rawAttendance, masterRows] = await Promise.all([attendancePromise, masterPromise]);
       const grouped = {};
