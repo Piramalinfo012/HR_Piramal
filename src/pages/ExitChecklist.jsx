@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { LogOut, RefreshCw, Search, CheckCircle2, Phone, Package } from "lucide-react";
+import { LogOut, RefreshCw, Search, CheckCircle2, Phone, Package, User, ChevronDown } from "lucide-react";
 
 const LEAVING_SHEET_URL = import.meta.env.VITE_LEAVING_SHEET_URL;
 const EXIT_SHEET_NAME = "FMS";
@@ -50,6 +50,8 @@ const ExitChecklist = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [employeeFilter, setEmployeeFilter] = useState("");
+  const [handoverFilter, setHandoverFilter] = useState("");
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -95,16 +97,29 @@ const ExitChecklist = () => {
     fetchData();
   }, []);
 
+  const employeeOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.name).filter(Boolean))].sort(),
+    [rows]
+  );
+  const handoverOptions = useMemo(
+    () => [...new Set(rows.flatMap((r) => r.handover).filter(Boolean))].sort(),
+    [rows]
+  );
+
   const filteredRows = useMemo(() => {
     const search = normalize(searchTerm);
-    if (!search) return rows;
-    return rows.filter((row) =>
-      [row.name, row.id, row.designation, row.mobile, row.reason, row.handover.join(" ")]
-        .join(" ")
-        .toLowerCase()
-        .includes(search)
-    );
-  }, [rows, searchTerm]);
+    return rows.filter((row) => {
+      const matchesSearch =
+        !search ||
+        [row.name, row.id, row.designation, row.mobile, row.reason, row.handover.join(" ")]
+          .join(" ")
+          .toLowerCase()
+          .includes(search);
+      const matchesEmployee = !employeeFilter || row.name === employeeFilter;
+      const matchesHandover = !handoverFilter || row.handover.includes(handoverFilter);
+      return matchesSearch && matchesEmployee && matchesHandover;
+    });
+  }, [rows, searchTerm, employeeFilter, handoverFilter]);
 
   const StatusBadge = ({ status }) => {
     const done = /done|complete/i.test(status);
@@ -153,17 +168,35 @@ const ExitChecklist = () => {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search + Filters */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by name, ID, designation..."
-            className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-          />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by name, ID, designation..."
+              className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+            />
+          </div>
+          <div className="relative">
+            <User size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+              <option value="">All Employees</option>
+              {employeeOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+            <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          </div>
+          <div className="relative">
+            <Package size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <select value={handoverFilter} onChange={(e) => setHandoverFilter(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+              <option value="">All Handover Items</option>
+              {handoverOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+            <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          </div>
         </div>
       </div>
 
