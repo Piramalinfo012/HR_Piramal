@@ -14,6 +14,7 @@ import {
   User,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { getUserRole } from "../utils/authRole";
 
 const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
 const OUTSTATION_SPREADSHEET_ID = "1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw";
@@ -22,6 +23,27 @@ const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 const normalize = (value) => String(value || "").trim().toLowerCase();
+
+const getStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const getCurrentUserName = (user = {}) =>
+  String(
+    user["Employee Name"] ||
+      user["Person Name"] ||
+      user["Sales Person Name"] ||
+      user.Name ||
+      user.name ||
+      user["User Name"] ||
+      user.Username ||
+      user.username ||
+      ""
+  ).trim();
 
 const formatDateTime = (date) => {
   const day = String(date.getDate()).padStart(2, "0");
@@ -89,6 +111,10 @@ const uploadAllImages = async (files = []) => {
 const emptyEntryForm = { employeeName: "", product: "", reason: "", remark: "" };
 
 const CompanyAssets = () => {
+  const currentUser = useMemo(() => getStoredUser(), []);
+  const isAdmin = useMemo(() => getUserRole(currentUser) === "admin", [currentUser]);
+  const currentEmployeeName = useMemo(() => getCurrentUserName(currentUser), [currentUser]);
+
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -156,15 +182,19 @@ const CompanyAssets = () => {
   }, []);
 
   const filteredEntries = useMemo(() => {
+    // Employees only see their own entries; admin sees everyone's data.
+    const scoped = isAdmin
+      ? entries
+      : entries.filter((item) => normalize(item.employeeName) === normalize(currentEmployeeName));
     const search = normalize(searchTerm);
-    if (!search) return entries;
-    return entries.filter((item) =>
+    if (!search) return scoped;
+    return scoped.filter((item) =>
       [item.employeeName, item.product, item.reason, item.remark, item.returnRemark]
         .join(" ")
         .toLowerCase()
         .includes(search)
     );
-  }, [entries, searchTerm]);
+  }, [entries, searchTerm, isAdmin, currentEmployeeName]);
 
   const postToSheet = async (payload) => {
     if (!OUTSTATION_SCRIPT_URL) throw new Error("VITE_OUTSTATION_SHEET_URL missing hai");
@@ -187,6 +217,14 @@ const CompanyAssets = () => {
     setAddForm(emptyEntryForm);
     setAddFiles([]);
     if (addFileRef.current) addFileRef.current.value = "";
+  };
+
+  const openAdd = () => {
+    // Employees can only file under their own name; admin can enter any name.
+    setAddForm({ ...emptyEntryForm, employeeName: isAdmin ? "" : currentEmployeeName });
+    setAddFiles([]);
+    if (addFileRef.current) addFileRef.current.value = "";
+    setAddOpen(true);
   };
 
   const handleAddSubmit = async () => {
@@ -328,7 +366,7 @@ const CompanyAssets = () => {
               <RefreshCw size={17} className={loading ? "animate-spin" : ""} /> Refresh
             </button>
             <button
-              onClick={() => setAddOpen(true)}
+              onClick={openAdd}
               className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-teal-700 shadow-md transition hover:bg-teal-50"
             >
               <Plus size={18} /> Add Entry
@@ -434,7 +472,13 @@ const CompanyAssets = () => {
                 <label className="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">Employee Name *</label>
                 <div className="relative">
                   <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input value={addForm.employeeName} onChange={(e) => setAddForm((f) => ({ ...f, employeeName: e.target.value }))} className="h-11 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm font-semibold text-slate-700 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" placeholder="Employee ka naam" />
+                  <input
+                    value={addForm.employeeName}
+                    onChange={(e) => setAddForm((f) => ({ ...f, employeeName: e.target.value }))}
+                    readOnly={!isAdmin}
+                    className={`h-11 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm font-semibold text-slate-700 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 ${isAdmin ? "bg-white" : "bg-slate-100 cursor-not-allowed"}`}
+                    placeholder="Employee ka naam"
+                  />
                 </div>
               </div>
               <div>

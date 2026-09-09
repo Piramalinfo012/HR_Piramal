@@ -17,6 +17,7 @@ import {
   ClipboardList,
   Users,
   FolderKanban,
+  Package,
   Gift,
   MessageCircle,
   Phone,
@@ -744,6 +745,7 @@ const EmployeeMobileHome = () => {
     { icon: FileText, label: 'Leave Request', path: '/leave-request', iconClass: 'bg-rose-50 text-rose-700 ring-rose-100' },
     { icon: CalendarDays, label: 'Leave History', path: '/leave-management', iconClass: 'bg-slate-100 text-slate-700 ring-slate-200' },
     { icon: User, label: 'My Profile', path: '/employee-profile', iconClass: 'bg-amber-50 text-amber-700 ring-amber-100' },
+    { icon: Package, label: 'Company Assets', path: '/company-assets', iconClass: 'bg-teal-50 text-teal-700 ring-teal-100' },
     { icon: Briefcase, label: 'Alteration Form', externalUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSewFXJwJjtXErhqO_PoCLqIi-eH7i3Qau94LcnARJsgiwf2Lw/viewform?usp=publish-editor', path: '/employee-mobile', iconClass: 'bg-orange-50 text-orange-700 ring-orange-100' },
     { id: 'contacts', icon: Users, label: 'All Contacts', path: '/employee-mobile', iconClass: 'bg-cyan-50 text-cyan-700 ring-cyan-100' },
   ];
