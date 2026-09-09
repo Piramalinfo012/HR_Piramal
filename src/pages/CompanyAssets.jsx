@@ -55,6 +55,15 @@ const formatDateTime = (date) => {
   return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
 };
 
+// Convert a stored timestamp's date part (DD/MM/YYYY ...) to YYYY-MM-DD for
+// comparison with the native date input value.
+const toISODate = (timestamp) => {
+  const datePart = String(timestamp || "").trim().split(" ")[0];
+  const match = datePart.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return "";
+  return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+};
+
 // Split a stored image cell (comma / newline separated URLs) into an array.
 const splitImages = (value) =>
   String(value || "")
@@ -186,11 +195,6 @@ const CompanyAssets = () => {
     () => [...new Set(scopedEntries.map((e) => e.employeeName).filter(Boolean))].sort(),
     [scopedEntries]
   );
-  const dateOptions = useMemo(
-    () => [...new Set(scopedEntries.map((e) => String(e.timestamp || "").split(" ")[0]).filter(Boolean))],
-    [scopedEntries]
-  );
-
   const filteredEntries = useMemo(() => {
     const search = normalize(searchTerm);
     return scopedEntries.filter((item) => {
@@ -201,7 +205,7 @@ const CompanyAssets = () => {
           .toLowerCase()
           .includes(search);
       const matchesEmployee = !employeeFilter || item.employeeName === employeeFilter;
-      const matchesDate = !dateFilter || String(item.timestamp || "").split(" ")[0] === dateFilter;
+      const matchesDate = !dateFilter || toISODate(item.timestamp) === dateFilter;
       return matchesSearch && matchesEmployee && matchesDate;
     });
   }, [scopedEntries, searchTerm, employeeFilter, dateFilter]);
@@ -411,12 +415,18 @@ const CompanyAssets = () => {
             <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
           <div className="relative">
-            <Calendar size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
-              <option value="">All Dates</option>
-              {dateOptions.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Calendar size={17} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-slate-400" />
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+            />
+            {dateFilter && (
+              <button type="button" onClick={() => setDateFilter("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600">
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
       </div>
