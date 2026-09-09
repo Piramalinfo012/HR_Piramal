@@ -12,6 +12,7 @@ import {
   ImageIcon,
   Calendar,
   User,
+  ChevronDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { getUserRole } from "../utils/authRole";
@@ -104,6 +105,8 @@ const CompanyAssets = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [tab, setTab] = useState("active"); // "active" (issued) | "history" (returned)
+  const [employeeFilter, setEmployeeFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState(emptyEntryForm);
@@ -170,20 +173,38 @@ const CompanyAssets = () => {
     fetchEntries();
   }, []);
 
+  // Employees only see their own entries; admin sees everyone's data.
+  const scopedEntries = useMemo(
+    () =>
+      isAdmin
+        ? entries
+        : entries.filter((item) => normalize(item.employeeName) === normalize(currentEmployeeName)),
+    [entries, isAdmin, currentEmployeeName]
+  );
+
+  const employeeOptions = useMemo(
+    () => [...new Set(scopedEntries.map((e) => e.employeeName).filter(Boolean))].sort(),
+    [scopedEntries]
+  );
+  const dateOptions = useMemo(
+    () => [...new Set(scopedEntries.map((e) => String(e.timestamp || "").split(" ")[0]).filter(Boolean))],
+    [scopedEntries]
+  );
+
   const filteredEntries = useMemo(() => {
-    // Employees only see their own entries; admin sees everyone's data.
-    const scoped = isAdmin
-      ? entries
-      : entries.filter((item) => normalize(item.employeeName) === normalize(currentEmployeeName));
     const search = normalize(searchTerm);
-    if (!search) return scoped;
-    return scoped.filter((item) =>
-      [item.employeeName, item.product, item.reason, item.remark, item.returnRemark]
-        .join(" ")
-        .toLowerCase()
-        .includes(search)
-    );
-  }, [entries, searchTerm, isAdmin, currentEmployeeName]);
+    return scopedEntries.filter((item) => {
+      const matchesSearch =
+        !search ||
+        [item.employeeName, item.product, item.reason, item.remark, item.returnRemark]
+          .join(" ")
+          .toLowerCase()
+          .includes(search);
+      const matchesEmployee = !employeeFilter || item.employeeName === employeeFilter;
+      const matchesDate = !dateFilter || String(item.timestamp || "").split(" ")[0] === dateFilter;
+      return matchesSearch && matchesEmployee && matchesDate;
+    });
+  }, [scopedEntries, searchTerm, employeeFilter, dateFilter]);
 
   // Active tab = issued (not returned); History tab = returned items.
   const visibleEntries = useMemo(() => {
@@ -368,17 +389,35 @@ const CompanyAssets = () => {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search + Filters */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by employee, product, reason..."
-            className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-          />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by employee, product, reason..."
+              className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-4 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+            />
+          </div>
+          <div className="relative">
+            <User size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+              <option value="">All Employees</option>
+              {employeeOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+            <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          </div>
+          <div className="relative">
+            <Calendar size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-300 bg-white pl-10 pr-9 text-sm font-semibold text-slate-700 outline-none transition hover:border-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+              <option value="">All Dates</option>
+              {dateOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <ChevronDown size={17} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          </div>
         </div>
       </div>
 
