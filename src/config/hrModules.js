@@ -49,6 +49,7 @@ export const adminNavigationItems = [
       { path: "/employee", label: "Employee Master", aliases: ["Employee"] },
       { path: "/employee-profile", label: "Employee Profile", placeholder: true },
       { path: "/documents", label: "Employee Documents", aliases: ["Documents"] },
+      { path: "/company-assets", label: "Company Assets" },
     ],
   },
   {
