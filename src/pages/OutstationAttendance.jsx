@@ -426,7 +426,7 @@ const OutstationAttendance = () => {
     )].sort();
 
     const ws = {};
-    const lastColIndex = 2 + daysInMonth + 4 - 1;
+    const lastColIndex = 2 + daysInMonth + 5 - 1;
 
     // Helper for regular cells
     const setCell = (r, c, val, styles = {}) => {
@@ -483,10 +483,11 @@ const OutstationAttendance = () => {
     for (let d = 1; d <= daysInMonth; d++) {
       setCell(1, 1 + d, d, { ...headerStyle, font: { bold: true, sz: 7 } });
     }
-    setCell(1, 2 + daysInMonth, "Working Day", headerStyle);
-    setCell(1, 2 + daysInMonth + 1, "Late Mark", headerStyle);
-    setCell(1, 2 + daysInMonth + 2, "Leave", headerStyle);
-    setCell(1, 2 + daysInMonth + 3, "pay day", headerStyle);
+    setCell(1, 2 + daysInMonth, "Total Days", headerStyle);
+    setCell(1, 2 + daysInMonth + 1, "Working Day", headerStyle);
+    setCell(1, 2 + daysInMonth + 2, "Late Mark", headerStyle);
+    setCell(1, 2 + daysInMonth + 3, "Leave", headerStyle);
+    setCell(1, 2 + daysInMonth + 4, "pay day", headerStyle);
 
     // Row 2 onwards: Data
     employees.forEach((employee, idx) => {
@@ -609,10 +610,11 @@ const OutstationAttendance = () => {
       const totalColStart = 2 + daysInMonth;
       const totalStyle = { font: { bold: true, sz: 10 } };
 
-      setCell(rIndex, totalColStart, workingDays, totalStyle);
-      setCell(rIndex, totalColStart + 1, lateMarks, totalStyle);
-      setCell(rIndex, totalColStart + 2, leaves, totalStyle);
-      setCell(rIndex, totalColStart + 3, payDays, totalStyle);
+      setCell(rIndex, totalColStart, daysInMonth, totalStyle);
+      setCell(rIndex, totalColStart + 1, workingDays, totalStyle);
+      setCell(rIndex, totalColStart + 2, lateMarks, totalStyle);
+      setCell(rIndex, totalColStart + 3, leaves, totalStyle);
+      setCell(rIndex, totalColStart + 4, payDays, totalStyle);
     });
 
     // Merges for title row (only Row 0 is merged)
@@ -628,6 +630,7 @@ const OutstationAttendance = () => {
     for (let d = 1; d <= daysInMonth; d++) {
       wscols.push({ wch: 9 });
     }
+    wscols.push({ wch: 11 }); // Total Days
     wscols.push({ wch: 13 }); // Working Day
     wscols.push({ wch: 11 }); // Late Mark
     wscols.push({ wch: 9 });  // Leave
