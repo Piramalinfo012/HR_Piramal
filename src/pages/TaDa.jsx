@@ -527,9 +527,13 @@ const TaDa = () => {
 
     const reportRows = Object.keys(byEmployee).sort().map((name) => {
       const row = { 'Employee Name': name };
+      let totalKm = 0;
       vehicleTypes.forEach((vt) => {
-        row[`${vt} Km`] = Math.round(byEmployee[name].km[vt] || 0);
+        const km = Math.round(byEmployee[name].km[vt] || 0);
+        row[`${vt} Km`] = km;
+        totalKm += km;
       });
+      row['Total Km'] = totalKm;
       row['Total Trips'] = byEmployee[name].trips;
 
       let totalAmount = 0;
@@ -545,6 +549,7 @@ const TaDa = () => {
     const header = [
       'Employee Name',
       ...vehicleTypes.map((vt) => `${vt} Km`),
+      'Total Km',
       'Total Trips',
       ...vehicleTypes.map((vt) => `${vt} Amount`),
       'Total Amount',
@@ -553,11 +558,12 @@ const TaDa = () => {
     const worksheet = XLSXStyle.utils.json_to_sheet(reportRows, { header });
 
     // Highlight the Total Trips and Total Amount columns (header + data).
-    const totalTripsCol = 1 + vehicleTypes.length;
+    const totalKmCol = 1 + vehicleTypes.length;
+    const totalTripsCol = 2 + vehicleTypes.length;
     const totalAmountCol = header.length - 1;
     const highlight = { fill: { fgColor: { rgb: 'FFF200' } }, font: { bold: true } };
     for (let r = 0; r <= reportRows.length; r++) {
-      [totalTripsCol, totalAmountCol].forEach((c) => {
+      [totalKmCol, totalTripsCol, totalAmountCol].forEach((c) => {
         const ref = XLSXStyle.utils.encode_cell({ r, c });
         if (worksheet[ref]) {
           worksheet[ref].s = { ...(worksheet[ref].s || {}), ...highlight };
