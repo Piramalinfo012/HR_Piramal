@@ -656,7 +656,7 @@ const TaDa = () => {
 
   return (
     <div className="space-y-5">
-      <div className="overflow-visible rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="relative z-[60] overflow-visible rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="h-1 bg-gradient-to-r from-indigo-600 via-sky-500 to-emerald-500" />
         <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -689,7 +689,7 @@ const TaDa = () => {
                 </button>
 
                 {downloadMenuOpen && (
-                  <div className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-xl">
+                  <div className="absolute right-0 z-[70] mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-xl">
                     <button
                       type="button"
                       onClick={() => {
