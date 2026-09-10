@@ -16,6 +16,7 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import XLSXStyle from 'xlsx-js-style';
 
 const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
 const OUTSTATION_SPREADSHEET_ID = '1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw';
@@ -507,7 +508,7 @@ const TaDa = () => {
     XLSX.writeFile(workbook, `ta_da_${activeTab}_${monthFilter || 'all'}_${yearFilter || 'all'}.xlsx`);
   };
 
-  // Employee-wise vehicle (Bus/Car/Bike) trip count + amount from the filtered FMS rows.
+  // Employee-wise vehicle KM + amount from the filtered FMS rows.
   const downloadVehicleCount = () => {
     const vehicleTypes = [...new Set(filteredRows.map((item) => String(item.vehicleType || '').trim() || 'Unknown'))].sort();
 
@@ -516,21 +517,20 @@ const TaDa = () => {
       const name = String(item.employeeName || '').trim();
       if (!name) return;
       const vt = String(item.vehicleType || '').trim() || 'Unknown';
+      const km = Number(item.totalRunningKm) || 0;
       const amount = Number(item.totalAmount) || Number(item.inVehicleAmount) || 0;
-      if (!byEmployee[name]) byEmployee[name] = { counts: {}, amounts: {} };
-      byEmployee[name].counts[vt] = (byEmployee[name].counts[vt] || 0) + 1;
+      if (!byEmployee[name]) byEmployee[name] = { km: {}, amounts: {}, trips: 0 };
+      byEmployee[name].km[vt] = (byEmployee[name].km[vt] || 0) + km;
       byEmployee[name].amounts[vt] = (byEmployee[name].amounts[vt] || 0) + amount;
+      byEmployee[name].trips += 1;
     });
 
     const reportRows = Object.keys(byEmployee).sort().map((name) => {
       const row = { 'Employee Name': name };
-      let totalTrips = 0;
       vehicleTypes.forEach((vt) => {
-        const count = byEmployee[name].counts[vt] || 0;
-        row[vt] = count;
-        totalTrips += count;
+        row[`${vt} Km`] = Math.round(byEmployee[name].km[vt] || 0);
       });
-      row['Total Trips'] = totalTrips;
+      row['Total Trips'] = byEmployee[name].trips;
 
       let totalAmount = 0;
       vehicleTypes.forEach((vt) => {
@@ -544,15 +544,30 @@ const TaDa = () => {
 
     const header = [
       'Employee Name',
-      ...vehicleTypes,
+      ...vehicleTypes.map((vt) => `${vt} Km`),
       'Total Trips',
       ...vehicleTypes.map((vt) => `${vt} Amount`),
       'Total Amount',
     ];
-    const worksheet = XLSX.utils.json_to_sheet(reportRows, { header });
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Vehicle Count');
-    XLSX.writeFile(workbook, `ta_da_vehicle_count_${monthFilter || 'all'}_${yearFilter || 'all'}.xlsx`);
+
+    const worksheet = XLSXStyle.utils.json_to_sheet(reportRows, { header });
+
+    // Highlight the Total Trips and Total Amount columns (header + data).
+    const totalTripsCol = 1 + vehicleTypes.length;
+    const totalAmountCol = header.length - 1;
+    const highlight = { fill: { fgColor: { rgb: 'FFF200' } }, font: { bold: true } };
+    for (let r = 0; r <= reportRows.length; r++) {
+      [totalTripsCol, totalAmountCol].forEach((c) => {
+        const ref = XLSXStyle.utils.encode_cell({ r, c });
+        if (worksheet[ref]) {
+          worksheet[ref].s = { ...(worksheet[ref].s || {}), ...highlight };
+        }
+      });
+    }
+
+    const workbook = XLSXStyle.utils.book_new();
+    XLSXStyle.utils.book_append_sheet(workbook, worksheet, 'Vehicle Count');
+    XLSXStyle.writeFile(workbook, `ta_da_vehicle_count_${monthFilter || 'all'}_${yearFilter || 'all'}.xlsx`);
   };
 
   const buildFmsKmSummary = (rows, includeEmployee) => {
