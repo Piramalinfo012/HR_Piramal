@@ -5,6 +5,7 @@ import XLSX from 'xlsx-js-style';
 const OUTSTATION_SCRIPT_URL = import.meta.env.VITE_OUTSTATION_SHEET_URL;
 const OUTSTATION_SPREADSHEET_ID = '1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw';
 const LEAVE_API_URL = import.meta.env.VITE_LEAVE_REQUEST_SHEET_URL;
+const LEAVING_API_URL = import.meta.env.VITE_LEAVING_SHEET_URL;
 const LEAVE_SHEET_NAME = 'FMS';
 const LEAVE_DATA_START_INDEX = 6;
 
@@ -50,6 +51,7 @@ const OutstationAttendance = () => {
   const [reportYear, setReportYear] = useState('');
   const [empCodeMap, setEmpCodeMap] = useState({});
   const [masterData, setMasterData] = useState([]);
+  const [exitedEmployees, setExitedEmployees] = useState({});
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -247,7 +249,7 @@ const OutstationAttendance = () => {
         });
       };
 
-      const [rawAttendance, rawLeaves, joiningResponse, masterResponse] = await Promise.all([
+      const [rawAttendance, rawLeaves, joiningResponse, masterResponse, exitResponse] = await Promise.all([
         fetchRawAttendance(),
         LEAVE_API_URL
           ? fetch(`${LEAVE_API_URL}?sheet=${encodeURIComponent(LEAVE_SHEET_NAME)}&action=fetch`)
@@ -277,10 +279,38 @@ const OutstationAttendance = () => {
           .catch((e) => {
             console.warn('Master shift data skipped:', e);
             return [];
-          })
+          }),
+        LEAVING_API_URL
+          ? fetch(`${LEAVING_API_URL}?action=fetch&sheet=FMS&_=${Date.now()}`)
+            .then(async (res) => {
+              if (!res.ok) throw new Error(`Exit HTTP error! status: ${res.status}`);
+              const result = await res.json();
+              return Array.isArray(result.data) ? result.data : [];
+            })
+            .catch((e) => {
+              console.warn('Exit (leaving) data skipped:', e);
+              return [];
+            })
+          : Promise.resolve([])
       ]);
 
       setMasterData(masterResponse || []);
+
+      // Map exited employees -> last working day (col H / index 7), keyed by
+      // candidate name (col K / index 10). Used to hide them from reports for
+      // months after their exit month.
+      const exitMap = {};
+      (exitResponse || []).forEach((row) => {
+        const name = String(row[10] || '').trim();
+        if (!name || /^canidate name$|^candidate name$/i.test(name)) return;
+        const lwdRaw = row[7];
+        if (!lwdRaw) return;
+        const lwd = new Date(lwdRaw);
+        if (Number.isNaN(lwd.getTime())) return;
+        const key = normalizeName(name);
+        if (!exitMap[key] || lwd > exitMap[key]) exitMap[key] = lwd;
+      });
+      setExitedEmployees(exitMap);
 
       // Build Employee Code Map from Joining Sheet
       const codeMap = {};
@@ -428,7 +458,11 @@ const OutstationAttendance = () => {
         )
         .map((i) => i.employeeName)
         .filter(Boolean)
-    )].sort();
+    )].sort().filter((emp) => {
+      // Hide employees who left before the report month.
+      const lwd = exitedEmployees[normalizeName(emp)];
+      return !lwd || lwd >= new Date(Number(reportYear), monthOrder.indexOf(reportMonth), 1);
+    });
 
     const ws = {};
     const lastColIndex = 2 + daysInMonth + 5 - 1;
@@ -682,7 +716,11 @@ const OutstationAttendance = () => {
         )
         .map((i) => i.employeeName)
         .filter(Boolean)
-    )].sort();
+    )].sort().filter((emp) => {
+      // Hide employees who left before the report month.
+      const lwd = exitedEmployees[normalizeName(emp)];
+      return !lwd || lwd >= new Date(Number(reportYear), monthOrder.indexOf(reportMonth), 1);
+    });
     const monthIndex = monthOrder.indexOf(reportMonth);
     const daysInMonth = new Date(Number(reportYear), monthIndex + 1, 0).getDate();
     const todayStart = new Date();
