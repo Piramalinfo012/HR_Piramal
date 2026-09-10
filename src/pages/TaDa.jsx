@@ -507,6 +507,38 @@ const TaDa = () => {
     XLSX.writeFile(workbook, `ta_da_${activeTab}_${monthFilter || 'all'}_${yearFilter || 'all'}.xlsx`);
   };
 
+  // Employee-wise vehicle (Bus/Car/Bike) trip count from the filtered FMS rows.
+  const downloadVehicleCount = () => {
+    const vehicleTypes = [...new Set(filteredRows.map((item) => String(item.vehicleType || '').trim() || 'Unknown'))].sort();
+
+    const byEmployee = {};
+    filteredRows.forEach((item) => {
+      const name = String(item.employeeName || '').trim();
+      if (!name) return;
+      const vt = String(item.vehicleType || '').trim() || 'Unknown';
+      if (!byEmployee[name]) byEmployee[name] = {};
+      byEmployee[name][vt] = (byEmployee[name][vt] || 0) + 1;
+    });
+
+    const reportRows = Object.keys(byEmployee).sort().map((name) => {
+      const row = { 'Employee Name': name };
+      let total = 0;
+      vehicleTypes.forEach((vt) => {
+        const count = byEmployee[name][vt] || 0;
+        row[vt] = count;
+        total += count;
+      });
+      row['Total Trips'] = total;
+      return row;
+    });
+
+    const header = ['Employee Name', ...vehicleTypes, 'Total Trips'];
+    const worksheet = XLSX.utils.json_to_sheet(reportRows, { header });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Vehicle Count');
+    XLSX.writeFile(workbook, `ta_da_vehicle_count_${monthFilter || 'all'}_${yearFilter || 'all'}.xlsx`);
+  };
+
   const buildFmsKmSummary = (rows, includeEmployee) => {
     const summaryMap = rows.reduce((acc, item) => {
       const monthName = item.month || 'No Month';
@@ -668,6 +700,17 @@ const TaDa = () => {
                       className="block w-full px-4 py-2.5 text-left font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
                     >
                       Full Data Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDownloadMenuOpen(false);
+                        downloadVehicleCount();
+                      }}
+                      disabled={filteredRows.length === 0}
+                      className="block w-full px-4 py-2.5 text-left font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+                    >
+                      Vehicle Count (Bus/Car) Excel
                     </button>
                     <button
                       type="button"
