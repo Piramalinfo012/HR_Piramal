@@ -350,7 +350,12 @@ const OutstationAttendance = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  const employeeOptions = [...new Set(attendanceData.map((i) => i.employeeName).filter(Boolean))].sort();
+  const employeeOptions = [...new Set(
+    attendanceData
+      .filter((i) => (!monthFilter || i.month === monthFilter) && (!yearFilter || i.year === yearFilter))
+      .map((i) => i.employeeName)
+      .filter(Boolean)
+  )].sort();
   const monthOptions = [...new Set(attendanceData.map((i) => i.month).filter(Boolean))]
     .sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
   const yearOptions = [...new Set(attendanceData.map((i) => i.year).filter(Boolean))].sort();
