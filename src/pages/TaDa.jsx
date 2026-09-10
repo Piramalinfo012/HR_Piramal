@@ -420,8 +420,13 @@ const TaDa = () => {
       : advanceRows;
 
   const employeeOptions = useMemo(
-    () => [...new Set(allRows.map((item) => item.employeeName).filter(Boolean))].sort(),
-    [allRows]
+    () => [...new Set(
+      allRows
+        .filter((item) => (!monthFilter || item.month === monthFilter) && (!yearFilter || item.year === yearFilter))
+        .map((item) => item.employeeName)
+        .filter(Boolean)
+    )].sort(),
+    [allRows, monthFilter, yearFilter]
   );
   const monthOptions = useMemo(
     () => [...new Set(allRows.map((item) => item.month).filter(Boolean))]
