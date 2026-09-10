@@ -507,7 +507,7 @@ const TaDa = () => {
     XLSX.writeFile(workbook, `ta_da_${activeTab}_${monthFilter || 'all'}_${yearFilter || 'all'}.xlsx`);
   };
 
-  // Employee-wise vehicle (Bus/Car/Bike) trip count from the filtered FMS rows.
+  // Employee-wise vehicle (Bus/Car/Bike) trip count + amount from the filtered FMS rows.
   const downloadVehicleCount = () => {
     const vehicleTypes = [...new Set(filteredRows.map((item) => String(item.vehicleType || '').trim() || 'Unknown'))].sort();
 
@@ -516,23 +516,39 @@ const TaDa = () => {
       const name = String(item.employeeName || '').trim();
       if (!name) return;
       const vt = String(item.vehicleType || '').trim() || 'Unknown';
-      if (!byEmployee[name]) byEmployee[name] = {};
-      byEmployee[name][vt] = (byEmployee[name][vt] || 0) + 1;
+      const amount = Number(item.totalAmount) || Number(item.inVehicleAmount) || 0;
+      if (!byEmployee[name]) byEmployee[name] = { counts: {}, amounts: {} };
+      byEmployee[name].counts[vt] = (byEmployee[name].counts[vt] || 0) + 1;
+      byEmployee[name].amounts[vt] = (byEmployee[name].amounts[vt] || 0) + amount;
     });
 
     const reportRows = Object.keys(byEmployee).sort().map((name) => {
       const row = { 'Employee Name': name };
-      let total = 0;
+      let totalTrips = 0;
       vehicleTypes.forEach((vt) => {
-        const count = byEmployee[name][vt] || 0;
+        const count = byEmployee[name].counts[vt] || 0;
         row[vt] = count;
-        total += count;
+        totalTrips += count;
       });
-      row['Total Trips'] = total;
+      row['Total Trips'] = totalTrips;
+
+      let totalAmount = 0;
+      vehicleTypes.forEach((vt) => {
+        const amount = Math.round(byEmployee[name].amounts[vt] || 0);
+        row[`${vt} Amount`] = amount;
+        totalAmount += amount;
+      });
+      row['Total Amount'] = totalAmount;
       return row;
     });
 
-    const header = ['Employee Name', ...vehicleTypes, 'Total Trips'];
+    const header = [
+      'Employee Name',
+      ...vehicleTypes,
+      'Total Trips',
+      ...vehicleTypes.map((vt) => `${vt} Amount`),
+      'Total Amount',
+    ];
     const worksheet = XLSX.utils.json_to_sheet(reportRows, { header });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Vehicle Count');
