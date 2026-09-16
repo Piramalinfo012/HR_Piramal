@@ -99,6 +99,35 @@ const clearCacheIDB = async () => {
     // ignore
   }
 };
+// --- Concurrency Queue for Google Apps Script ---
+// Blasting Google Apps Script with 5+ parallel requests simultaneously triggers
+// Google's concurrent execution rate-limit (returning temporary 404s).
+// Throttling to 2 concurrent in-flight requests eliminates these initial drops.
+let activeNetworkFetches = 0;
+const MAX_CONCURRENT_FETCHES = 2;
+const fetchQueue = [];
+
+const processQueue = async () => {
+  if (activeNetworkFetches >= MAX_CONCURRENT_FETCHES || fetchQueue.length === 0) return;
+  activeNetworkFetches++;
+  const item = fetchQueue.shift();
+  try {
+    const result = await item.fn();
+    item.resolve(result);
+  } catch (err) {
+    item.reject(err);
+  } finally {
+    activeNetworkFetches--;
+    setTimeout(processQueue, 60);
+  }
+};
+
+const queueFetch = (fn) => {
+  return new Promise((resolve, reject) => {
+    fetchQueue.push({ fn, resolve, reject });
+    processQueue();
+  });
+};
 // -----------------------------------------------------------
 
 export const initGlobalCache = () => {
@@ -182,11 +211,11 @@ export const initGlobalCache = () => {
           }
         }
 
-        // 3. Fallback: Network Fetch (with retry & resilient error shielding).
+        // 3. Fallback: Network Fetch (with concurrency queue, retry & resilient error shielding).
         // Google Apps Script's "echo" redirect intermittently 404s (concurrent-execution limit)
         // or throws CORS/network errors or returns HTML error pages.
-        // Both are transient, so retry with exponential backoff.
-        const fetchOnce = () => originalFetch(input, init);
+        // Queueing + exponential backoff avoids rate-limiting and recovers automatically.
+        const fetchOnce = () => queueFetch(() => originalFetch(input, init));
 
         const isInvalidBody = (text) => {
           if (typeof text !== 'string') return true;
