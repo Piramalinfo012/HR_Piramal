@@ -141,20 +141,15 @@ export const initGlobalCache = () => {
         
         const cacheKey = urlObj.toString();
 
-        if (shouldForceNetwork || hasFreshParam) {
+        const shouldBypassCache = shouldForceNetwork || hasFreshParam || isBypassCache;
+
+        // If bypass is requested, clear in-memory cache for this key so fresh data is fetched
+        if (shouldBypassCache) {
           fetchCache.delete(cacheKey);
-          deleteCacheIDB(cacheKey);
-          return originalFetch(input, init);
         }
 
-        // If the user clicked "Refresh", we bypass the cache and clear it for this key
-        if (isBypassCache) {
-          fetchCache.delete(cacheKey);
-          deleteCacheIDB(cacheKey); // Clear from persistent cache
-        }
-
-        // 1. Check Memory Cache
-        if (fetchCache.has(cacheKey)) {
+        // 1. Check Memory Cache (unless bypass requested)
+        if (!shouldBypassCache && fetchCache.has(cacheKey)) {
           const cachedPromise = fetchCache.get(cacheKey);
           try {
             const res = await cachedPromise;
@@ -166,8 +161,8 @@ export const initGlobalCache = () => {
           }
         }
 
-        // 2. Check Persistent IndexedDB Cache
-        if (!isBypassCache) {
+        // 2. Check Persistent IndexedDB Cache (unless bypass requested)
+        if (!shouldBypassCache) {
           const idbData = await getCacheIDB(cacheKey);
           const cachedBody = idbData && typeof idbData.body === 'string' ? idbData.body.trim() : '';
           const isPoisoned = !cachedBody || cachedBody.startsWith('<');
@@ -187,56 +182,89 @@ export const initGlobalCache = () => {
           }
         }
 
-        // 3. Fallback: Network Fetch (with retry). Apps Script's "echo" redirect
-        // target intermittently 404s (concurrent-execution limit) or returns
-        // HTTP 200 with an HTML error/quota page - both are transient, so retry
-        // a few times with backoff instead of failing/caching the bad response.
+        // 3. Fallback: Network Fetch (with retry & resilient error shielding).
+        // Google Apps Script's "echo" redirect intermittently 404s (concurrent-execution limit)
+        // or throws CORS/network errors or returns HTML error pages.
+        // Both are transient, so retry with exponential backoff.
         const fetchOnce = () => originalFetch(input, init);
 
         const isInvalidBody = (text) => {
+          if (typeof text !== 'string') return true;
           const trimmed = text.trim();
           return !trimmed || trimmed.startsWith('<');
         };
 
-        const MAX_ATTEMPTS = 6;
-        const RETRY_DELAYS_MS = [400, 700, 1100, 1600, 2200];
+        const MAX_ATTEMPTS = 5;
+        const RETRY_DELAYS_MS = [300, 600, 1000, 1500];
 
         const promise = (async () => {
-          let res;
+          let res = null;
           let text = '';
+          let lastError = null;
 
           for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
             if (attempt > 0) {
               await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1]));
             }
 
-            res = await fetchOnce();
-            if (!res.ok) continue;
+            try {
+              res = await fetchOnce();
+              if (!res || !res.ok) continue;
 
-            text = await res.clone().text();
-            if (!isInvalidBody(text)) break;
+              text = await res.clone().text();
+              if (!isInvalidBody(text)) {
+                lastError = null;
+                break;
+              }
+            } catch (err) {
+              lastError = err;
+            }
           }
 
-          if (!res.ok || isInvalidBody(text)) {
-            // Still bad after retries - do not poison the shared cache for other pages
-            fetchCache.delete(cacheKey);
+          if (res && res.ok && !isInvalidBody(text)) {
+            // Save to persistent cache only once we know the body is real data
+            try {
+              await setCacheIDB(cacheKey, {
+                body: text,
+                timestamp: Date.now()
+              });
+            } catch (e) {
+              console.error("IDB Save error", e);
+            }
             return res;
           }
 
-          // Save to persistent cache only once we know the body is real data
-          try {
-            await setCacheIDB(cacheKey, {
-              body: text,
-              timestamp: Date.now()
+          // If network/404 failed after retries, check if we have any stale data in IDB to gracefully serve
+          const staleIdb = await getCacheIDB(cacheKey);
+          if (staleIdb && typeof staleIdb.body === 'string' && !staleIdb.body.trim().startsWith('<')) {
+            return new Response(staleIdb.body, {
+              status: 200,
+              headers: new Headers({ 'Content-Type': 'application/json' })
             });
-          } catch (e) {
-            console.error("IDB Save error", e);
           }
 
-          return res;
+          // Bad response and no stale cache available - do not poison memory cache
+          fetchCache.delete(cacheKey);
+
+          // Return a safe synthetic JSON response so calling components don't crash on .json() or unhandled promise rejection
+          return new Response(JSON.stringify({
+            success: false,
+            data: [],
+            error: lastError ? lastError.message : 'Google Apps Script temporary response failure'
+          }), {
+            status: 200,
+            headers: new Headers({ 'Content-Type': 'application/json' })
+          });
         })().catch(err => {
           fetchCache.delete(cacheKey);
-          throw err;
+          return new Response(JSON.stringify({
+            success: false,
+            data: [],
+            error: err?.message || 'Network error'
+          }), {
+            status: 200,
+            headers: new Headers({ 'Content-Type': 'application/json' })
+          });
         });
 
         fetchCache.set(cacheKey, promise);
