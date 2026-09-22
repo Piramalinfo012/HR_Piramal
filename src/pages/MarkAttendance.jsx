@@ -891,8 +891,25 @@ const MarkAttendance = () => {
     try {
       const now = await getTrustedNow();
       const trustedToday = dateKey(now);
-      const trustedTodayEntries = rawEntries
-        .filter((entry) => scopedAliases.includes(normalize(entry.employeeName)) && dateKey(entry.dateObj) === trustedToday)
+
+      // Merge the persisted cache so a rapid re-tap sees the just-made (optimistic)
+      // punch even if React state is stale — prevents duplicate IN/OUT entries.
+      const cachedPunchData = readCache(MARK_ATTENDANCE_DATA_CACHE_KEY, MARK_ATTENDANCE_CACHE_TTL_MS) || {};
+      const cachedPunchEntries = Array.isArray(cachedPunchData.rawEntries) ? cachedPunchData.rawEntries : [];
+      const seenPunchKeys = new Set();
+      const trustedTodayEntries = [...rawEntries, ...cachedPunchEntries]
+        .map((entry) => ({ ...entry, dateObj: parseDateToObj(entry.dateObj) || parseDateToObj(entry.date) }))
+        .filter((entry) =>
+          entry.dateObj &&
+          scopedAliases.includes(normalize(entry.employeeName)) &&
+          dateKey(entry.dateObj) === trustedToday
+        )
+        .filter((entry) => {
+          const key = `${entry.status}_${Math.round(entry.dateObj.getTime() / 1000)}`;
+          if (seenPunchKeys.has(key)) return false;
+          seenPunchKeys.add(key);
+          return true;
+        })
         .sort((a, b) => a.dateObj - b.dateObj);
 
       if (trustedTodayEntries.length >= 2) return;
