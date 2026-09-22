@@ -1029,14 +1029,15 @@ const CallTracker = () => {
       {/* Modal code remains largely unchanged but ensures correct logic */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full max-h-[85vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-4 sm:p-6 border-b sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-gray-800">{editingId ? "Edit Task" : "Add New Task"}</h2>
               <button onClick={() => { setShowModal(false); setEditingId(null); resetForm(); }} className="text-gray-500 hover:text-gray-700 transition-colors">
                 <X size={24} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1191,7 +1192,8 @@ const CallTracker = () => {
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1">Leave empty to keep existing file during edit</p>
               </div>
-              <div className="flex flex-col sm:flex-row sm:justify-end gap-3 pt-4 border-t">
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-end gap-3 border-t bg-white p-4 sm:px-6 sm:py-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
