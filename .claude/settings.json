@@ -8,7 +8,12 @@
       "Bash(grep -n \"Calling Tracking&action=fetch\\\\b\\\\|action=fetch\\\\${cb}\" src/pages/InterviewScheduled.jsx)",
       "Bash(grep -rlE \"action=fetch\\(&|\\\\`|\\\\\"|'|\\\\$\\)\" src/pages src/hooks)",
       "Bash(git checkout *)",
-      "Bash(curl -s -L -X POST https://script.google.com/macros/s/AKfycby2n7Do3EZCP_dKjQOLzeMxfzppoBH1D1PQL52FziQLWx6nfSq1ikxhazVeejfdjLDN/exec --data-urlencode sheetName=FMS --data-urlencode action=updateCell --data-urlencode rowIndex=2 --data-urlencode columnIndex=26 --data-urlencode value= -o /dev/null -w '  HTTP %{http_code}  time=%{time_total}s\\\\n' --max-time 60)"
+      "Bash(curl -s -L -X POST https://script.google.com/macros/s/AKfycby2n7Do3EZCP_dKjQOLzeMxfzppoBH1D1PQL52FziQLWx6nfSq1ikxhazVeejfdjLDN/exec --data-urlencode sheetName=FMS --data-urlencode action=updateCell --data-urlencode rowIndex=2 --data-urlencode columnIndex=26 --data-urlencode value= -o /dev/null -w '  HTTP %{http_code}  time=%{time_total}s\\\\n' --max-time 60)",
+      "Bash(curl -s -L -o /tmp/master.json -w 'HTTP %{http_code}  time=%{time_total}s  size=%{size_download}\\\\n' --max-time 30 'https://docs.google.com/spreadsheets/d/1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw/gviz/tq?tqx=out:json&sheet=Master&cb=__CMDSUB_OUTPUT__')",
+      "Read(//tmp/**)",
+      "Bash(cd /tmp)",
+      "Bash(python3 -)",
+      "Bash(node -e ' *)"
     ]
   }
 }
