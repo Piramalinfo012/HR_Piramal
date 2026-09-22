@@ -3,7 +3,12 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(curl -s -L -o /dev/null -w '  HTTP %{http_code}  time=%{time_total}s  size=%{size_download}\\\\n' --max-time 90 'https://script.google.com/macros/s/AKfycby2n7Do3EZCP_dKjQOLzeMxfzppoBH1D1PQL52FziQLWx6nfSq1ikxhazVeejfdjLDN/exec?sheet=Calling%20Tracking&action=fetchPaginated&page=1&limit=100000&search=&dateFilter=all&_=__CMDSUB_OUTPUT__')",
+      "Bash(grep -n \"Calling Tracking&action=fetch\\\\b\\\\|action=fetch\\\\${cb}\" src/pages/InterviewScheduled.jsx)",
+      "Bash(grep -rlE \"action=fetch\\(&|\\\\`|\\\\\"|'|\\\\$\\)\" src/pages src/hooks)",
+      "Bash(git checkout *)",
+      "Bash(curl -s -L -X POST https://script.google.com/macros/s/AKfycby2n7Do3EZCP_dKjQOLzeMxfzppoBH1D1PQL52FziQLWx6nfSq1ikxhazVeejfdjLDN/exec --data-urlencode sheetName=FMS --data-urlencode action=updateCell --data-urlencode rowIndex=2 --data-urlencode columnIndex=26 --data-urlencode value= -o /dev/null -w '  HTTP %{http_code}  time=%{time_total}s\\\\n' --max-time 60)"
     ]
   }
 }
