@@ -100,13 +100,13 @@ const clearCacheIDB = async () => {
   }
 };
 // --- Concurrency Queue for Google Apps Script ---
-// Parallel requests to the same Apps Script trigger Google's concurrent
-// execution rate-limit (returning temporary 404s on the echo redirect).
-// Serializing to 1 in-flight request (with a small gap) avoids the overlap
-// that causes those 404s, without touching the backend.
+// Parallel requests to the same Apps Script can trip Google's concurrent
+// execution rate-limit (temporary 404s on the echo redirect). Allow 2 in
+// flight so a page's data fetch isn't blocked behind slow background polls,
+// while still limiting the burst. Retries + cache below recover from 404s.
 let activeNetworkFetches = 0;
-const MAX_CONCURRENT_FETCHES = 1;
-const REQUEST_GAP_MS = 150;
+const MAX_CONCURRENT_FETCHES = 2;
+const REQUEST_GAP_MS = 80;
 const fetchQueue = [];
 
 const processQueue = async () => {
