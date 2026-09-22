@@ -17,9 +17,12 @@ import useAuthStore from "../store/authStore";
 import { pageRouteMap } from "../config/hrModules";
 import { getUserRole, isMobileViewport } from "../utils/authRole";
 
-const SHEET_API_URL = `${import.meta.env.VITE_GOOGLE_SHEET_URL}?sheet=USER&action=fetch`;
+// Login authenticates against the Outstation "Master" sheet via gviz (~0.6s),
+// which is far faster and more reliable than the USER Apps Script endpoint.
+const OUTSTATION_MASTER_SPREADSHEET_ID = "1WTT8ZQhtf1yeSChNn2uJeW5Tz2TvYjQLrxhTx5l4Fgw";
+const MASTER_GVIZ_URL = `https://docs.google.com/spreadsheets/d/${OUTSTATION_MASTER_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=Master`;
 const LEAVING_API_URL = `${import.meta.env.VITE_LEAVING_SHEET_URL}?sheet=LEAVING&action=fetch`;
-const USER_CACHE_KEY = "hr-fms-user-cache-v3";
+const USER_CACHE_KEY = "hr-fms-user-cache-v4";
 const USER_CACHE_TTL = 30 * 60 * 1000; // 30 minutes cache for instant login
 const USER_FETCH_TIMEOUT = 20000;
 const LEAVING_FETCH_TIMEOUT = 1500; // Fast timeout for leaving check so it doesn't block
@@ -57,31 +60,43 @@ const writeUserCache = (rows) => {
   }
 };
 
-const normalizeHeader = (value) => value?.toString().trim().toLowerCase().replace(/\s+/g, " ");
-
-const findHeaderIndex = (headers, names) => {
-  const normalizedNames = names.map(normalizeHeader);
-  return headers.findIndex((header) => normalizedNames.includes(normalizeHeader(header)));
+// Parse a Google Visualization (gviz) JSON response into an array of row
+// arrays. gviz consumes the sheet's header row, so the returned rows already
+// start at the first data row.
+const parseGvizTable = (text) => {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) throw new Error("Error fetching user data");
+  const payload = JSON.parse(text.slice(start, end + 1));
+  if (payload.status && payload.status !== "ok") throw new Error("Error fetching user data");
+  return (payload.table?.rows || []).map((row) =>
+    (row.c || []).map((cell) => (cell ? (cell.f ?? cell.v ?? "") : ""))
+  );
 };
 
-const getCellByHeader = (headers, row, names, fallbackIndex = -1) => {
-  const headerIndex = findHeaderIndex(headers, names);
-  const index = headerIndex !== -1 ? headerIndex : fallbackIndex;
-  if (index === -1) return "";
-  return row[index] !== undefined && row[index] !== null ? row[index].toString().trim() : "";
+const fetchMasterRowsFromNetwork = async () => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), USER_FETCH_TIMEOUT);
+  try {
+    const response = await fetch(`${MASTER_GVIZ_URL}&cb=${Date.now()}`, { signal: controller.signal });
+    if (!response.ok) throw new Error("Error fetching user data");
+    return parseGvizTable(await response.text());
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 };
 
 const fetchUserRows = async () => {
   const cachedRows = readUserCache();
   if (cachedRows) return cachedRows;
 
-  const result = await fetchJsonWithTimeout(`${SHEET_API_URL}&_t=${Date.now()}`, USER_FETCH_TIMEOUT);
-  if (!result?.success || !Array.isArray(result.data)) {
+  const rows = await fetchMasterRowsFromNetwork();
+  if (!Array.isArray(rows) || rows.length === 0) {
     throw new Error("Error fetching user data");
   }
 
-  writeUserCache(result.data);
-  return result.data;
+  writeUserCache(rows);
+  return rows;
 };
 
 const fetchLeavingRows = async () => {
@@ -95,27 +110,41 @@ const fetchLeavingRows = async () => {
   }
 };
 
+// Master sheet columns (gviz, header row already consumed):
+// [0] Person Name, [1] User Name, [2] Password, [3] admin, [4] Access
 const parseUsers = (rows) => {
-  const headers = rows?.[0] || [];
-  const users = rows.slice(1).map((row, index) => {
-    const obj = {};
-    headers.forEach((header, i) => {
-      obj[header] = row[i];
-    });
-    obj.rowIndex = index + 2; // Data starts at row 2 in sheets
-    obj._displayName = getCellByHeader(headers, row, ["Name", "Sales Person Name", "Person Name", "Employee Name"], 0);
-    obj._authUsername = getCellByHeader(headers, row, ["Username", "User Name", "Login Username"], 1);
-    obj._authPassword = getCellByHeader(headers, row, ["Password", "Passcode"], 2);
-    obj.Name = obj.Name || obj._displayName;
-    obj.Username = obj.Username || obj["User Name"] || obj._authUsername;
-    obj.profilePic = row[12] || ""; // Column M
+  const users = (Array.isArray(rows) ? rows : [])
+    .map((row, index) => {
+      const personName = (row?.[0] ?? "").toString().trim();
+      const userName = (row?.[1] ?? "").toString().trim();
+      const password = (row?.[2] ?? "").toString().trim();
+      const adminFlag = (row?.[3] ?? "").toString().trim();
+      const access = (row?.[4] ?? "").toString().trim();
 
-    const deletedMarker = getCellByHeader(headers, row, ["Deleted", "Delete", "Status", "User Status"], 10);
-    obj.isDeleted = ["deleted", "inactive", "disabled"].includes(deletedMarker.toLowerCase());
-    return obj;
-  });
+      if (!userName && !personName) return null; // skip blank rows
 
-  return { headers, users };
+      return {
+        rowIndex: index + 2, // Master data starts at sheet row 2
+        Name: personName,
+        "Person Name": personName,
+        "Sales Person Name": personName,
+        Username: userName,
+        "User Name": userName,
+        Password: password,
+        admin: adminFlag,
+        Admin: adminFlag,
+        Access: access,
+        "Pages Access": access,
+        profilePic: "",
+        _displayName: personName || userName,
+        _authUsername: userName,
+        _authPassword: password,
+        isDeleted: false,
+      };
+    })
+    .filter(Boolean);
+
+  return { users };
 };
 
 const parseLeavingData = (rows) => {
@@ -201,10 +230,12 @@ const Login = () => {
         if (FETCH_URL) {
           fetch(`${FETCH_URL}?sheet=FMS&action=fetch`);
           fetch(`${FETCH_URL}?sheet=Calling Tracking&action=fetch`);
-          fetch(`${FETCH_URL}?sheet=USER&action=fetch`).then((response) => response.json()).then((freshUserData) => {
-            if (freshUserData?.success && Array.isArray(freshUserData.data)) writeUserCache(freshUserData.data);
-          }).catch(() => {});
         }
+        // Refresh the Master-based login cache in the background so the next
+        // login is instant with up-to-date users.
+        fetchMasterRowsFromNetwork().then((rows) => {
+          if (Array.isArray(rows) && rows.length) writeUserCache(rows);
+        }).catch(() => {});
         if (JOIN_URL) fetch(`${JOIN_URL}?action=read&sheet=JOINING_FMS`);
         fetch(`${JOINING_SUBMIT_URL}?action=read&sheet=JOINING ENTRY FORM`);
       } catch (prefetchError) {
