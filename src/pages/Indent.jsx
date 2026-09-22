@@ -58,41 +58,9 @@ const Indent = () => {
 
   const fetchData = async () => {
     setStoreLoading(true);
-    // 1. Force clear App Script cache for "FMS" and "Master" sheets by writing empty values to column Z
-    try {
-      await Promise.all([
-        fetch(FETCH_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: new URLSearchParams({
-            sheetName: "FMS",
-            action: "updateCell",
-            rowIndex: "2",
-            columnIndex: "26",
-            value: "",
-          }).toString(),
-        }),
-        fetch(FETCH_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: new URLSearchParams({
-            sheetName: "Master",
-            action: "updateCell",
-            rowIndex: "2",
-            columnIndex: "26",
-            value: "",
-          }).toString(),
-        })
-      ]);
-    } catch (cacheErr) {
-      console.warn("Cache clearing request failed, proceeding anyway", cacheErr);
-    }
-
-    // 2. Fetch the fresh data with multiple cache-busting options
+    // Fetch fresh data directly. The backend now reads live values fast, so the
+    // old blocking cache-clear POSTs on mount are unnecessary (they only slowed
+    // / stalled the first paint). The "Refresh Data" button still forces a recalc.
     try {
       const cb = `&_=${Date.now()}&realtime=1&cache=false&bypassCache=true`;
       const [fmsRes, masterRes] = await Promise.all([
