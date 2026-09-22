@@ -143,8 +143,8 @@ const InterviewScheduled = () => {
     return `${day}/${month}/${year}`;
   };
 
-  const loadData = async (isBackground = false) => {
-    if (!isBackground) setTableLoading(true);
+  const loadData = async (isBackground = false, attempt = 0) => {
+    if (!isBackground && attempt === 0) setTableLoading(true);
     let result = { success: false, data: [] };
     try {
       const cb = `&_=${Date.now()}`;
@@ -267,6 +267,11 @@ const InterviewScheduled = () => {
       setDisplayData(processed);
       setTotalRecords(result.totalRows || 0);
       if (result.nextTaskId) setNextTaskId(result.nextTaskId);
+    } else if (attempt < 2) {
+      // Apps Script intermittently returns a temporary failure on cold load;
+      // auto-retry a couple of times before giving up so the first refresh works.
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      return loadData(isBackground, attempt + 1);
     } else {
       toast.error(result.error || "Failed to load data");
       setDisplayData([]);
