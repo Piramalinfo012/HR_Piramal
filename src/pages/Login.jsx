@@ -155,6 +155,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const login = useAuthStore((state) => state.login);
+  const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
 
   const modules = useMemo(() => [
@@ -172,7 +173,7 @@ const Login = () => {
       const leavingRowsPromise = fetchLeavingRows();
 
       const userRows = await userRowsPromise;
-      const { headers: userHeaders, users } = parseUsers(userRows);
+      const { users } = parseUsers(userRows);
 
       const normalizedUsername = username.trim().toLowerCase();
       const matchedUser = users.find(
@@ -185,28 +186,9 @@ const Login = () => {
         return;
       }
 
-      const leavingRows = await leavingRowsPromise;
-      const { headers: leavingHeaders, data: leavingData } = parseLeavingData(leavingRows);
-      const userName = matchedUser._displayName || matchedUser.Name || matchedUser["Sales Person Name"] || matchedUser._authUsername;
-      const isUserLeaving = leavingData.some((record) => {
-        const leavingName = record[leavingHeaders[2]];
-        const leavingStatus = record[leavingHeaders[13]];
-        return (
-          leavingName &&
-          userName &&
-          leavingName.toString().toLowerCase() === userName.toString().toLowerCase() &&
-          leavingStatus !== null &&
-          leavingStatus !== undefined &&
-          leavingStatus !== ""
-        );
-      });
-
-      if (isUserLeaving) {
-        toast.error("Employee access has been deactivated");
-        setSubmitting(false);
-        return;
-      }
-
+      // Auth passed — log in and navigate immediately so login stays fast.
+      // The deactivated-employee (leaving) check runs in the background below
+      // and never blocks login.
       toast.success("Login successful!");
       localStorage.setItem("user", JSON.stringify(matchedUser));
       login(matchedUser);
@@ -230,6 +212,35 @@ const Login = () => {
       }
 
       navigate(resolveTargetRoute(matchedUser), { replace: true });
+
+      // Background deactivation check — never blocks login. If the employee has
+      // been marked as leaving, sign them straight back out.
+      leavingRowsPromise
+        .then((leavingRows) => {
+          const { headers: leavingHeaders, data: leavingData } = parseLeavingData(leavingRows);
+          if (!leavingData.length) return;
+          const userName = matchedUser._displayName || matchedUser.Name || matchedUser["Sales Person Name"] || matchedUser._authUsername;
+          const isUserLeaving = leavingData.some((record) => {
+            const leavingName = record[leavingHeaders[2]];
+            const leavingStatus = record[leavingHeaders[13]];
+            return (
+              leavingName &&
+              userName &&
+              leavingName.toString().toLowerCase() === userName.toString().toLowerCase() &&
+              leavingStatus !== null &&
+              leavingStatus !== undefined &&
+              leavingStatus !== ""
+            );
+          });
+
+          if (isUserLeaving) {
+            toast.error("Employee access has been deactivated");
+            localStorage.removeItem("user");
+            logout();
+            navigate("/login", { replace: true });
+          }
+        })
+        .catch(() => {});
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Network error");
