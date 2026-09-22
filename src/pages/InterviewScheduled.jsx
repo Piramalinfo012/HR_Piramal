@@ -25,25 +25,6 @@ const InterviewScheduled = () => {
   const [callingTrackingData, setCallingTrackingData] = useState([]);
   const FETCH_URL = import.meta.env.VITE_GOOGLE_SHEET_URL;
 
-  const fetchCallingTrackingData = async () => {
-    try {
-      const cb = `&_=${Date.now()}`;
-      const res = await fetch(
-        `${FETCH_URL}?sheet=Calling Tracking&action=fetch${cb}`,
-      );
-      const json = await res.json();
-      if (json.success && json.data) {
-        setCallingTrackingData(json.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch calling tracking data for counts", error);
-    }
-  };
-
-  useEffect(() => {
-    // Get fresh data for counts on mount
-    fetchCallingTrackingData();
-  }, []);
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -167,17 +148,17 @@ const InterviewScheduled = () => {
     let result = { success: false, data: [] };
     try {
       const cb = `&_=${Date.now()}`;
-      
-      
-      const needsClientSide = true; // Force client side to handle Interview Scheduling filter
 
-      if (needsClientSide) {
-        // Client-side filtering
-        const res = await fetch(`${FETCH_URL}?sheet=Calling Tracking&action=fetch${cb}`);
+      {
+        // Fast full fetch via the paginated endpoint (skips the backend's slow
+        // per-cell loop), then filter/paginate client-side. Returns data rows
+        // WITHOUT the header row.
+        const res = await fetch(`${FETCH_URL}?sheet=${encodeURIComponent("Calling Tracking")}&action=fetchPaginated&page=1&limit=100000&search=&dateFilter=all${cb}`);
         const json = await res.json();
-        
+
         if (json.success && json.data) {
-          let filtered = json.data.slice(1).filter(row => {
+          setCallingTrackingData(json.data); // for filter counts (no header)
+          let filtered = json.data.filter(row => {
             const statusStr = String(row[12] || "").trim();
             if(!statusStr || statusStr === "") return false;
             
@@ -258,11 +239,6 @@ const InterviewScheduled = () => {
         } else {
            result = { success: false, error: json.error || "Failed to fetch data" };
         }
-      } else {
-        // Server-side filtering for standard options (when Entry By is All and Date is not Custom)
-        const url = `${FETCH_URL}?sheet=${encodeURIComponent("Calling Tracking")}&action=fetchPaginated&page=${currentPage}&limit=${recordsPerPage}&search=${encodeURIComponent(searchTerm)}&dateFilter=${encodeURIComponent(dateFilter)}${cb}`;
-        const res = await fetch(url);
-        result = await res.json();
       }
     } catch (error) {
       console.error("Pagination Fetch Error:", error);
@@ -302,7 +278,7 @@ const InterviewScheduled = () => {
     setSubmitting(true);
     try {
       const cb = `&_=${Date.now()}`;
-      const resAll = await fetch(`${FETCH_URL}?sheet=Calling Tracking&action=fetch${cb}`);
+      const resAll = await fetch(`${FETCH_URL}?sheet=${encodeURIComponent("Calling Tracking")}&action=fetchPaginated&page=1&limit=100000&search=&dateFilter=all${cb}`);
       const jsonAll = await resAll.json();
       
       if (!jsonAll.success || !jsonAll.data) {
@@ -316,7 +292,7 @@ const InterviewScheduled = () => {
         throw new Error("Task not found. It may have been deleted.");
       }
       
-      const rowIndex = index + 1;
+      const rowIndex = index + 2; // fetchPaginated data has no header row
       let rowData = [...allData[index]];
       rowData[1] = ""; // Blank out Task ID during interview status update
       rowData[12] = inlineInterviewStatus;
@@ -372,7 +348,7 @@ const InterviewScheduled = () => {
       if (editingId) {
         // Update Mode - First find the row index
         const cb = `&_=${Date.now()}`;
-        const resAll = await fetch(`${FETCH_URL}?sheet=Calling Tracking&action=fetch${cb}`);
+        const resAll = await fetch(`${FETCH_URL}?sheet=${encodeURIComponent("Calling Tracking")}&action=fetchPaginated&page=1&limit=100000&search=&dateFilter=all${cb}`);
         const jsonAll = await resAll.json();
         
         if (!jsonAll.success || !jsonAll.data) {
@@ -387,7 +363,7 @@ const InterviewScheduled = () => {
           throw new Error("Task not found. It may have been deleted.");
         }
         
-        rowIndex = index + 1;
+        rowIndex = index + 2; // fetchPaginated data has no header row
         
         action = "update";
         rowData = [...allData[index]];
@@ -520,7 +496,7 @@ const InterviewScheduled = () => {
     try {
       // 1. Find the row index
       const cb = `&_=${Date.now()}`;
-      const resAll = await fetch(`${FETCH_URL}?sheet=Calling Tracking&action=fetch${cb}`);
+      const resAll = await fetch(`${FETCH_URL}?sheet=${encodeURIComponent("Calling Tracking")}&action=fetchPaginated&page=1&limit=100000&search=&dateFilter=all${cb}`);
       const jsonAll = await resAll.json();
       
       if (!jsonAll.success || !jsonAll.data) throw new Error("Could not fetch data to locate task.");
@@ -528,7 +504,7 @@ const InterviewScheduled = () => {
       const index = jsonAll.data.findIndex(row => row[1] === taskId);
       if (index === -1) throw new Error("Task not found.");
       
-      const rowIndex = index + 1;
+      const rowIndex = index + 2; // fetchPaginated data has no header row
 
       // 2. Send Delete Request (Trying deleteRow action)
       const res = await fetch(import.meta.env.VITE_GOOGLE_SHEET_URL, {
@@ -563,11 +539,11 @@ const InterviewScheduled = () => {
 
   // Calculate filter counts
   const filterCounts = React.useMemo(() => {
-    if (!callingTrackingData || callingTrackingData.length < 2) {
+    if (!callingTrackingData || callingTrackingData.length < 1) {
       return { all: 0, today: 0, yesterday: 0, monthly: 0 };
     }
 
-    const dataRows = callingTrackingData.slice(1);
+    const dataRows = callingTrackingData;
     const now = new Date();
 
     const counts = {
