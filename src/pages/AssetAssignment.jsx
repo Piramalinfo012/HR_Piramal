@@ -13,9 +13,10 @@ const AssetAssignment = () => {
 
     const [candidateData, setCandidateData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [deptFilter, setDeptFilter] = useState("");
     const [desigFilter, setDesigFilter] = useState("");
     const [tableLoading, setTableLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState("history");
+    const [activeTab, setActiveTab] = useState("pending");
     const [showModal, setShowModal] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
     const [formData, setFormData] = useState({
@@ -166,6 +167,10 @@ const AssetAssignment = () => {
         if (activeTab === "pending") filtered = filtered.filter(i => i.isPending);
         else if (activeTab === "history") filtered = filtered.filter(i => i.isHistory);
 
+        if (deptFilter) {
+            filtered = filtered.filter(item => item.department === deptFilter);
+        }
+
         if (desigFilter) {
             filtered = filtered.filter(item => item.designation === desigFilter);
         }
@@ -190,6 +195,7 @@ const AssetAssignment = () => {
         return filtered;
     };
 
+    const departments = [...new Set(candidateData.map(item => item.department))].filter(Boolean).sort();
     const designations = [...new Set(candidateData.map(item => item.designation))].filter(Boolean).sort();
 
     const filteredData = getFilteredData();
@@ -304,51 +310,77 @@ const AssetAssignment = () => {
             </div>
 
             <div className="bg-white p-4 rounded-lg shadow space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
-                    <div className="flex-1 max-w-md">
-                        <div className="relative w-full">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg w-fit">
+                        <button
+                            onClick={() => setActiveTab("pending")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-all ${activeTab === "pending" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        >
+                            Pending
+                            <span className={`px-2 py-0.5 rounded-full text-xs ${activeTab === "pending" ? "bg-navy text-white" : "bg-gray-200 text-gray-700"}`}>
+                                {candidateData.filter(i => i.isPending).length}
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("history")}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-all ${activeTab === "history" ? "bg-white text-navy shadow-sm" : "text-gray-600 hover:text-gray-800"}`}
+                        >
+                            History
+                            <span className={`px-2 py-0.5 rounded-full text-xs ${activeTab === "history" ? "bg-navy text-white" : "bg-gray-200 text-gray-700"}`}>
+                                {candidateData.filter(i => i.isHistory).length}
+                            </span>
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row items-end gap-3 flex-1 justify-end">
+                        <div className="relative flex-1 max-w-xs">
                             <input
                                 type="text"
                                 placeholder="Search by name, indent, etc..."
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy"
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
-                            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         </div>
-                    </div>
-                    <div className="flex space-x-2">
-                        <button
-                            onClick={() => setActiveTab('history')}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'history' ? 'bg-navy text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                        >History</button>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Designation</label>
-                        <select
-                            value={desigFilter}
-                            onChange={(e) => setDesigFilter(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
-                        >
-                            <option value="">All Designations</option>
-                            {designations.map(desig => (
-                                <option key={desig} value={desig}>{desig}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="flex items-end">
-                        <button
-                            onClick={() => {
-                                setSearchTerm("");
-                                setDesigFilter("");
-                            }}
-                            className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 mb-2"
-                        >
-                            <X size={14} /> Clear All Filters
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <div className="w-40">
+                                <select
+                                    value={deptFilter}
+                                    onChange={(e) => setDeptFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                                >
+                                    <option value="">All Departments</option>
+                                    {departments.map(dept => (
+                                        <option key={dept} value={dept}>{dept}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="w-40">
+                                <select
+                                    value={desigFilter}
+                                    onChange={(e) => setDesigFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-navy focus:border-navy bg-gray-50 text-sm"
+                                >
+                                    <option value="">All Designations</option>
+                                    {designations.map(desig => (
+                                        <option key={desig} value={desig}>{desig}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setSearchTerm("");
+                                    setDeptFilter("");
+                                    setDesigFilter("");
+                                }}
+                                className="text-sm text-navy hover:text-indigo-800 font-medium flex items-center gap-1 whitespace-nowrap px-2 py-2"
+                                title="Clear All Filters"
+                            >
+                                <X size={16} /> Clear
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -367,7 +399,7 @@ const AssetAssignment = () => {
 
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Indent Number</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate Name</th>
-                                    {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th> */}
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
                                     {activeTab === "history" && (
                                         <>
@@ -389,9 +421,9 @@ const AssetAssignment = () => {
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {tableLoading ? (
-                                    <tr><td colSpan="5" className="px-6 py-12 text-center text-gray-500">Loading...</td></tr>
+                                    <tr><td colSpan={activeTab === "pending" ? 5 : 8} className="px-6 py-12 text-center text-gray-500">Loading...</td></tr>
                                 ) : filteredData.length === 0 ? (
-                                    <tr><td colSpan="5" className="px-6 py-12 text-center text-gray-500">No candidates found.</td></tr>
+                                    <tr><td colSpan={activeTab === "pending" ? 5 : 8} className="px-6 py-12 text-center text-gray-500">No candidates found.</td></tr>
                                 ) : (
                                     filteredData.map((item, idx) => (
                                         <tr key={idx} className="hover:bg-gray-50">
@@ -408,7 +440,7 @@ const AssetAssignment = () => {
 
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-navy">{item.indentNumber}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.candidateName}</td>
-                                            {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department}</td> */}
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.department || "—"}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.designation}</td>
                                             {activeTab === "history" && (
                                                 <>
