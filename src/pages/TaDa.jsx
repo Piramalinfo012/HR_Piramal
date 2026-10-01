@@ -70,6 +70,11 @@ const parseDateToObj = (value) => {
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
+  const gvizMatch = raw.match(/^Date\((\d+),(\d+),(\d+)/i);
+  if (gvizMatch) {
+    return new Date(Number(gvizMatch[1]), Number(gvizMatch[2]), Number(gvizMatch[3]));
+  }
+
   const isoMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (isoMatch) return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
 
