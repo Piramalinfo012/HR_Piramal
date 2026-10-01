@@ -94,6 +94,10 @@ const OutstationAttendance = () => {
       const d = new Date(raw);
       return isNaN(d.getTime()) ? null : d;
     }
+    const gvizMatch = raw.match(/^Date\((\d+),(\d+),(\d+)/i);
+    if (gvizMatch) {
+      return new Date(Number(gvizMatch[1]), Number(gvizMatch[2]), Number(gvizMatch[3]));
+    }
     const isoMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (isoMatch) return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
     const slashMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
@@ -206,12 +210,35 @@ const OutstationAttendance = () => {
     setError(null);
     try {
       const fetchRawAttendance = async () => {
+        try {
+          // Direct fast gviz fetch for Attendance sheet (real-time & instant)
+          const gvizUrl = `https://docs.google.com/spreadsheets/d/${OUTSTATION_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=Attendance&cb=${Date.now()}`;
+          const gvizRes = await fetch(gvizUrl, { cache: 'no-store' });
+          if (gvizRes.ok) {
+            const gvizText = await gvizRes.text();
+            const rows = parseGoogleSheetTable(gvizText, "Attendance");
+            if (rows && rows.length > 0) {
+              return rows.map((row) => {
+                const statusStr = (row[3] || '').toString().trim().toUpperCase();
+                const dt = row[1] || row[0] || '';
+                return {
+                  personName: row[9] || '',
+                  dateTime: dt,
+                  inDate: statusStr === 'IN' ? dt : '',
+                  outDate: statusStr === 'OUT' ? dt : '',
+                  mapLink: row[7] || '',
+                  address: row[8] || '',
+                };
+              });
+            }
+          }
+        } catch (gvizErr) {
+          console.warn('GViz fetch error, falling back to Apps Script:', gvizErr);
+        }
+
         if (OUTSTATION_SCRIPT_URL) {
           try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 6000);
-            const res = await fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData`, { signal: controller.signal });
-            clearTimeout(timeoutId);
+            const res = await fetch(`${OUTSTATION_SCRIPT_URL}?action=getAllData&_=${Date.now()}`, { cache: 'no-store' });
             if (res.ok) {
               const text = await res.text();
               const jsonStart = text.indexOf('{');
@@ -224,29 +251,11 @@ const OutstationAttendance = () => {
               }
             }
           } catch (e) {
-            console.warn('OUTSTATION_SCRIPT_URL fetch skipped, using gviz fallback:', e);
+            console.warn('OUTSTATION_SCRIPT_URL fetch failed:', e);
           }
         }
 
-        // Direct gviz fallback for Attendance sheet
-        const gvizUrl = `https://docs.google.com/spreadsheets/d/${OUTSTATION_SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=Attendance&cb=${Date.now()}`;
-        const gvizRes = await fetch(gvizUrl);
-        if (!gvizRes.ok) throw new Error(`HTTP error! status: ${gvizRes.status}`);
-        const gvizText = await gvizRes.text();
-        const rows = parseGoogleSheetTable(gvizText, "Attendance");
-
-        return rows.map((row) => {
-          const statusStr = (row[3] || '').toString().trim().toUpperCase();
-          const dt = row[1] || row[0] || '';
-          return {
-            personName: row[9] || '',
-            dateTime: dt,
-            inDate: statusStr === 'IN' ? dt : '',
-            outDate: statusStr === 'OUT' ? dt : '',
-            mapLink: row[7] || '',
-            address: row[8] || '',
-          };
-        });
+        return [];
       };
 
       const [rawAttendance, rawLeaves, joiningResponse, masterResponse, exitResponse] = await Promise.all([
